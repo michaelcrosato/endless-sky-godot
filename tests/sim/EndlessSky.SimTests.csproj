@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <IsPackable>false</IsPackable>
+    <!-- The sources under test live in the GdCcT assembly (src/EndlessSky/**),
+         referenced below. These suites are plain NUnit on engine-free classes:
+         no Godot runtime, no gdUnit4 — they run on the bare .NET host and stay
+         out of the interlocked gdUnit4 adapter/API version set. -->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.9.0" />
+    <!-- NUnit 3.x line: the suites use the classic Assert API (AreEqual/Greater/
+         IsNotEmpty), which NUnit 4 moved to ClassicAssert. The 3.x line keeps the
+         ported files byte-faithful; migrate the asserts before bumping to 4. -->
+    <PackageReference Include="NUnit" Version="3.14.0" />
+    <PackageReference Include="NUnit3TestAdapter" Version="4.6.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\GdCcT.csproj" />
+  </ItemGroup>
+
+</Project>

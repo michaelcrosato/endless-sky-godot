@@ -15,7 +15,7 @@
 #>
 [CmdletBinding()]
 param(
-    [ValidateSet('all', 'gd', 'cs')] [string]$Suite = 'all',
+    [ValidateSet('all', 'gd', 'cs', 'sim')] [string]$Suite = 'all',
     [string]$Path = 'tests/gd',
     [string]$Filter
 )
@@ -44,6 +44,17 @@ if ($Suite -in 'all', 'cs') {
     if ($Filter) { $dotnetArgs += @('--filter', $Filter) }
     dotnet @dotnetArgs
     if ($LASTEXITCODE -ne 0) { $failures.Add("C# (exit $LASTEXITCODE)") }
+    Write-Host ''
+}
+
+if ($Suite -in 'all', 'sim') {
+    Write-Host '=== Simulation (NUnit, engine-free) ==='
+    # Plain NUnit on the bare .NET host: the EndlessSky data/sim layer never
+    # touches Godot types, so these need no engine, no .runsettings, no adapter.
+    $simArgs = @('test', 'tests/sim/EndlessSky.SimTests.csproj', '--nologo')
+    if ($Filter) { $simArgs += @('--filter', $Filter) }
+    dotnet @simArgs
+    if ($LASTEXITCODE -ne 0) { $failures.Add("Simulation (exit $LASTEXITCODE)") }
     Write-Host ''
 }
 

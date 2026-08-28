@@ -29,4 +29,12 @@
     <Compile Remove="gdunit4_testadapter_v5/**/*.cs" />
   </ItemGroup>
 
+  <!-- tests/sim is its own NUnit project (EndlessSky.SimTests.csproj) that
+       references this assembly; its sources must never be globbed in here, in
+       any configuration, or its NUnit attributes fail this build and its types
+       get compiled twice. -->
+  <ItemGroup>
+    <Compile Remove="tests/sim/**/*.cs" />
+  </ItemGroup>
+
 </Project>
