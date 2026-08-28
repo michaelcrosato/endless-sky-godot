@@ -7,7 +7,7 @@ here is quietly dropped — incomplete systems stay listed as incomplete.
 | Milestone | Status | Evidence |
 |---|---|---|
 | **M1 Flight** | **Working; in gauntlet** | 81/81 tests (`tools/test.ps1`); headless boot prints the `[flight]` line with derived Shuttle constants matching upstream (mass 192, vmax 13.375 px/f, turn 2.875°/f); autopilot capture `reports/m1_flight.png` shows banked powered flight near New Boston. First visual + gameplay critic pass running; corrections land before M1 is called done. |
-| M2 Combat | Not started | — |
+| M2 Combat | **Sim core + effect views built; firing/collision in flight** | Weapons/damage/projectiles/governments in `libs/EndlessSky.Sim` (shields-block-entirely, 0.25 hull epsilon, valueless flags all pinned by tests); `CombatEffects`/`ProjectileView`/`ExplosionView`/`ShieldImpactView` in `src/game`; hardpoint firing loop + collision under construction. |
 | M3 Travel | Not started | Hyperspace constants already extracted (docs/upstream-reference.md §Hyperspace). |
 | M4 Landing economy | Not started | — |
 | M5 Missions | Not started | — |

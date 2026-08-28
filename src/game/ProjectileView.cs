@@ -19,7 +19,7 @@ namespace EndlessSky.Game
 
         public override void _Ready()
         {
-            bool homing = _projectile.Weapon.Attributes.Has("homing");
+            bool homing = _projectile.Weapon.IsHoming;
             Color core = homing ? new Color(1.0f, 0.72f, 0.35f) : new Color(0.55f, 0.85f, 1.0f);
 
             AddChild(new MeshInstance3D
