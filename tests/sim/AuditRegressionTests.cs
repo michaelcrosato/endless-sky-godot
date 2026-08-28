@@ -75,14 +75,90 @@ namespace EndlessSky.Tests
         }
 
         [Test]
-        public void VariantsInheritTheirBaseFlags()
+        public void VariantsDoNotInheritTheirBaseFlags()
         {
+            // Upstream states the exception in Ship::FinishLoading: "uncapturable and
+            // 'never disabled' flags don't carry over." Inheriting them was a
+            // regression, and this test previously asserted it as correct.
             var data = new GameData();
             data.LoadText("ship \"Base\"\n\t\"never disabled\"\n\tattributes\n\t\t\"hull\" 500\n", "test.txt");
             data.LoadText("ship \"Base\" \"Base (Variant)\"\n", "test.txt");
             data.FinishLoading();
 
-            Assert.IsTrue(data.Ships["Base (Variant)"].IsNeverDisabled);
+            Assert.IsTrue(data.Ships["Base"].IsNeverDisabled);
+            Assert.IsFalse(data.Ships["Base (Variant)"].IsNeverDisabled,
+                "a variant that does not declare the flag is disable-able");
+        }
+
+        [Test]
+        public void ADisableableVariantOfANeverDisabledHullCanBeDisabled()
+        {
+            // Vanilla content depends on this: kahet ships.txt defines
+            // ship "Fetri'sei" "Fetri'sei (Disable-able)" whose ONLY child is
+            // "uncapturable" - its entire reason to exist is dropping the base's
+            // "never disabled". Inheriting the flag makes that variant impossible.
+            GameData data = UpstreamData.Instance;
+
+            if (!data.Ships.TryGetValue("Fetri'sei (Disable-able)", out ShipDefinition variant))
+                Assert.Ignore("upstream no longer defines Fetri'sei (Disable-able)");
+
+            Assert.IsTrue(data.Ships["Fetri'sei"].IsNeverDisabled, "the base cannot be disabled");
+            Assert.IsFalse(variant.IsNeverDisabled, "but the variant exists precisely so it can be");
+            Assert.Greater(new Ship(variant).MinimumHull, 0.0);
+        }
+
+        [Test]
+        public void WeaponCapacitiesAreDerivedFromHardpointCounts()
+        {
+            // No vanilla ship declares "gun ports" or "turret mounts"; upstream sets
+            // them from the armament in FinishLoading. Without that every ship reports
+            // zero of both, and since a gun outfit carries "gun ports" -1 the outfitter
+            // refuses to install any weapon on any ship in the game.
+            var data = new GameData();
+            data.LoadText(
+                "ship \"Gunship\"\n\tattributes\n\t\t\"hull\" 500\n\t\t\"outfit space\" 200\n" +
+                "\tgun 0 -10\n\tgun 0 10\n\tturret 0 0\n", "test.txt");
+            data.FinishLoading();
+
+            ShipDefinition definition = data.Ships["Gunship"];
+            Assert.AreEqual(2.0, definition.Attributes.Get("gun ports"), 1e-9);
+            Assert.AreEqual(1.0, definition.Attributes.Get("turret mounts"), 1e-9);
+        }
+
+        [Test]
+        public void ARealUpstreamShipCanActuallyMountAGun()
+        {
+            GameData data = UpstreamData.Instance;
+
+            Ship shuttle = data.BuildShip("Shuttle");
+            Assert.IsNotNull(shuttle);
+
+            Outfit blaster = data.Outfits["Energy Blaster"];
+            Assert.Less(blaster.Attributes.Get("gun ports"), 0.0, "a gun consumes a port");
+
+            // The end-to-end symptom of the missing capacities: no weapon fitted
+            // anywhere, on any ship, ever.
+            var gunned = data.Ships.Values
+                .Where(s => s.Guns.Count > 0)
+                .Take(20)
+                .Select(s => new Ship(s))
+                .ToList();
+
+            Assert.IsNotEmpty(gunned);
+            Assert.IsTrue(gunned.Any(s => Outfitting.Fits(s, blaster)),
+                "at least some hulls with gun ports should accept a basic gun");
+        }
+
+        [Test]
+        public void DroneCategoryImpliesAutomaton()
+        {
+            // Upstream infers it rather than requiring every drone to declare it.
+            var data = new GameData();
+            data.LoadText(
+                "ship \"Probe\"\n\tattributes\n\t\tcategory \"Drone\"\n\t\t\"hull\" 100\n", "test.txt");
+            data.FinishLoading();
+
+            Assert.AreEqual(1.0, data.Ships["Probe"].Attributes.Get("automaton"), 1e-9);
         }
 
         // --- "disabled damage" defaults to hull damage ----------------------------

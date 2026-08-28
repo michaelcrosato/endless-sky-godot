@@ -160,6 +160,7 @@ namespace EndlessSky.Sim
             }
 
             ship.ApplyAddedAttributes();
+            ship.DeriveComputedAttributes();
             ship.Resolved = true;
             visiting.Remove(ship.DisplayName);
         }

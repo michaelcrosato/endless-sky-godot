@@ -202,6 +202,28 @@ namespace EndlessSky.Sim
         /// under it (see "Modified Dromedary Wreck"), which upstream still treats as
         /// "inherit the base attributes".
         /// </summary>
+        /// <summary>
+        /// Fills in attributes the engine computes rather than the data declaring.
+        /// Port of the tail of upstream <c>Ship::FinishLoading</c>.
+        /// </summary>
+        /// <remarks>
+        /// "gun ports" and "turret mounts" are NOT written by any of the 902 vanilla
+        /// ship definitions: they are capacities derived from the hardpoints the ship
+        /// actually has. Without them every ship reports zero of both, and since gun
+        /// outfits carry "gun ports" -1 the outfitter refuses to install any weapon on
+        /// any ship in the game.
+        /// </remarks>
+        internal void DeriveComputedAttributes()
+        {
+            Attributes.Set("gun ports", _guns.Count);
+            Attributes.Set("turret mounts", _turrets.Count);
+
+            // Upstream infers automation from the category rather than requiring every
+            // drone to declare it.
+            if (Category == "Drone" && Attributes.Get("automaton") == 0.0)
+                Attributes.Set("automaton", 1.0);
+        }
+
         internal void InheritFrom(ShipDefinition baseShip)
         {
             if (baseShip == null || ReferenceEquals(baseShip, this))
@@ -215,10 +237,10 @@ namespace EndlessSky.Sim
                 Category = baseShip.Category;
             }
 
-            foreach (string flag in baseShip._flags)
-            {
-                _flags.Add(flag);
-            }
+            // Flags are deliberately NOT inherited. Upstream states the exception in
+            // Ship::FinishLoading: "uncapturable and 'never disabled' flags don't
+            // carry over." Vanilla content depends on it - Fetri'sei (Disable-able)
+            // exists for no other reason than to drop its base's "never disabled".
 
             if (string.IsNullOrEmpty(Sprite))
             {

@@ -226,41 +226,46 @@ namespace EndlessSky.Tests
         }
 
         [Test]
-        public void AnAttackerClosesToWeaponRangeAndThenHolds()
+        public void AnAttackerStopsThrustingInsideWeaponRangeButKeepsItsNoseOnTarget()
         {
-            // The anti-ram behaviour. Upstream stands off around its shortest weapon
-            // range rather than charging to contact; thrusting whenever the target is
-            // merely ahead makes every NPC collide with whatever it is shooting at.
+            // Upstream's AimToAttack: inside firing range it only AIMS - no thrust -
+            // so the ship coasts through and past its target and comes round for
+            // another pass. An earlier attempt at this turned the ship's tail to the
+            // target to bleed closing speed, which silenced its fixed guns for the
+            // whole braking phase. Upstream never does that for an ordinary ship.
             (Government mine, Government theirs) = HostilePair();
             Ship self = MakeShip("Self", Point.Zero, mine);
-            Ship target = MakeShip("Target", new Point(30000.0, 0.0), theirs);
 
             double standoff = ShipAi.ShortestWeaponRange(self);
             Assert.Greater(standoff, 0.0, "the test ship carries a gun with a real range");
 
-            double before = (target.Position - self.Position).Length;
-            for (int frame = 0; frame < 4000; frame++)
-                self.Step(ShipAi.Attack(self, target));
+            Ship target = MakeShip("Target", new Point(standoff * 0.25, 0.0), theirs);
+            self.Facing = Angle.FromPoint(target.Position - self.Position);
+            self.Velocity = new Point(5.0, 0.0);
 
-            double after = (target.Position - self.Position).Length;
+            Command command = ShipAi.Attack(self, target);
 
-            Assert.Less(after, before, "it should have closed");
-            Assert.Greater(after, standoff * 0.5,
-                "it should hold off rather than ram: closed to roughly weapon range, not to contact");
+            Assert.IsFalse(command.Forward, "no thrust once inside firing range");
+
+            // And crucially it is still pointed at the target, so its guns can fire.
+            self.Step(command);
+            double alignment = self.Facing.Unit().Dot((target.Position - self.Position).Unit());
+            Assert.Greater(alignment, 0.9, "the nose must stay on target while coasting");
         }
 
         [Test]
-        public void AnAttackerDoesNotThrustOnceInsideWeaponRange()
+        public void AnAttackerClosesWhenOutOfRange()
         {
             (Government mine, Government theirs) = HostilePair();
             Ship self = MakeShip("Self", Point.Zero, mine);
+            Ship target = MakeShip("Target", new Point(30000.0, 0.0), theirs);
 
-            double standoff = ShipAi.ShortestWeaponRange(self);
-            Ship target = MakeShip("Target", new Point(standoff * 0.25, 0.0), theirs);
-            self.Facing = Angle.FromPoint(target.Position - self.Position);
+            double before = (target.Position - self.Position).Length;
+            for (int frame = 0; frame < 2000; frame++)
+                self.Step(ShipAi.Attack(self, target));
 
-            Assert.IsFalse(ShipAi.Attack(self, target).Forward,
-                "already well inside range; closing further would only risk a collision");
+            Assert.Less((target.Position - self.Position).Length, before * 0.5,
+                "it should have closed most of the gap");
         }
 
         // --- Firing decisions -----------------------------------------------------

@@ -148,51 +148,32 @@ namespace EndlessSky.Sim
             if (distance <= 0.0)
                 return Command.None;
 
-            Point approachUnit = toTarget / distance;
-            double standoff = ShortestWeaponRange(self);
-
-            // Closing speed along the line to the target. Coasting is LOSSLESS in this
-            // simulation, so a ship that merely stops thrusting keeps its velocity and
-            // sails straight into whatever it was shooting at. Holding station means
-            // actively shedding that speed.
-            double approachSpeed = (self.Velocity - target.Velocity).Dot(approachUnit);
-
-            double acceleration = Math.Max(1e-9, self.Acceleration);
-            double turnRate = self.TurnRate;
-
-            // Distance needed to brake from the current closing speed, including the
-            // frames spent swinging the nose round. Upstream's slowdown estimate.
-            double brakingAllowance = acceleration + (turnRate > 0.0 ? 160.0 / turnRate : 0.0);
-            double slowdownDistance = approachSpeed > 0.0
-                ? approachSpeed * approachSpeed / brakingAllowance / 2.0
-                : 0.0;
-
-            bool insideStandoff = standoff > 0.0 && distance < standoff * 0.75;
-            bool wouldOvershoot = standoff > 0.0 && distance - slowdownDistance < standoff * 0.5;
-
-            if (approachSpeed > 0.0 && (insideStandoff || wouldOvershoot))
-            {
-                // Brake: point away from the closing vector and burn. Upstream prefers
-                // reverse thrusters when the ship has them, which keeps the guns on
-                // target; without them it accepts turning away to kill the approach.
-                return new Command
-                {
-                    Turn = FlightControls.TurnToward(self, -self.Velocity),
-                    Forward = self.Facing.Unit().Dot(-self.Velocity) > 0.0,
-                };
-            }
-
+            // The nose stays ON the target at all times. An earlier attempt at a
+            // standoff turned the ship's tail to its target to bleed closing speed,
+            // which silenced its fixed guns for the whole braking phase - upstream
+            // never does this for an ordinary ship. Only artillery and blast-radius
+            // carriers back off, and those are not modelled yet.
             var command = new Command
             {
                 Turn = FlightControls.TurnToward(self, toTarget),
             };
 
-            double facing = self.Facing.Unit().Dot(approachUnit);
+            double standoff = ShortestWeaponRange(self);
 
-            // Smallest circle the ship can turn at its current speed. Closing inside
-            // it means it can no longer bring its nose round, which is how a pursuit
-            // turns into a collision.
+            // Inside firing range, upstream's AimToAttack only aims: it applies no
+            // thrust, so the ship coasts through and past its target and comes round
+            // for another pass. That is the shape of an Endless Sky dogfight.
+            if (standoff > 0.0 && distance < standoff * 0.75)
+                return command;
+
+            // Outside it, close - the MoveToAttack path. Thrust only while roughly
+            // facing the target AND further away than the ship's own turning circle,
+            // since accelerating inside that circle is how a pursuit becomes a
+            // collision.
+            double facing = self.Facing.Unit().Dot(toTarget) / distance;
+
             double turningDiameter = 200.0;
+            double turnRate = self.TurnRate;
             if (turnRate > 0.0)
             {
                 double stepsInFullTurn = 360.0 / turnRate;
@@ -200,9 +181,7 @@ namespace EndlessSky.Sim
                 turningDiameter = Math.Max(200.0, circumference / Math.PI);
             }
 
-            bool needsToClose = standoff <= 0.0 || distance > standoff * 0.75;
-            command.Forward = needsToClose && facing >= 0.0 && distance > turningDiameter;
-
+            command.Forward = facing >= 0.0 && distance > turningDiameter;
             return command;
         }
 
