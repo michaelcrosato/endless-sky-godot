@@ -1,0 +1,93 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using EndlessSky.Sim;
+using NUnit.Framework;
+
+namespace EndlessSky.Tests
+{
+    /// <summary>
+    /// Shared access to the real Endless Sky dataset for tests that assert against
+    /// upstream content rather than hand-written fixtures.
+    /// </summary>
+    /// <remarks>
+    /// The dataset is not vendored into this repository (external/ is gitignored), so
+    /// it is located at run time. Point <c>ENDLESS_SKY_DATA</c> at an upstream
+    /// checkout's <c>data</c> directory, run <c>tools/get-data.ps1</c> to populate
+    /// <c>external/endless-sky</c>, or keep a checkout beside the project as
+    /// <c>../es-upstream</c>. Without one, dependent tests are Ignored with an
+    /// explanation rather than silently passing.
+    ///
+    /// Loading the whole dataset takes a moment, so it is parsed once per test run.
+    /// </remarks>
+    internal static class UpstreamData
+    {
+        private static GameData _cached;
+        private static string _dataPath;
+
+        /// <summary>The loaded dataset. Ignores the calling test if upstream data is unavailable.</summary>
+        internal static GameData Instance
+        {
+            get
+            {
+                if (_cached != null)
+                    return _cached;
+
+                string path = Path
+                    ?? throw new IgnoreException(
+                        "Upstream Endless Sky data not found. Run tools/get-data.ps1, set " +
+                        "ENDLESS_SKY_DATA, or clone endless-sky beside this project as ../es-upstream.");
+
+                var data = new GameData();
+                data.LoadDirectory(path);
+                _cached = data;
+                return data;
+            }
+        }
+
+        /// <summary>The upstream <c>data</c> directory, or null when it cannot be found.</summary>
+        internal static string Path
+        {
+            get
+            {
+                if (_dataPath != null)
+                    return _dataPath.Length == 0 ? null : _dataPath;
+
+                var candidates = new List<string>();
+
+                string fromEnv = Environment.GetEnvironmentVariable("ENDLESS_SKY_DATA");
+                if (!string.IsNullOrEmpty(fromEnv))
+                    candidates.Add(fromEnv);
+
+                // Walk up from the test binary to the Godot project root (the directory
+                // holding project.godot), then probe the documented checkout locations.
+                string projectRoot = AppContext.BaseDirectory;
+                while (projectRoot != null &&
+                       !File.Exists(System.IO.Path.Combine(projectRoot, "project.godot")))
+                {
+                    projectRoot = System.IO.Path.GetDirectoryName(projectRoot);
+                }
+
+                if (projectRoot != null)
+                {
+                    // In-repo checkout first: it makes a fresh clone self-contained.
+                    candidates.Add(System.IO.Path.Combine(projectRoot, "external", "endless-sky", "data"));
+                    candidates.Add(System.IO.Path.Combine(projectRoot, "..", "es-upstream", "data"));
+                }
+
+                foreach (string candidate in candidates)
+                {
+                    string full = System.IO.Path.GetFullPath(candidate);
+                    if (Directory.Exists(full))
+                    {
+                        _dataPath = full;
+                        return full;
+                    }
+                }
+
+                _dataPath = string.Empty;
+                return null;
+            }
+        }
+    }
+}

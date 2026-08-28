@@ -35,7 +35,7 @@ namespace EndlessSky.Sim
     ///  * Drag is scaled by the dot-product term, which softens drag when it opposes
     ///    the commanded thrust direction.
     /// </summary>
-    public class Ship
+    public partial class Ship
     {
         public const double FramesPerSecond = 60.0;
 

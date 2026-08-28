@@ -82,6 +82,16 @@ namespace EndlessSky.Sim
 
         public Attributes Attributes { get; } = new Attributes();
 
+        /// <summary>
+        /// The outfit's <c>weapon</c> block, if it has one. Upstream models weapons as
+        /// ordinary outfits carrying an extra block, so guns, turrets, missiles and
+        /// even a ship hull's death explosion all share this one shape.
+        /// </summary>
+        public Weapon Weapon { get; } = new Weapon();
+
+        /// <summary>True when this outfit can actually be fired.</summary>
+        public bool IsWeapon => Weapon.IsWeapon;
+
         public double Mass => Attributes.Get("mass");
 
         public void Load(DataNode node)
@@ -92,6 +102,12 @@ namespace EndlessSky.Sim
                 if (key == "category" && child.Size >= 2)
                 {
                     Category = child.Token(1);
+                }
+                else if (key == "weapon")
+                {
+                    // Nested block, not a scalar attribute: it carries its own
+                    // damage, reload and projectile values.
+                    Weapon.Load(child);
                 }
                 else if (child.Size >= 2 && child.IsNumber(1))
                 {
