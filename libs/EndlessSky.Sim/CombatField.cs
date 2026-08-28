@@ -50,6 +50,13 @@ namespace EndlessSky.Sim
             if (ship is not null) _ships.Add(ship);
         }
 
+        /// <summary>
+        /// Takes a ship out of the field, for one that has left the system or been
+        /// cleared away. Projectiles already in flight are unaffected: a shot does not
+        /// vanish because its target did.
+        /// </summary>
+        public bool Remove(Ship? ship) => ship is not null && _ships.Remove(ship);
+
         public void Add(Projectile? projectile)
         {
             if (projectile is not null) _projectiles.Add(projectile);

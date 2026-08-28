@@ -45,6 +45,21 @@ namespace EndlessSky.Game
         private bool _landAtStart;
         private bool _isLanded;
         private long _credits = 480_000; // vanilla start: mortgaged to the hilt
+
+        // The player as the simulation models one: fleet, money, date, where they have
+        // been. The loose _credits field above is kept in step with it so the existing
+        // HUD and log lines carry on working.
+        private PlayerState _player = null!;      // set with _ship
+        private MissionLog _missions = null!;     // set with _ship
+
+        // Live NPC traffic. Systems declare the fleets that frequent them; without a
+        // spawner every system in the galaxy is empty no matter what the data says.
+        private FleetSpawner _spawner = null!;    // set with _ship
+        private readonly List<(Ship Ship, ShipView View)> _traffic =
+            new List<(Ship, ShipView)>();
+
+        /// <summary>Most ships to keep in flight at once, so a busy system stays playable.</summary>
+        private const int TrafficLimit = 12;
         private LandedOverlay? _landedOverlay;
         private StarSystem? _lastSystem;
         private DirectionalLight3D _keyLight = null!;  // set by BuildLighting
@@ -106,6 +121,14 @@ namespace EndlessSky.Game
 
             _shipView = new ShipView { Name = "PlayerShip" };
             AddChild(_shipView);
+            _player = new PlayerState(universe);
+            _player.Fleet.Add(_ship);
+            _player.Fleet.SetFlagship(_ship);
+            _player.SetCredits(_credits);
+            _player.EnterSystem(system);
+            _missions = new MissionLog(_player);
+            _spawner = new FleetSpawner(universe);
+
             _shipView.SyncWith(_ship);
 
             _camera = new CameraRig { Name = "CameraRig" };
@@ -247,6 +270,7 @@ namespace EndlessSky.Game
             }
 
             _ship.Step(command);
+            StepTraffic();
             if (_jumpAutopilot && _ship.TryCommitJump())
             {
                 _jumpAutopilot = false;
@@ -347,6 +371,86 @@ namespace EndlessSky.Game
         /// approximation of upstream's landing refuel/recharge) and hands
         /// flight control back.
         /// </summary>
+        /// <summary>
+        /// Runs the system's own traffic: spawns what the system declares, flies it,
+        /// and retires anything that has left or been destroyed.
+        /// </summary>
+        /// <remarks>
+        /// Capped, and the cap is the point. Systems declare fleets on a per-frame
+        /// probability with no notion of how many are already present, so an
+        /// uncapped spawner fills a busy system without limit and the frame rate goes
+        /// with it. Upstream bounds this through its own strength checks and the
+        /// player's limited view; a hard ceiling is the honest version here.
+        /// </remarks>
+        private void StepTraffic()
+        {
+            if (_ship?.CurrentSystem == null || _spawner == null)
+            {
+                return;
+            }
+
+            // Retire the dead and the departed.
+            for (int i = _traffic.Count - 1; i >= 0; i--)
+            {
+                (Ship npc, ShipView view) = _traffic[i];
+                bool gone = npc.IsDestroyed ||
+                            !ReferenceEquals(npc.CurrentSystem, _ship.CurrentSystem) ||
+                            (npc.Position - _ship.Position).Length > 60_000.0;
+
+                if (!gone)
+                {
+                    continue;
+                }
+
+                view.QueueFree();
+                _field?.Remove(npc);
+                _traffic.RemoveAt(i);
+            }
+
+            if (_traffic.Count < TrafficLimit)
+            {
+                var present = _traffic.Select(t => t.Ship).ToList();
+                present.Add(_ship);
+
+                foreach (Ship arrival in _spawner.Step(_ship.CurrentSystem, present))
+                {
+                    if (_traffic.Count >= TrafficLimit)
+                    {
+                        break;
+                    }
+
+                    var view = new ShipView { Name = $"Traffic{_traffic.Count}" };
+                    AddChild(view);
+                    view.SyncWith(arrival);
+                    _traffic.Add((arrival, view));
+                    _field?.Add(arrival);
+
+                    GD.Print($"[traffic] {arrival.Definition.DisplayName} " +
+                             $"({arrival.Government?.Name ?? "unaligned"}) entered " +
+                             $"{_ship.CurrentSystem.Name}; {_traffic.Count} in system");
+                }
+            }
+
+            // Fly it. Traffic heads for the middle of the system unless something
+            // hostile is in reach, which is enough to make a system look alive
+            // without a full port of upstream's personality-driven AI.
+            foreach ((Ship npc, ShipView view) in _traffic)
+            {
+                Ship? target = ShipAi.FindTarget(npc, _traffic.Select(t => t.Ship).Append(_ship));
+                Command command = target != null
+                    ? ShipAi.Attack(npc, target)
+                    : FleetOrders.MoveTo(npc, Point.Zero, Point.Zero, 400.0, 1.0);
+
+                npc.Step(command);
+                if (target != null)
+                {
+                    _field?.Add(ShipAi.AutoFire(npc, target));
+                }
+
+                view.SyncWith(npc);
+            }
+        }
+
         private void TryLand()
         {
             if (_ship == null || _ship.CurrentSystem == null || _ship.IsHyperspacing)

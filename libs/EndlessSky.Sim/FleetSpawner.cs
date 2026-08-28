@@ -45,8 +45,13 @@ namespace EndlessSky.Sim
             _random = random ?? (n => n <= 0 ? 0 : shared.Next(n));
         }
 
-        /// <summary>Distance from the system centre that arriving traffic appears at.</summary>
-        public double ArrivalDistance { get; set; } = 10_000.0;
+        /// <summary>
+        /// Distance from the system centre that arriving traffic appears at. Upstream's
+        /// placement radius (<c>Fleet::Enter</c>) is 1000, which is the same order as
+        /// the orbits of a system's own planets - far enough to be an arrival, close
+        /// enough that the player ever sees it.
+        /// </summary>
+        public double ArrivalDistance { get; set; } = 1000.0;
 
         /// <summary>
         /// Rolls one frame of spawning for a system and returns the ships that arrived.
