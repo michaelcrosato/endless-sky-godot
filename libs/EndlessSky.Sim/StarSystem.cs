@@ -97,6 +97,16 @@ namespace EndlessSky.Sim
         /// <summary>Names of systems reachable by hyperspace from here.</summary>
         public IReadOnlyList<string> Links => _links;
 
+        /// <summary>Opens a hyperspace link, as an event's "link" change does.</summary>
+        public void AddLink(string other)
+        {
+            if (!string.IsNullOrEmpty(other) && !_links.Contains(other))
+                _links.Add(other);
+        }
+
+        /// <summary>Closes a hyperspace link, as an event's "unlink" change does.</summary>
+        public void RemoveLink(string other) => _links.Remove(other);
+
         public double Habitable { get; private set; }
 
         /// <summary>

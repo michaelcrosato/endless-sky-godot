@@ -35,6 +35,9 @@ namespace EndlessSky.Sim
         private readonly Dictionary<string, Sale> _outfitters =
             new Dictionary<string, Sale>(StringComparer.Ordinal);
 
+        private readonly Dictionary<string, GameEvent> _events =
+            new Dictionary<string, GameEvent>(StringComparer.Ordinal);
+
         private readonly Dictionary<string, Mission> _missions =
             new Dictionary<string, Mission>(StringComparer.Ordinal);
 
@@ -66,6 +69,8 @@ namespace EndlessSky.Sim
         public IReadOnlyDictionary<string, Fleet> Fleets => _fleets;
 
         public IReadOnlyDictionary<string, Mission> Missions => _missions;
+
+        public IReadOnlyDictionary<string, GameEvent> Events => _events;
 
         /// <summary>Commodity definitions plus per-system prices.</summary>
         public TradeData Trade { get; } = new TradeData();
@@ -336,6 +341,53 @@ namespace EndlessSky.Sim
             LoadNodes(file.Nodes);
         }
 
+        /// <summary>
+        /// Re-loads a single definition node over the universe, which is how an event
+        /// patches the galaxy.
+        /// </summary>
+        /// <remarks>
+        /// Deliberately the same path a file takes. Every Load in this layer is
+        /// additive over whatever the object already holds - that is how variants,
+        /// plugin overrides and "add"/"remove" children all work - so an event
+        /// applying "shipyard Kestrel" with a ship under it patches the existing
+        /// shipyard rather than replacing it. Links are the exception: they are a
+        /// modification rather than a definition and have no node of their own.
+        /// </remarks>
+        public void ApplyChange(DataNode node)
+        {
+            if (node is null || node.Size < 2)
+                return;
+
+            switch (node.Token(0))
+            {
+                case "link":
+                case "unlink":
+                    // "link <a> <b>" joins two systems in both directions.
+                    if (node.Size < 3)
+                        return;
+
+                    bool add = node.Token(0) == "link";
+                    Relink(node.Token(1), node.Token(2), add);
+                    Relink(node.Token(2), node.Token(1), add);
+                    return;
+
+                default:
+                    LoadNodes(new[] { node });
+                    return;
+            }
+        }
+
+        private void Relink(string from, string to, bool add)
+        {
+            if (!_systems.TryGetValue(from, out StarSystem? system))
+                return;
+
+            if (add)
+                system.AddLink(to);
+            else
+                system.RemoveLink(to);
+        }
+
         private void LoadNodes(IReadOnlyList<DataNode> nodes)
         {
             foreach (DataNode node in nodes)
@@ -361,6 +413,10 @@ namespace EndlessSky.Sim
 
                     case "trade":
                         Trade.LoadTradeDefinition(node);
+                        break;
+
+                    case "event" when node.Size >= 2:
+                        GetOrCreate(_events, node.Token(1), n => new GameEvent(n)).Load(node);
                         break;
 
                     case "mission" when node.Size >= 2:

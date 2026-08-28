@@ -100,6 +100,25 @@ namespace EndlessSky.Sim
 
         public void Depart() => CurrentPlanet = null;
 
+        /// <summary>Marks a system visited without moving the player there.</summary>
+        public void MarkVisited(StarSystem? system)
+        {
+            if (system != null)
+                _visitedSystems.Add(system.Name);
+        }
+
+        /// <summary>Marks a planet visited without landing on it.</summary>
+        public void MarkVisited(Planet? planet)
+        {
+            if (planet != null)
+                _visitedPlanets.Add(planet.Name);
+        }
+
+        /// <summary>Forgets a system, which events use to re-hide explored space.</summary>
+        public void ClearVisitedSystem(string name) => _visitedSystems.Remove(name);
+
+        public void ClearVisitedPlanet(string name) => _visitedPlanets.Remove(name);
+
         public bool HasVisited(StarSystem system) =>
             system != null && _visitedSystems.Contains(system.Name);
 

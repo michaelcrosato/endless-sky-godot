@@ -110,6 +110,8 @@ namespace EndlessSky.Sim
         private readonly Dictionary<MissionTrigger, MissionAction> _actions =
             new Dictionary<MissionTrigger, MissionAction>();
 
+        private readonly List<MissionNpc> _npcs = new List<MissionNpc>();
+
         public Mission(string name)
         {
             Name = name;
@@ -118,6 +120,26 @@ namespace EndlessSky.Sim
 
         /// <summary>Internal identifier, unique across content.</summary>
         public string Name { get; }
+
+        /// <summary>Ships this mission places, and the objectives attached to them.</summary>
+        public IReadOnlyList<MissionNpc> Npcs => _npcs;
+
+        /// <summary>
+        /// Whether every NPC objective is met. An NPC with no stated objective counts
+        /// as satisfied, so a mission whose ships only need to exist can still be
+        /// completed.
+        /// </summary>
+        public bool NpcObjectivesMet(Func<MissionNpc, ShipEvent> outcome)
+        {
+            if (outcome is null)
+                return _npcs.Count == 0;
+
+            foreach (MissionNpc npc in _npcs)
+                if (!npc.IsSatisfied(outcome(npc)))
+                    return false;
+
+            return true;
+        }
 
         /// <summary>Name shown to the player.</summary>
         public string DisplayName { get; private set; }
@@ -206,6 +228,15 @@ namespace EndlessSky.Sim
                         // A destination can also be a filter block; only the literal
                         // planet form is read for now.
                         Destination = child.Token(1);
+                        break;
+
+                    case "npc":
+                        // The ships this mission puts in the galaxy, and what the
+                        // player must do to them. A mission without these is a text box
+                        // and a payment.
+                        var npc = new MissionNpc();
+                        npc.Load(child);
+                        _npcs.Add(npc);
                         break;
 
                     case "job": IsJob = true; break;

@@ -2,13 +2,28 @@ using System;
 
 namespace EndlessSky.Sim
 {
-    /// <summary>What a single hit did to a ship, as reported by <see cref="Ship.TakeDamage"/>.</summary>
+    /// <summary>
+    /// What can happen to a ship, as a bitmask; also what
+    /// <see cref="Ship.TakeDamage"/> reports about a single hit. Bit values are upstream's
+    /// (<c>ShipEvent.h</c>) because mission NPC objectives are stored as a mask over
+    /// exactly these flags, and a mission that says "kill" has to mean the same bit
+    /// the combat layer sets.
+    /// </summary>
     [Flags]
     public enum ShipEvent
     {
         None = 0,
-        Disable = 1 << 0,
-        Destroy = 1 << 1,
+        Assist = 1 << 0,
+        ScanCargo = 1 << 1,
+        ScanOutfits = 1 << 2,
+        Provoke = 1 << 3,
+        Disable = 1 << 4,
+        Board = 1 << 5,
+        Capture = 1 << 6,
+        Destroy = 1 << 7,
+        Atrocity = 1 << 8,
+        Jump = 1 << 9,
+        Encounter = 1 << 10,
     }
 
     /// <summary>
