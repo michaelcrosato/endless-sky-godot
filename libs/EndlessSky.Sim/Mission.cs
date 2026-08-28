@@ -28,8 +28,22 @@ namespace EndlessSky.Sim
         /// <summary>Condition changes applied when this fires.</summary>
         public ConditionAssignments Assignments { get; private set; } = new ConditionAssignments();
 
-        /// <summary>Conversation to play, by name, or null.</summary>
+        /// <summary>Named conversation to play, or null when there is none or it is inline.</summary>
         public string? Conversation { get; private set; }
+
+        /// <summary>
+        /// A conversation defined in place rather than by name, or null.
+        /// </summary>
+        /// <remarks>
+        /// Both forms are common upstream: <c>conversation "assisting merchant"</c>
+        /// references a shared one, while a bare <c>conversation</c> with children
+        /// defines it inline. Reading only the named form drops most of the game's
+        /// mission dialogue, since inline is the more common shape.
+        /// </remarks>
+        public Conversation? InlineConversation { get; private set; }
+
+        /// <summary>Whether this action plays any dialogue at all.</summary>
+        public bool HasConversation => Conversation is not null || InlineConversation is not null;
 
         /// <summary>Plain message shown to the player, or null.</summary>
         public string? Dialog { get; private set; }
@@ -54,6 +68,12 @@ namespace EndlessSky.Sim
 
                     case "conversation" when child.Size >= 2:
                         action.Conversation = child.Token(1);
+                        break;
+
+                    case "conversation":
+                        // Bare "conversation" with children: defined in place.
+                        if (child.Children.Count > 0)
+                            action.InlineConversation = Sim.Conversation.Load(child);
                         break;
 
                     case "dialog" when child.Size >= 2:
