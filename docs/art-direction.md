@@ -124,10 +124,64 @@ which the simulation puts between 10% and 50% of maximum depending on size — s
 "disabled" and "visibly wrecked" need to coincide, or the player cannot tell a
 boardable derelict from a ship still fighting.
 
+## Hull scale comes from hardpoints, not mass
+
+Upstream has no `length` field. A ship's size *is* the size of its sprite, and the
+only sprite-scale measurement present in the data files is the hardpoint offsets,
+which are sprite pixel coordinates. So a hull is sized from its own hardpoints:
+
+    length = max(along span, across span / 0.85, fitted mass curve)
+    beam   = clamp(across span, 0.34 x length, 0.85 x length)
+
+Spans include a 1.15x margin so a mount at the extreme still sits on the hull
+rather than half off the tip.
+
+The first attempt derived length from mass as a cube root, reasoning that mass
+tracks volume. Measured against the fleet that is simply wrong: regressing
+log(mass) on log(hardpoint span) over the 318 ships carrying both gives
+
+    span ~ mass^0.47      (r = 0.84)
+
+not `mass^0.33`. Ships are shells, and larger hulls are proportionally hollower.
+The cube root therefore under-sized big ships badly, and because mount positions
+were already at true sprite scale, **287 of the 339 armed ships wore their guns
+outside their own hull** — by up to 4.5x on a Deep River Transport. The hulls were
+too small; the mounts had been right all along.
+
+The mass curve survives only as a floor, for hulls whose mounts all sit near the
+centre and for the unarmed ships that have no hardpoints to measure. Keeping the
+whole fleet on one curve is what stops a fighter and a World-Ship from being drawn
+to two incompatible scales.
+
+One consequence worth stating: the resulting fleet spans roughly 190x in length,
+not the ~19x a cube root gives. That is the spread upstream's sprites actually
+have. A Korath World-Ship really is orders of magnitude longer than an interceptor.
+
+## Lighting the hull, and one bug worth remembering
+
+Godot treats **clockwise** winding as front-facing, so a front face's outward
+normal is `(c-a) x (b-a)` — the negation of the counter-clockwise convention.
+
+Getting this backwards does not make anything vanish, because culling keys off
+winding rather than off the normal attribute. The geometry draws; every outward
+face just carries an inward normal, `N.L` goes negative across the entire lit side,
+and hulls render as flat black silhouettes. Turning rim lighting on inverts the
+symptom rather than fixing it: Godot's rim term is not scaled by `N.L`, so it lights
+the hull uniformly and the same bug now reads as a flat *white* blob. Both
+"blobs" were one defect.
+
+Two guards in `tests/godot/ShipMeshBuilderTest.cs` hold the line, since a mesh
+defect is invisible to every simulation test: face normals must point away from the
+hull centre, and the dorsal surface must sit above the ventral in value. The
+simulation suite passed 373/373 throughout the entire episode.
+
 ## Open items
 
 - Faction design language needs a ship → government association the data does not
   provide directly; fleets and shipyards are the route.
+- Hull *beam* is still inferred, not measured: mounts cluster near the centreline
+  and so understate true width. The 0.34 floor is a fleet median, not a per-ship
+  fact.
 - Windows, damage geometry and silhouette composition are specified here but
   generating them is presentation work in `src/game`, which this document does not
   cover.

@@ -52,7 +52,9 @@ namespace EndlessSky.Sim
     /// length linearly with mass would make a fighter invisible next to a capital
     /// ship, so length scales with the CUBE ROOT: mass tracks volume, and volume is
     /// the cube of a linear dimension. Across the real fleet that turns a 6700x mass
-    /// range into a ~19x length range, which is dramatic but drawable in one frame.
+    /// range into a ~190x length range, matching the spread upstream's sprites
+    /// actually have: a Korath World-Ship really is orders of magnitude longer
+    /// than an interceptor.
     ///
     /// INCOMPLETE, tracked rather than dropped: faction design language cannot be
     /// derived from a ship definition (upstream associates ships with governments
@@ -63,13 +65,39 @@ namespace EndlessSky.Sim
     public class ShipAppearance
     {
         /// <summary>
-        /// Reference mass for a length of 1. Chosen so the fleet median (630) lands
-        /// near a comfortable mid-size hull rather than at an extreme.
+        /// Coefficient and exponent of the fallback length curve, fitted by least
+        /// squares on log(mass) against log(hardpoint span) over the 318 ships that
+        /// carry hardpoints and a mass (r = 0.84).
         /// </summary>
-        private const double ReferenceMass = 630.0;
+        /// <remarks>
+        /// The exponent is 0.47, NOT the 1/3 a uniform solid would give. Ships are
+        /// shells rather than solid bodies and larger hulls are proportionally
+        /// hollower, so length outruns the cube root. Assuming the cube root put 287
+        /// of the 339 armed ships' mounts outside their own hull, by up to 4.5x.
+        /// </remarks>
+        private const double MassLengthCoefficient = 4.66;
+        private const double MassLengthExponent = 0.471;
 
-        /// <summary>Length in simulation units at <see cref="ReferenceMass"/>.</summary>
-        private const double ReferenceLength = 60.0;
+        /// <summary>
+        /// How far the hull extends past its outermost hardpoint. A mount sitting
+        /// exactly on the extreme would hang half off the tip.
+        /// </summary>
+        private const double MountMargin = 1.15;
+
+        /// <summary>
+        /// Slenderness floor, from the fleet median of hardpoint span across to
+        /// along (0.32). Applied only where the hardpoints do not already imply a
+        /// wider hull, since mounts cluster near the centreline and so understate
+        /// the true beam.
+        /// </summary>
+        private const double MinimumBeamRatio = 0.34;
+
+        /// <summary>
+        /// Beam ceiling. A handful of hulls (the Coalition Koryfi line) mount their
+        /// hardpoints far wider than they are deep; without this the beam overtakes
+        /// the length and the hull is drawn as a pancake flying sideways.
+        /// </summary>
+        private const double MaximumBeamRatio = 0.85;
 
         private readonly List<MountPlacement> _mounts = new List<MountPlacement>();
 
@@ -79,14 +107,6 @@ namespace EndlessSky.Sim
 
             double mass = Math.Max(1.0, definition.Attributes.Get("mass"));
             Class = Classify(definition.Category, mass);
-
-            // Cube root: mass tracks volume, so a linear dimension is its cube root.
-            Length = ReferenceLength * Math.Cbrt(mass / ReferenceMass);
-
-            // Hulls are longer than they are wide; upstream sprites average roughly
-            // 2:3 beam to length across the fleet.
-            Beam = Length * 0.62;
-            Radius = Length * 0.5;
 
             // Hardpoint coordinates in ship data are stored at twice scale, exactly as
             // the armament layer halves them.
@@ -98,6 +118,36 @@ namespace EndlessSky.Sim
 
             foreach (Hardpoint turret in definition.Turrets)
                 _mounts.Add(new MountPlacement(turret.Offset * 0.5, MountKind.Turret, turret.OutfitName));
+
+            // Size the hull from its own hardpoints where it has any. Upstream has no
+            // "length" field at all - a ship's size is the size of its sprite - and
+            // hardpoint offsets are sprite pixel coordinates, so they are the only
+            // real measurement of a hull in the data files. Deriving size from mass
+            // instead is an invention, and it disagreed with the mounts badly enough
+            // that most of the fleet wore its guns off the hull.
+            double alongExtent = 0.0, acrossExtent = 0.0;
+            foreach (MountPlacement mount in _mounts)
+            {
+                alongExtent = Math.Max(alongExtent, Math.Abs(mount.Offset.Y));
+                acrossExtent = Math.Max(acrossExtent, Math.Abs(mount.Offset.X));
+            }
+
+            double alongSpan = 2.0 * alongExtent * MountMargin;
+            double acrossSpan = 2.0 * acrossExtent * MountMargin;
+
+            // Three lower bounds, all of which must hold: long enough for the fore-aft
+            // mounts, long enough that the widest mounts still fit inside the beam
+            // ceiling, and never below what the ship's mass implies. The mass term is
+            // what keeps a hull whose mounts all sit near its centre from collapsing
+            // to a speck.
+            Length = Math.Max(
+                Math.Max(alongSpan, acrossSpan / MaximumBeamRatio),
+                MassLengthCoefficient * Math.Pow(mass, MassLengthExponent));
+
+            Beam = Math.Clamp(acrossSpan, Length * MinimumBeamRatio, Length * MaximumBeamRatio);
+
+            // Bounding radius has to cover the wider of the two axes, not just length.
+            Radius = Math.Max(Length, Beam) * 0.5;
         }
 
         public ShipDefinition Definition { get; }

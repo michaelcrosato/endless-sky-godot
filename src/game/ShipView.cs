@@ -4,22 +4,30 @@ using Godot;
 namespace EndlessSky.Game
 {
     /// <summary>
-    /// Player-ship visual: a procedural low-poly hull with emissive engine
-    /// nozzles and a thrust plume. Purely presentational — banking and pitch
-    /// respond to sim state but never feed back into it (the directive's rule:
-    /// visual motion must not change gameplay values).
+    /// A ship's visual: a generated low-poly hull with emissive engine nozzles and
+    /// a thrust plume. Purely presentational — banking and pitch respond to sim
+    /// state but never feed back into it (the directive's rule: visual motion must
+    /// not change gameplay values).
     ///
-    /// The Shuttle reads as a civilian workhorse, not a fighter: blunt nose,
-    /// raised spine, under-wing cargo pods, one cool canopy accent. Dorsal and
-    /// ventral surfaces carry a value break so the silhouette holds at
-    /// gameplay distance. The mesh faces −Z, matching
-    /// <see cref="WorldSpace.YawFromFacing"/>.
+    /// The hull is no longer one hand-built Shuttle. <see cref="ShipMeshBuilder"/>
+    /// generates it from the ship's <see cref="ShipAppearance"/>, so any of the 902
+    /// hulls in the dataset gets geometry sized from its own mass, fittings on its
+    /// own hardpoints, and lit ports from its own berths — which is Milestone 8's
+    /// "replace prototype assets with a consistent art set".
+    ///
+    /// Geometry is rebuilt when the ship's identity or damage state changes, so a
+    /// hull visibly degrades as it is shot apart. The mesh faces −Z, matching
+    /// <see cref="WorldSpace.YawFromFacing"/>, and is centred on its roll axis so the
+    /// banking applied here swings it correctly.
     /// </summary>
     public partial class ShipView : Node3D
     {
         private Node3D _hull = null!;             // built in _Ready
+        private Node3D _generated = null!;        // built in _Ready, filled on first SyncWith
         private GpuParticles3D _plume = null!;    // built in _Ready
         private OmniLight3D _engineGlow = null!;  // built in _Ready
+        private ShipDefinition? _builtFor;
+        private int _builtDamageState = -1;
         private float _bank;
         private float _pitch;
 
@@ -28,114 +36,15 @@ namespace EndlessSky.Game
             _hull = new Node3D { Name = "Hull" };
             AddChild(_hull);
 
-            var body = new MeshInstance3D { Name = "Body", Mesh = BuildHullMesh() };
-            _hull.AddChild(body);
-
-            var ventralMaterial = new StandardMaterial3D
-            {
-                AlbedoColor = new Color(0.22f, 0.23f, 0.27f),
-                Metallic = 0.55f,
-                Roughness = 0.32f,
-                RimEnabled = true,
-                Rim = 0.55f,
-                RimTint = 0.25f,
-            };
-
-            // Boxy under-wing cargo pods: the cheapest possible "this is a
-            // hauler" silhouette cue.
-            foreach (float side in new[] { -1.1f, 1.1f })
-            {
-                _hull.AddChild(new MeshInstance3D
-                {
-                    Mesh = new BoxMesh { Size = new Vector3(0.5f, 0.4f, 1.4f) },
-                    MaterialOverride = ventralMaterial,
-                    Position = new Vector3(side, -0.35f, 0.9f),
-                });
-            }
-
-            // Canopy: one bright cool dot of identity.
-            _hull.AddChild(new MeshInstance3D
-            {
-                Mesh = new BoxMesh { Size = new Vector3(0.32f, 0.14f, 0.5f) },
-                MaterialOverride = new StandardMaterial3D
-                {
-                    AlbedoColor = new Color(0.06f, 0.09f, 0.12f),
-                    Metallic = 0.2f,
-                    Roughness = 0.2f,
-                    EmissionEnabled = true,
-                    Emission = new Color(0.2f, 0.7f, 0.9f),
-                    EmissionEnergyMultiplier = 0.8f,
-                },
-                Position = new Vector3(0f, 0.62f, -0.9f),
-            });
-
-            // Republic-blue spine stripe (a few percent of area, saturated).
-            _hull.AddChild(new MeshInstance3D
-            {
-                Mesh = new BoxMesh { Size = new Vector3(0.12f, 0.03f, 1.3f) },
-                MaterialOverride = new StandardMaterial3D
-                {
-                    AlbedoColor = new Color(0.20f, 0.38f, 0.85f),
-                    Roughness = 0.4f,
-                },
-                Position = new Vector3(0f, 0.70f, 0.35f),
-            });
-
-            // Twin engine nozzles + always-on emissive throats so the plume
-            // never appears detached from the hull.
-            var nozzleMesh = new CylinderMesh
-            {
-                TopRadius = 0.28f,
-                BottomRadius = 0.36f,
-                Height = 0.5f,
-                RadialSegments = 10,
-            };
-            var nozzleMaterial = new StandardMaterial3D
-            {
-                AlbedoColor = new Color(0.16f, 0.17f, 0.20f),
-                Metallic = 0.6f,
-                Roughness = 0.45f,
-                EmissionEnabled = true,
-                Emission = new Color(1.0f, 0.62f, 0.25f),
-                EmissionEnergyMultiplier = 0.15f,
-            };
-            var throatMaterial = new StandardMaterial3D
-            {
-                ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
-                Transparency = BaseMaterial3D.TransparencyEnum.Alpha,
-                BlendMode = BaseMaterial3D.BlendModeEnum.Add,
-                AlbedoColor = new Color(1.0f, 0.60f, 0.25f, 0.55f),
-                DisableReceiveShadows = true,
-            };
-            foreach (float side in new[] { -0.62f, 0.62f })
-            {
-                _hull.AddChild(new MeshInstance3D
-                {
-                    Mesh = nozzleMesh,
-                    MaterialOverride = nozzleMaterial,
-                    Position = new Vector3(side, 0.0f, 1.95f),
-                    RotationDegrees = new Vector3(90f, 0f, 0f),
-                });
-                _hull.AddChild(new MeshInstance3D
-                {
-                    Mesh = new CylinderMesh
-                    {
-                        TopRadius = 0.02f,
-                        BottomRadius = 0.20f,
-                        Height = 0.4f,
-                        RadialSegments = 8,
-                    },
-                    MaterialOverride = throatMaterial,
-                    Position = new Vector3(side, 0.0f, 2.25f),
-                    RotationDegrees = new Vector3(90f, 0f, 0f),
-                    CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
-                });
-            }
+            // Geometry is generated per ship on the first SyncWith, once the hull's
+            // identity is known. It lives under its own node so it can be rebuilt
+            // when the damage state changes without disturbing the plume or glow.
+            _generated = new Node3D { Name = "Generated" };
+            _hull.AddChild(_generated);
 
             _engineGlow = new OmniLight3D
             {
                 Name = "EngineGlow",
-                Position = new Vector3(0f, 0.1f, 2.6f),
                 LightColor = new Color(1.0f, 0.58f, 0.22f),
                 LightEnergy = 0.0f,
                 OmniRange = 7f,
@@ -144,6 +53,37 @@ namespace EndlessSky.Game
 
             _plume = BuildPlume();
             _hull.AddChild(_plume);
+        }
+
+        /// <summary>
+        /// (Re)builds the hull for this ship. Cheap enough to call on any change of
+        /// identity or damage state, and skipped entirely when neither has moved.
+        /// </summary>
+        private void Rebuild(Ship ship)
+        {
+            var appearance = new ShipAppearance(ship.Definition);
+            int damageState = ShipAppearance.DamageState(ship.Hull, ship.MaxHull);
+
+            if (ReferenceEquals(_builtFor, ship.Definition) && _builtDamageState == damageState)
+                return;
+
+            _builtFor = ship.Definition;
+            _builtDamageState = damageState;
+
+            foreach (Node child in _generated.GetChildren())
+            {
+                _generated.RemoveChild(child);
+                child.QueueFree();
+            }
+
+            _generated.AddChild(ShipMeshBuilder.Build(appearance, damageState));
+
+            // Park the plume and its light just aft of the tail, scaled to the hull
+            // rather than to the one ship this view used to be hard-coded for.
+            float length = WorldSpace.Length(appearance.Length);
+            _plume.Position = new Vector3(0f, 0f, length * 0.55f);
+            _engineGlow.Position = new Vector3(0f, 0f, length * 0.62f);
+            _engineGlow.OmniRange = Mathf.Max(2f, length * 1.2f);
         }
 
         /// <summary>
@@ -162,6 +102,8 @@ namespace EndlessSky.Game
         /// <summary>Update transform + effects from the sim ship. Called once per sim step.</summary>
         public void SyncWith(Ship ship)
         {
+            Rebuild(ship);
+
             Position = WorldSpace.ToWorld(ship.Position);
             Rotation = new Vector3(0f, WorldSpace.YawFromFacing(ship.Facing), 0f);
 
@@ -176,84 +118,27 @@ namespace EndlessSky.Game
             bool burning = ship.IsThrusting;
             _plume.Emitting = burning;
             _engineGlow.LightEnergy = Mathf.Lerp(_engineGlow.LightEnergy, burning ? 1.4f : 0f, 0.25f);
-            foreach (Node child in _hull.GetChildren())
-            {
-                if (child is MeshInstance3D { MaterialOverride: StandardMaterial3D m } &&
-                    m.EmissionEnabled && m.Emission.R > 0.9f)
-                {
-                    m.EmissionEnergyMultiplier = Mathf.Lerp(m.EmissionEnergyMultiplier, burning ? 3.5f : 0.15f, 0.25f);
-                }
-            }
+            PulseNozzles(_generated, burning);
         }
 
-        private static ArrayMesh BuildHullMesh()
+        /// <summary>
+        /// Drives the engine throats' emission with the throttle. Walks the generated
+        /// tree because the geometry is now nested under its own node, and keys off
+        /// the blue engine emission the mesh builder assigns to nozzles.
+        /// </summary>
+        private static void PulseNozzles(Node node, bool burning)
         {
-            // Blunt-nosed workhorse hull, two surfaces: bright dorsal, dark
-            // ventral. Flat-shaded faces sell the low-poly style.
-            Vector3 noseL = new(-0.28f, 0.10f, -1.9f);
-            Vector3 noseR = new(0.28f, 0.10f, -1.9f);
-            Vector3 spine = new(0f, 0.75f, 0.4f);
-            Vector3 tailL = new(-0.75f, 0.22f, 2.1f);
-            Vector3 tailR = new(0.75f, 0.22f, 2.1f);
-            Vector3 wingL = new(-1.65f, -0.05f, 1.5f);
-            Vector3 wingR = new(1.65f, -0.05f, 1.5f);
-            Vector3 bellyF = new(0f, -0.30f, -1.5f);
-            Vector3 bellyB = new(0f, -0.34f, 1.9f);
-
-            static void Tri(SurfaceTool st, Vector3 a, Vector3 b, Vector3 c)
+            foreach (Node child in node.GetChildren())
             {
-                Vector3 n = (b - a).Cross(c - a).Normalized();
-                st.SetNormal(n);
-                st.AddVertex(a);
-                st.SetNormal(n);
-                st.AddVertex(b);
-                st.SetNormal(n);
-                st.AddVertex(c);
+                if (child is MeshInstance3D { MaterialOverride: StandardMaterial3D m } &&
+                    m.EmissionEnabled && m.Emission.B > 0.8f)
+                {
+                    m.EmissionEnergyMultiplier =
+                        Mathf.Lerp(m.EmissionEnergyMultiplier, burning ? 3.5f : 0.15f, 0.25f);
+                }
+
+                PulseNozzles(child, burning);
             }
-
-            var dorsal = new SurfaceTool();
-            dorsal.Begin(Mesh.PrimitiveType.Triangles);
-            dorsal.SetSmoothGroup(uint.MaxValue);
-            Tri(dorsal, noseL, spine, noseR);
-            Tri(dorsal, noseR, spine, wingR);
-            Tri(dorsal, noseL, wingL, spine);
-            Tri(dorsal, spine, tailR, wingR);
-            Tri(dorsal, spine, tailL, wingL);
-            Tri(dorsal, spine, tailR, tailL);
-
-            var ventral = new SurfaceTool();
-            ventral.Begin(Mesh.PrimitiveType.Triangles);
-            ventral.SetSmoothGroup(uint.MaxValue);
-            Tri(ventral, noseR, noseL, bellyF);      // blunt front face
-            Tri(ventral, noseR, bellyF, wingR);
-            Tri(ventral, noseL, wingL, bellyF);
-            Tri(ventral, bellyF, wingR, bellyB);
-            Tri(ventral, bellyF, bellyB, wingL);
-            Tri(ventral, bellyB, wingR, tailR);
-            Tri(ventral, bellyB, tailR, tailL);
-            Tri(ventral, bellyB, tailL, wingL);
-
-            ArrayMesh mesh = dorsal.Commit();
-            mesh = ventral.Commit(mesh);
-            mesh.SurfaceSetMaterial(0, new StandardMaterial3D
-            {
-                AlbedoColor = new Color(0.78f, 0.79f, 0.82f),
-                Metallic = 0.55f,
-                Roughness = 0.32f,
-                RimEnabled = true,
-                Rim = 0.55f,
-                RimTint = 0.25f,
-            });
-            mesh.SurfaceSetMaterial(1, new StandardMaterial3D
-            {
-                AlbedoColor = new Color(0.22f, 0.23f, 0.27f),
-                Metallic = 0.55f,
-                Roughness = 0.32f,
-                RimEnabled = true,
-                Rim = 0.55f,
-                RimTint = 0.25f,
-            });
-            return mesh;
         }
 
         private static GpuParticles3D BuildPlume()

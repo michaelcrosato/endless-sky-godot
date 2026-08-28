@@ -33,14 +33,49 @@ namespace EndlessSky.Tests
         // --- Scale ----------------------------------------------------------------
 
         [Test]
-        public void LengthScalesWithTheCubeRootOfMass()
+        public void EveryMountLandsOnItsOwnHull()
         {
-            // Mass tracks volume, so a linear dimension is its cube root. Eight times
-            // the mass is twice the length, not eight times.
+            // THE invariant for hull sizing, and the one that caught the cube-root
+            // rule this class used to apply: a ship's hardpoint offsets are sprite
+            // coordinates, so a hull sized independently of them wears its guns in
+            // empty space. Sizing from mass alone put 287 of the 339 armed ships'
+            // mounts outside their own hull, by as much as 4.5x, and no amount of
+            // material tuning makes a detached turret look right.
+            GameData data = UpstreamData.Instance;
+            var offenders = new List<string>();
+
+            foreach (ShipDefinition definition in data.Ships.Values)
+            {
+                var appearance = new ShipAppearance(definition);
+                foreach (MountPlacement mount in appearance.Mounts)
+                {
+                    if (System.Math.Abs(mount.Offset.Y) > appearance.Length * 0.5 + 1e-9 ||
+                        System.Math.Abs(mount.Offset.X) > appearance.Beam * 0.5 + 1e-9)
+                    {
+                        offenders.Add(definition.DisplayName);
+                        break;
+                    }
+                }
+            }
+
+            Assert.IsEmpty(offenders,
+                $"{offenders.Count} hulls carry mounts off the hull: " +
+                string.Join(", ", offenders.Take(8)));
+        }
+
+        [Test]
+        public void LengthFollowsTheFittedMassCurveWhenAShipHasNoHardpoints()
+        {
+            // With no hardpoints there is no sprite-scale evidence, so the fitted
+            // curve is all there is. Its exponent is 0.47, NOT the 1/3 of a solid
+            // body: bigger hulls are proportionally hollower, and assuming the cube
+            // root is what shrank the fleet's hulls away from their own mounts.
             var small = new ShipAppearance(MakeDefinition("Medium Warship", 630));
             var eightfold = new ShipAppearance(MakeDefinition("Medium Warship", 630 * 8));
 
-            Assert.AreEqual(2.0, eightfold.Length / small.Length, 1e-6);
+            Assert.AreEqual(System.Math.Pow(8.0, 0.471), eightfold.Length / small.Length, 1e-6);
+            Assert.Greater(eightfold.Length / small.Length, 2.0,
+                "the cube root's 2.0 would under-size large hulls");
         }
 
         [Test]
@@ -72,13 +107,15 @@ namespace EndlessSky.Tests
                 $"becomes length {lengths.First():F1}u to {lengths.Last():F1}u ({lengthRatio:F1}x), " +
                 $"median {lengths[lengths.Count / 2]:F1}u");
 
-            // The point of the cube root is compression: a ~6700x mass range has to
-            // become a spread a single frame can hold. Asserting the RELATIONSHIP
-            // rather than a magic number, since the fleet grows over time.
-            Assert.AreEqual(System.Math.Cbrt(massRatio), lengthRatio, lengthRatio * 0.01,
-                "length ratio should be the cube root of the mass ratio");
-            Assert.Less(lengthRatio, massRatio / 100.0,
-                "the spread must be compressed by two orders of magnitude to be drawable");
+            // Hulls are sized from their own hardpoints, so the spread is whatever
+            // upstream's sprites actually have rather than a curve of our choosing -
+            // a Korath World-Ship really is orders of magnitude longer than an
+            // interceptor. What must hold is that the spread stays far below the mass
+            // ratio (or a fighter is a single pixel beside a capital) and that no hull
+            // degenerates to nothing.
+            Assert.Less(lengthRatio, massRatio / 20.0,
+                "the spread must stay well compressed relative to mass to be drawable");
+            Assert.Greater(lengths.First(), 1.0, "no hull may collapse to a speck");
         }
 
         [Test]
@@ -94,7 +131,8 @@ namespace EndlessSky.Tests
                 var appearance = new ShipAppearance(definition);
                 Assert.Greater(appearance.Length, 0.0, definition.DisplayName);
                 Assert.Greater(appearance.Beam, 0.0, definition.DisplayName);
-                Assert.Less(appearance.Beam, appearance.Length, "hulls are longer than they are wide");
+                Assert.Less(appearance.Beam, appearance.Length,
+                    $"hulls are longer than they are wide ({definition.DisplayName})");
             }
         }
 
