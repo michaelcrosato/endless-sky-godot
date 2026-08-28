@@ -20,6 +20,16 @@ namespace EndlessSky.Sim
         /// <summary>Every weapon mount, guns first then turrets, in definition order.</summary>
         public IReadOnlyList<WeaponMount> Mounts => _mounts;
 
+        private static readonly Random SharedRandom = new Random();
+
+        /// <summary>
+        /// Source of randomness for firing inaccuracy, returning [0, 1).
+        /// Replaceable so tests can make shot spread deterministic.
+        /// </summary>
+        public Func<double>? RandomSource { get; set; }
+
+        private double RandomUnit() => RandomSource?.Invoke() ?? SharedRandom.NextDouble();
+
         /// <summary>
         /// Builds the mount list from the ship's definition. Guns fire along the hull,
         /// turrets aim independently.
@@ -28,11 +38,14 @@ namespace EndlessSky.Sim
         {
             _mounts.Clear();
 
+            // Ship sprite coordinates are stored at twice scale, so upstream halves
+            // every hardpoint on construction. Using the raw value puts each mount at
+            // twice its true distance from the hull centre.
             foreach (Hardpoint gun in Definition.Guns)
-                _mounts.Add(new WeaponMount(gun.Offset, default, isTurret: false));
+                _mounts.Add(new WeaponMount(gun.Offset * 0.5, default, isTurret: false));
 
             foreach (Hardpoint turret in Definition.Turrets)
-                _mounts.Add(new WeaponMount(turret.Offset, default, isTurret: true));
+                _mounts.Add(new WeaponMount(turret.Offset * 0.5, default, isTurret: true));
         }
 
         /// <summary>Ammunition currently carried, by outfit name.</summary>
@@ -138,7 +151,17 @@ namespace EndlessSky.Sim
             mount.RecordShot();
 
             Angle aim = Facing + mount.BaseAngle;
-            Point muzzle = Position + Facing.Rotate(mount.Point);
+
+            // Weapon inaccuracy is a firing cone, applied to the aim at the moment of
+            // the shot. Parsing it and never using it makes every weapon perfectly
+            // accurate, which removes the reason streams of fire spread at all.
+            double inaccuracy = weapon.Inaccuracy;
+            if (inaccuracy > 0.0)
+                aim += new Angle((RandomUnit() * 2.0 - 1.0) * inaccuracy);
+
+            // Upstream spawns the projectile back by half the ship's velocity so it
+            // renders in the right place relative to the moving hull.
+            Point muzzle = Position + Facing.Rotate(mount.Point) - Velocity * 0.5;
 
             return new Projectile(weapon, muzzle, Velocity, aim, target, government);
         }

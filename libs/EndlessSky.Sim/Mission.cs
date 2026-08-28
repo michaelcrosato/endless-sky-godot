@@ -172,6 +172,15 @@ namespace EndlessSky.Sim
         /// </summary>
         public ConditionSet ToFail { get; private set; } = new ConditionSet();
 
+        /// <summary>
+        /// Extra gate on ACCEPTING an offered mission. Parsing it away lets the player
+        /// take on missions upstream would refuse.
+        /// </summary>
+        public ConditionSet ToAccept { get; private set; } = new ConditionSet();
+
+        /// <summary>Gate on declining, used by content that forces a choice.</summary>
+        public ConditionSet ToDecline { get; private set; } = new ConditionSet();
+
         public IReadOnlyDictionary<MissionTrigger, MissionAction> Actions => _actions;
 
         public MissionAction? Action(MissionTrigger trigger) =>
@@ -225,6 +234,8 @@ namespace EndlessSky.Sim
                             case "offer": ToOffer = ConditionSet.Load(child); break;
                             case "complete": ToComplete = ConditionSet.Load(child); break;
                             case "fail": ToFail = ConditionSet.Load(child); break;
+                            case "accept": ToAccept = ConditionSet.Load(child); break;
+                            case "decline": ToDecline = ConditionSet.Load(child); break;
                         }
                         break;
 
@@ -251,8 +262,16 @@ namespace EndlessSky.Sim
             }
         }
 
-        /// <summary>Whether this mission may currently be offered.</summary>
-        public bool CanOffer(Conditions conditions) => ToOffer.Test(conditions);
+        /// <summary>
+        /// Whether this mission may currently be offered. A mission whose failure
+        /// condition is already satisfied is not offered: doing so hands the player
+        /// something that is dead on arrival.
+        /// </summary>
+        public bool CanOffer(Conditions conditions) =>
+            ToOffer.Test(conditions) && !HasFailed(conditions);
+
+        /// <summary>Whether the player may accept an offered mission.</summary>
+        public bool CanAccept(Conditions conditions) => ToAccept.Test(conditions);
 
         /// <summary>Whether its completion requirements are met.</summary>
         public bool CanComplete(Conditions conditions) => ToComplete.Test(conditions);
