@@ -74,10 +74,38 @@ namespace EndlessSky.Sim
     }
 
     /// <summary>A star system: the unit of simulation. Upstream never simulates two at once.</summary>
+    /// <summary>
+    /// A fleet that frequents a system, and how often it arrives.
+    /// </summary>
+    /// <remarks>
+    /// The period is not a timer but odds: upstream rolls one chance in
+    /// <see cref="Period"/> every frame, so a period of 700 means a fleet arrives
+    /// roughly every 700 frames on average, with no fixed schedule. That is why
+    /// traffic in an Endless Sky system arrives in a ragged trickle rather than on
+    /// the beat.
+    /// </remarks>
+    public readonly struct FleetSpawn
+    {
+        public FleetSpawn(string name, int period)
+        {
+            Name = name;
+            Period = Math.Max(1, period);
+        }
+
+        public string Name { get; }
+
+        /// <summary>Average frames between arrivals; one chance in this per frame.</summary>
+        public int Period { get; }
+
+        public override string ToString() => $"{Name} every ~{Period}";
+    }
+
     public class StarSystem
     {
         private readonly List<StellarObject> _objects = new List<StellarObject>();
         private readonly List<string> _links = new List<string>();
+
+        private readonly List<FleetSpawn> _fleets = new List<FleetSpawn>();
 
         public StarSystem(string name)
         {
@@ -96,6 +124,12 @@ namespace EndlessSky.Sim
 
         /// <summary>Names of systems reachable by hyperspace from here.</summary>
         public IReadOnlyList<string> Links => _links;
+
+        /// <summary>
+        /// Fleets that frequent this system, with how often they arrive. This is what
+        /// makes a system feel inhabited rather than empty.
+        /// </summary>
+        public IReadOnlyList<FleetSpawn> Fleets => _fleets;
 
         /// <summary>Opens a hyperspace link, as an event's "link" change does.</summary>
         public void AddLink(string other)
@@ -199,6 +233,12 @@ namespace EndlessSky.Sim
 
                     case "link" when child.Size >= 2:
                         _links.Add(child.Token(1));
+                        break;
+
+                    case "fleet" when child.Size >= 3 && child.IsNumber(2):
+                        // "fleet <name> <period>": one chance in <period> per frame
+                        // that this fleet arrives.
+                        _fleets.Add(new FleetSpawn(child.Token(1), (int)child.Value(2)));
                         break;
 
                     case "object":
