@@ -36,6 +36,14 @@ namespace EndlessSky.Game
         private CombatEffects _effects = null!; // set with _field; guarded by _field != null
         private Ship? _drone;
         private ShipView _droneView = null!;    // set with _drone; guarded by _drone != null
+        private GameData _universe = null!;     // set with _ship; guarded by _ship != null
+        private Label? _titleLabel;
+        private double _currentDay;
+        private bool _jumpAutopilot;
+        private bool _jumpKeyWasDown;
+        private StarSystem? _lastSystem;
+        private DirectionalLight3D _keyLight = null!;  // set by BuildLighting
+        private DirectionalLight3D _fillLight = null!; // set by BuildLighting
 
         public override void _Ready()
         {
@@ -55,7 +63,9 @@ namespace EndlessSky.Game
             }
 
             // Vanilla start date: 16 November 3013.
-            system.SetDate(DaysSinceEpoch(3013, 11, 16));
+            _universe = universe;
+            _currentDay = DaysSinceEpoch(3013, 11, 16);
+            system.SetDate(_currentDay);
 
             foreach (StellarObject obj in system.AllObjects())
             {
@@ -85,6 +95,8 @@ namespace EndlessSky.Game
             // planet out of the ship's line and off the HUD corner.
             _ship.Position = planetPos + new Point(-120.0, 210.0);
             _ship.Facing = new Angle(0.0);
+            _ship.CurrentSystem = system;
+            _lastSystem = system;
             BuildLighting(planetPos);
 
             _shipView = new ShipView { Name = "PlayerShip" };
@@ -117,8 +129,68 @@ namespace EndlessSky.Game
             // One sim step per physics tick; the project pins physics to 60 Hz,
             // the rate every upstream per-frame quantity assumes.
             _simFrames++;
+
+            // Hyperspace owns the whole frame: no turning, thrust, or combat.
+            if (_ship.StepHyperspace())
+            {
+                if (!ReferenceEquals(_ship.CurrentSystem, _lastSystem))
+                {
+                    HandleArrival();
+                }
+
+                _shipView.SyncWith(_ship);
+                _shipView.SetHyperspaceStretch(_ship.HyperspaceCount / (float)Ship.HyperspaceFrames);
+                UpdateHud();
+                return;
+            }
+
+            _shipView.SetHyperspaceStretch(0f);
+
+            // J engages the jump autopilot: pick the linked system best
+            // aligned with the current facing (upstream AI::MovePlayer).
+            bool jumpKeyDown = Input.IsPhysicalKeyPressed(Key.J);
+            if (jumpKeyDown && !_jumpKeyWasDown)
+            {
+                SelectJumpTarget();
+            }
+
+            _jumpKeyWasDown = jumpKeyDown;
+
+            // Demo flights hand over to the jump autopilot after the opening
+            // turn, so captures exercise the full M3 sequence.
+            if (_autopilot && _simFrames == 170 && !_jumpAutopilot)
+            {
+                SelectJumpTarget();
+            }
+
             Command command;
-            if (_autopilot)
+            if (_jumpAutopilot)
+            {
+                bool manual = !_autopilot &&
+                              (Input.IsPhysicalKeyPressed(Key.W) || Input.IsPhysicalKeyPressed(Key.Up) ||
+                               Input.IsPhysicalKeyPressed(Key.S) || Input.IsPhysicalKeyPressed(Key.Down) ||
+                               Input.IsPhysicalKeyPressed(Key.A) || Input.IsPhysicalKeyPressed(Key.Left) ||
+                               Input.IsPhysicalKeyPressed(Key.D) || Input.IsPhysicalKeyPressed(Key.Right));
+                if (manual || _ship.TargetSystem == null)
+                {
+                    // Any manual input cancels the autopilot, as upstream.
+                    _jumpAutopilot = false;
+                    command = Command.None;
+                }
+                else if (_ship.Velocity.Length > _ship.JumpSpeedLimit)
+                {
+                    // Brake first: the reverse-key translation flips the ship
+                    // retrograde; thrust once roughly aligned.
+                    bool retroAligned =
+                        _ship.Facing.Unit().Dot((-_ship.Velocity).Unit()) > 0.96;
+                    command = FlightControls.BuildPlayerCommand(_ship, retroAligned, back: true, turnInput: 0.0);
+                }
+                else
+                {
+                    command = new Command { Turn = FlightControls.TurnToward(_ship, _ship.JumpDirection) };
+                }
+            }
+            else if (_autopilot)
             {
                 // Deterministic demo flight for captures: bank through a turn,
                 // then fly straight — exercises thrust, steering and the plume.
@@ -140,6 +212,12 @@ namespace EndlessSky.Game
             }
 
             _ship.Step(command);
+            if (_jumpAutopilot && _ship.TryCommitJump())
+            {
+                _jumpAutopilot = false;
+                GD.Print($"[flight] jump committed → {_ship.HyperspaceSystem!.Name}");
+            }
+
             _shipView.SyncWith(_ship);
             StepCombatDemo();
             UpdateHud();
@@ -204,7 +282,7 @@ namespace EndlessSky.Game
                 toPlayArea = new Vector3(0f, 0f, 1f);
             }
 
-            var key = new DirectionalLight3D
+            _keyLight = new DirectionalLight3D
             {
                 Name = "StarKeyLight",
                 LightColor = new Color(1.0f, 0.94f, 0.85f),
@@ -214,18 +292,106 @@ namespace EndlessSky.Game
                 DirectionalShadowMaxDistance = 400f,
                 ShadowBias = 0.03f,
             };
-            AddChild(key);
-            key.LookAtFromPosition(Vector3.Zero, toPlayArea, Vector3.Up);
+            AddChild(_keyLight);
+            _keyLight.LookAtFromPosition(Vector3.Zero, toPlayArea, Vector3.Up);
 
-            var fill = new DirectionalLight3D
+            _fillLight = new DirectionalLight3D
             {
                 Name = "CoolFill",
                 LightColor = new Color(0.42f, 0.58f, 1.0f),
                 LightEnergy = 0.30f,
                 ShadowEnabled = false,
             };
-            AddChild(fill);
-            fill.LookAtFromPosition(Vector3.Zero, -toPlayArea + new Vector3(0f, -0.35f, 0f) * toPlayArea.Length(), Vector3.Up);
+            AddChild(_fillLight);
+            _fillLight.LookAtFromPosition(Vector3.Zero, -toPlayArea + new Vector3(0f, -0.35f, 0f) * toPlayArea.Length(), Vector3.Up);
+        }
+
+        /// <summary>Upstream J behavior: target the linked system best aligned with facing.</summary>
+        private void SelectJumpTarget()
+        {
+            StarSystem? current = _ship?.CurrentSystem;
+            if (_ship == null || current == null)
+            {
+                return;
+            }
+
+            double bestMatch = -2.0;
+            StarSystem? best = null;
+            foreach (string linkName in current.Links)
+            {
+                if (!_universe.Systems.TryGetValue(linkName, out StarSystem? link))
+                {
+                    continue;
+                }
+
+                Point direction = link.MapPosition - current.MapPosition;
+                double match = _ship.Facing.Unit().Dot(direction.Unit());
+                if (match > bestMatch)
+                {
+                    bestMatch = match;
+                    best = link;
+                }
+            }
+
+            if (best != null)
+            {
+                _ship.TargetSystem = best;
+                _jumpAutopilot = true;
+                GD.Print($"[flight] jump autopilot → {best.Name}");
+            }
+        }
+
+        /// <summary>
+        /// The engine side of upstream Engine::EnterSystem: one day passes per
+        /// jump, stellar objects re-place for the new date, and the scene
+        /// rebuilds around the new system.
+        /// </summary>
+        private void HandleArrival()
+        {
+            StarSystem system = _ship!.CurrentSystem!;
+            _lastSystem = system;
+            _currentDay += 1.0;
+            system.SetDate(_currentDay);
+
+            foreach (StellarObjectView view in _stellarViews)
+            {
+                view.QueueFree();
+            }
+
+            _stellarViews.Clear();
+            foreach (StellarObject obj in system.AllObjects())
+            {
+                var view = StellarObjectView.Create(obj);
+                AddChild(view);
+                _stellarViews.Add(view);
+            }
+
+            Point playArea = Point.Zero;
+            foreach (StellarObject obj in system.AllObjects())
+            {
+                if (obj.PlanetName != null)
+                {
+                    playArea = obj.Position;
+                    break;
+                }
+            }
+
+            if (playArea == Point.Zero)
+            {
+                playArea = _ship.Position;
+            }
+
+            _keyLight.QueueFree();
+            _fillLight.QueueFree();
+            BuildLighting(playArea);
+
+            if (_titleLabel != null)
+            {
+                _titleLabel.Text = $"{system.Name.ToUpperInvariant()}  ·  {StartShip.ToUpperInvariant()}";
+            }
+
+            GD.Print($"[flight] entered {system.Name} on day {_currentDay:0} " +
+                     $"(objects={_stellarViews.Count} fuel={_ship.Fuel:0})");
         }
 
         /// <summary>
@@ -345,10 +511,10 @@ namespace EndlessSky.Game
             column.AddThemeConstantOverride("separation", 2);
             panel.AddChild(column);
 
-            var title = new Label { Text = errorMessage ?? $"{StartSystem.ToUpperInvariant()}  ·  {StartShip.ToUpperInvariant()}" };
-            title.AddThemeFontSizeOverride("font_size", 20);
-            title.AddThemeColorOverride("font_color", new Color(0.88f, 0.93f, 1.0f));
-            column.AddChild(title);
+            _titleLabel = new Label { Text = errorMessage ?? $"{StartSystem.ToUpperInvariant()}  ·  {StartShip.ToUpperInvariant()}" };
+            _titleLabel.AddThemeFontSizeOverride("font_size", 20);
+            _titleLabel.AddThemeColorOverride("font_color", new Color(0.88f, 0.93f, 1.0f));
+            column.AddChild(_titleLabel);
 
             _statusLabel = new Label();
             _statusLabel.AddThemeFontSizeOverride("font_size", 15);
@@ -368,7 +534,7 @@ namespace EndlessSky.Game
             keysPanel.SetAnchorsPreset(Control.LayoutPreset.BottomLeft);
             keysPanel.AddThemeStyleboxOverride("panel", HudPanelStyle());
             hud.AddChild(keysPanel);
-            var keys = new Label { Text = "↑ thrust · ←/→ turn · ↓ turn retrograde (brake) · wheel zoom · WASD also works" };
+            var keys = new Label { Text = "↑ thrust · ←/→ turn · ↓ turn retrograde (brake) · J jump · wheel zoom · WASD also works" };
             keys.AddThemeFontSizeOverride("font_size", 12);
             keys.AddThemeColorOverride("font_color", new Color(0.40f, 0.48f, 0.56f));
             keysPanel.AddChild(keys);
@@ -384,7 +550,13 @@ namespace EndlessSky.Game
 
             double speed = _ship.Velocity.Length * Ship.FramesPerSecond;
             double pct = _ship.Velocity.Length / Math.Max(_ship.MaxVelocity, 1e-9) * 100.0;
-            _statusLabel.Text = $"{speed:0} KM/S · {pct:0}%   HDG {_ship.Facing.AbsDegrees:000}°";
+            string status = _ship.IsHyperspacing
+                ? $"   HYPERSPACE {(_ship.IsEnteringHyperspace ? "→ " + _ship.HyperspaceSystem!.Name : "· arriving")}"
+                : _jumpAutopilot && _ship.TargetSystem != null
+                    ? $"   JUMP → {_ship.TargetSystem.Name}"
+                    : string.Empty;
+            _statusLabel.Text =
+                $"{speed:0} KM/S · {pct:0}%   HDG {_ship.Facing.AbsDegrees:000}°   FUEL {_ship.Fuel:0}{status}";
         }
 
         public override void _ExitTree()

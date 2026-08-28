@@ -6,11 +6,11 @@ here is quietly dropped — incomplete systems stay listed as incomplete.
 
 | Milestone | Status | Evidence |
 |---|---|---|
-| **M1 Flight** | **Working; in gauntlet** | 81/81 tests (`tools/test.ps1`); headless boot prints the `[flight]` line with derived Shuttle constants matching upstream (mass 192, vmax 13.375 px/f, turn 2.875°/f); autopilot capture `reports/m1_flight.png` shows banked powered flight near New Boston. First visual + gameplay critic pass running; corrections land before M1 is called done. |
-| M2 Combat | **Sim core + effect views built; firing/collision in flight** | Weapons/damage/projectiles/governments in `libs/EndlessSky.Sim` (shields-block-entirely, 0.25 hull epsilon, valueless flags all pinned by tests); `CombatEffects`/`ProjectileView`/`ExplosionView`/`ShieldImpactView` in `src/game`; hardpoint firing loop + collision under construction. |
-| M3 Travel | Not started | Hyperspace constants already extracted (docs/upstream-reference.md §Hyperspace). |
-| M4 Landing economy | Not started | — |
-| M5 Missions | Not started | — |
+| **M1 Flight** | **Done through gauntlet round 1** | Sim port verified exact by the gameplay critic (epoch math, quantized angles, coasting rule); visual critic's six corrections landed (key light, framing, bloom, silhouette, plume, HUD) plus the retrograde-brake input translation with hand-derived tests. Evidence: `reports/m1_flight_v3.png`. |
+| M2 Combat | **Sim complete; views wired; gauntlet pending** | Weapons/damage/projectiles/governments/firing/collision/targeting-AI in `libs/EndlessSky.Sim` (shields-block-entirely, 0.25 hull epsilon, valueless flags pinned by tests); `CombatEffects`/`ProjectileView`/`ExplosionView`/`ShieldImpactView` + the `--combat-demo` hostile drone driven by `ShipAi`. Combat gauntlet round (bolt/flash captures) pending. |
+| M3 Travel | **Sim green; view wired, verification pending** | `Ship.Travel.cs` ports IsReadyToJump/DoHyperspaceLogic (hyperdrive path) with hand-derived tests (exact 100-frame phases, fuel drain, 4-jump tank); FlightWorld: J-key best-aligned-link targeting, brake-and-face autopilot, arrival advances the date and rebuilds the system. Full protocol: docs/upstream-reference.md §jump. |
+| M4 Landing economy | **Economy sim underway** | Commodity/TradeData/CargoHold/Outfitting in libs (peer lane); landing flow and shop UI not started. |
+| M5 Missions | **Condition parsing in flight** (peer lane) | — |
 | M6 Fleet gameplay | Not started | — |
 | M7 Content compatibility | **Ahead of schedule** | The loader already ingests the FULL upstream dataset (902 ships / 920 outfits / 694 systems, zero parse diagnostics) — M7's "progressively larger portions" started at 100% for parsing; behavior coverage still tracks the other milestones. `GameData.UnhandledNodes` counts what the model doesn't yet understand. |
 | M8 Visual production | Not started | M1 uses procedural prototype assets by design. |

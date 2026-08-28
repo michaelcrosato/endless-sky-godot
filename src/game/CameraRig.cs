@@ -48,8 +48,10 @@ namespace EndlessSky.Game
         {
             Vector3 shipPos = WorldSpace.ToWorld(ship.Position);
 
-            // Look ahead along the velocity so fast flight reads on screen.
+            // Look ahead along the velocity so fast flight reads on screen —
+            // clamped, or hyperspace speeds shove the ship out of frame.
             Vector3 velocity = WorldSpace.ToWorld(ship.Position + ship.Velocity * 24.0) - shipPos;
+            velocity = velocity.LimitLength(22f);
             Vector3 focusTarget = shipPos + velocity;
 
             float blend = 1f - Mathf.Exp(-FollowSharpness * (float)delta);

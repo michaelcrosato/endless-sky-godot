@@ -146,6 +146,19 @@ namespace EndlessSky.Game
             _hull.AddChild(_plume);
         }
 
+        /// <summary>
+        /// Hyperspace visual: stretch the hull along its heading (upstream
+        /// stretches the sprite) and kill the plume. 0 restores normal flight.
+        /// </summary>
+        public void SetHyperspaceStretch(float fraction)
+        {
+            _hull.Scale = new Vector3(1f, 1f, 1f + fraction * 3f);
+            if (fraction > 0f)
+            {
+                _plume.Emitting = false;
+            }
+        }
+
         /// <summary>Update transform + effects from the sim ship. Called once per sim step.</summary>
         public void SyncWith(Ship ship)
         {
