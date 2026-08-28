@@ -265,6 +265,47 @@ namespace EndlessSky.Sim
         }
 
         /// <summary>
+        /// Removes an outfit, undoing everything <see cref="AddOutfit"/> did.
+        /// </summary>
+        /// <remarks>
+        /// Unloading the hardpoint matters as much as the attributes: an outfitter that
+        /// took the gun off the books but left it on the mount would leave a ship
+        /// firing a weapon it no longer owns.
+        /// </remarks>
+        public int RemoveOutfit(Outfit outfit, int count = 1)
+        {
+            if (outfit is null || count <= 0)
+                return 0;
+
+            int removed = 0;
+            for (int i = 0; i < count && _outfits.Remove(outfit); i++)
+                removed++;
+
+            if (removed == 0)
+                return 0;
+
+            Attributes.Add(outfit.Attributes, -removed);
+
+            if (outfit.Weapon is not null && outfit.Weapon.IsWeapon)
+            {
+                int toClear = removed;
+                foreach (WeaponMount mount in _mounts)
+                {
+                    if (toClear == 0)
+                        break;
+
+                    if (ReferenceEquals(mount.InstalledOutfit, outfit))
+                    {
+                        mount.Uninstall();
+                        toClear--;
+                    }
+                }
+            }
+
+            return removed;
+        }
+
+        /// <summary>
         /// How much of a commanded manoeuvre this ship can currently pay for, in
         /// [0, 1]. Port of upstream's <c>ResourceLevels::FractionalUsage</c>.
         /// </summary>

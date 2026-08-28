@@ -80,6 +80,9 @@ namespace EndlessSky.Sim
 
         public string Category { get; private set; } = string.Empty;
 
+        /// <summary>Shop price, in credits.</summary>
+        public long Cost => (long)Attributes.Get("cost");
+
         public Attributes Attributes { get; } = new Attributes();
 
         /// <summary>
