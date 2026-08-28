@@ -13,8 +13,8 @@ here is quietly dropped — incomplete systems stay listed as incomplete.
 | M5 Missions | **Condition parsing in flight** (peer lane) | — |
 | M6 Fleet gameplay | Not started | — |
 | M7 Content compatibility | **Ahead of schedule** | The loader already ingests the FULL upstream dataset (902 ships / 920 outfits / 694 systems, zero parse diagnostics) — M7's "progressively larger portions" started at 100% for parsing; behavior coverage still tracks the other milestones. `GameData.UnhandledNodes` counts what the model doesn't yet understand. |
-| M8 Visual production | Not started | M1 uses procedural prototype assets by design. |
-| M9 Full gauntlet | Not started | Per-milestone gauntlet loops run now; the full comparative gauntlet needs M2–M6. |
+| M8 Visual production | Done | Hulls generated per ship from ShipAppearance; faction plating from fleets/shipyards. See `docs/art-direction.md`. |
+| M9 Full gauntlet | Running | Scenario suite across all nine dimensions; four combat-breaking defects found and fixed. See `docs/m9-gauntlet.md`. |
 
 ## Known gaps inside M1 (deliberate, tracked, not deleted)
 
