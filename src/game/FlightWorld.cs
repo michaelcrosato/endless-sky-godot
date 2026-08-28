@@ -17,9 +17,21 @@ namespace EndlessSky.Game
     /// </summary>
     public partial class FlightWorld : Node3D
     {
-        private const string StartSystem = "Rutilicus";
-        private const string StartPlanet = "New Boston";
+        // Fallbacks only. The date, system, planet, opening balance and starting
+        // conditions all come from the dataset's "start" definition — Milestone 7's
+        // rule is not to hard-code content that can be loaded from the source data,
+        // and all of it is in starts.txt. These are used only if that is missing.
+        private const string FallbackSystem = "Rutilicus";
+        private const string FallbackPlanet = "New Boston";
+
+        // A start does not name a ship: upstream's opening conversation sells the
+        // player their first hull on credit, which is why the classic start begins in
+        // debt. Until conversations can grant ships, this is still chosen here.
         private const string StartShip = "Shuttle";
+
+        private string _startSystem = FallbackSystem;
+        private string _startPlanet = FallbackPlanet;
+        private StartScenario? _start;
 
         private Ship? _ship;
         private ShipView _shipView = null!;   // set with _ship; guarded by _ship != null
@@ -72,19 +84,27 @@ namespace EndlessSky.Game
             AddChild(new Starfield { Name = "Starfield" });
 
             GameData? universe = EsData.Universe;
-            if (universe == null || !universe.Systems.TryGetValue(StartSystem, out StarSystem? system))
+
+            // Where a new pilot begins, as the dataset states it.
+            _start = universe?.DefaultStart;
+            if (_start?.SystemName != null) _startSystem = _start.SystemName;
+            if (_start?.PlanetName != null) _startPlanet = _start.PlanetName;
+
+            if (universe == null || !universe.Systems.TryGetValue(_startSystem, out StarSystem? system))
             {
                 string message = EsData.DataPath == null
                     ? "Endless Sky data not found.\nSet ENDLESS_SKY_DATA or clone endless-sky as ../es-upstream."
-                    : $"System \"{StartSystem}\" missing from dataset at {EsData.DataPath}.";
+                    : $"System \"{_startSystem}\" missing from dataset at {EsData.DataPath}.";
                 GD.Print($"[flight] data=missing — {message.Replace('\n', ' ')}");
                 BuildHud(message);
                 return;
             }
 
-            // Vanilla start date: 16 November 3013.
             _universe = universe;
-            _currentDay = DaysSinceEpoch(3013, 11, 16);
+
+            // The start's own date, not a constant.
+            DateTime startDate = _start?.Date ?? new DateTime(3013, 11, 16);
+            _currentDay = DaysSinceEpoch(startDate.Year, startDate.Month, startDate.Day);
             system.SetDate(_currentDay);
 
             foreach (StellarObject obj in system.AllObjects())
@@ -104,7 +124,7 @@ namespace EndlessSky.Game
             Point planetPos = Point.Zero;
             foreach (StellarObject obj in system.AllObjects())
             {
-                if (obj.PlanetName == StartPlanet)
+                if (obj.PlanetName == _startPlanet)
                 {
                     planetPos = obj.Position;
                     break;
@@ -124,7 +144,24 @@ namespace EndlessSky.Game
             _player = new PlayerState(universe);
             _player.Fleet.Add(_ship);
             _player.Fleet.SetFlagship(_ship);
-            _player.SetCredits(_credits);
+
+            // Money and opening conditions from the start definition. The conditions
+            // matter as much as the credits: the default start sets a pilot's licence
+            // and a species, and content gates on both, so a player placed in the world
+            // by hand never sees the campaign that checks for them.
+            if (_start != null)
+            {
+                _start.ApplyTo(_player, universe);
+                _credits = _player.Credits;
+                GD.Print($"[start] {_start.DisplayName}: {_startPlanet}, {_startSystem}, " +
+                         $"{startDate:d MMM yyyy}, {_credits:n0} credits, " +
+                         $"{_player.Conditions.Values.Count} conditions set");
+            }
+            else
+            {
+                _player.SetCredits(_credits);
+            }
+
             _player.EnterSystem(system);
             _missions = new MissionLog(_player);
             _spawner = new FleetSpawner(universe);
@@ -729,7 +766,7 @@ namespace EndlessSky.Game
             column.AddThemeConstantOverride("separation", 2);
             panel.AddChild(column);
 
-            _titleLabel = new Label { Text = errorMessage ?? $"{StartSystem.ToUpperInvariant()}  ·  {StartShip.ToUpperInvariant()}" };
+            _titleLabel = new Label { Text = errorMessage ?? $"{_startSystem.ToUpperInvariant()}  ·  {StartShip.ToUpperInvariant()}" };
             _titleLabel.AddThemeFontSizeOverride("font_size", 20);
             _titleLabel.AddThemeColorOverride("font_color", new Color(0.88f, 0.93f, 1.0f));
             column.AddChild(_titleLabel);

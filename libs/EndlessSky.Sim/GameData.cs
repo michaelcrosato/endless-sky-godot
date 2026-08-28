@@ -35,6 +35,9 @@ namespace EndlessSky.Sim
         private readonly Dictionary<string, Sale> _outfitters =
             new Dictionary<string, Sale>(StringComparer.Ordinal);
 
+        private readonly Dictionary<string, StartScenario> _starts =
+            new Dictionary<string, StartScenario>(StringComparer.Ordinal);
+
         private readonly Dictionary<string, Wormhole> _wormholes =
             new Dictionary<string, Wormhole>(StringComparer.Ordinal);
 
@@ -80,6 +83,18 @@ namespace EndlessSky.Sim
         public IReadOnlyDictionary<string, Mission> Missions => _missions;
 
         public IReadOnlyDictionary<string, GameEvent> Events => _events;
+
+        /// <summary>Where a new pilot can begin.</summary>
+        public IReadOnlyDictionary<string, StartScenario> Starts => _starts;
+
+        /// <summary>
+        /// The start a new game uses: the one named "default" if content defines it,
+        /// else the first that loaded.
+        /// </summary>
+        public StartScenario? DefaultStart =>
+            _starts.TryGetValue("default", out StartScenario? found)
+                ? found
+                : _starts.Values.FirstOrDefault();
 
         /// <summary>Passages between systems that are not hyperspace links.</summary>
         public IReadOnlyDictionary<string, Wormhole> Wormholes => _wormholes;
@@ -431,6 +446,10 @@ namespace EndlessSky.Sim
 
                     case "trade":
                         Trade.LoadTradeDefinition(node);
+                        break;
+
+                    case "start" when node.Size >= 2:
+                        GetOrCreate(_starts, node.Token(1), n => new StartScenario(n)).Load(node);
                         break;
 
                     case "wormhole" when node.Size >= 2:
