@@ -166,6 +166,10 @@ namespace EndlessSky.Sim
             // every scenario written against the simulation had the same hole.
             StepArmament();
 
+            // Power, cooling and repair advance with the ship too, and must run before
+            // this frame's manoeuvring spends anything.
+            StepResources();
+
             IsThrusting = false;
             IsReversing = false;
             IsSteering = false;
@@ -185,9 +189,22 @@ namespace EndlessSky.Sim
             if (command.Turn != 0.0)
             {
                 double turn = Math.Max(-1.0, Math.Min(1.0, command.Turn));
-                IsSteering = true;
-                SteeringDirection = turn;
-                Facing += new Angle(turn * TurnRate);
+
+                // Manoeuvring costs energy and makes heat. A ship short of power turns
+                // at a FRACTION of its rate rather than not at all, which is upstream's
+                // FractionalUsage: the ship stays controllable as its reactor browns
+                // out instead of locking solid.
+                turn *= AffordableFraction(
+                    Attributes.Get("turning energy"), Attributes.Get("turning heat"));
+
+                if (turn != 0.0)
+                {
+                    IsSteering = true;
+                    SteeringDirection = turn;
+                    Spend(Attributes.Get("turning energy"), Attributes.Get("turning heat"),
+                          Math.Abs(turn));
+                    Facing += new Angle(turn * TurnRate);
+                }
             }
 
             double thrustCommand = (command.Forward ? 1.0 : 0.0) - (command.Back ? 1.0 : 0.0);
@@ -196,12 +213,22 @@ namespace EndlessSky.Sim
                 bool forward = thrustCommand > 0.0;
                 double thrust = forward ? Thrust : ReverseThrust;
 
+                double energyCost = forward
+                    ? Attributes.Get("thrusting energy")
+                    : Attributes.Get("reverse thrusting energy");
+                double heatCost = forward
+                    ? Attributes.Get("thrusting heat")
+                    : Attributes.Get("reverse thrusting heat");
+
+                thrustCommand *= AffordableFraction(energyCost, heatCost);
+
                 // Upstream ignores a reverse command on a ship with no reverse thruster
                 // entirely - the ship does not even slow under drag.
-                if (thrust != 0.0)
+                if (thrust != 0.0 && thrustCommand != 0.0)
                 {
                     IsThrusting = forward;
                     IsReversing = !forward;
+                    Spend(energyCost, heatCost, Math.Abs(thrustCommand));
                     acceleration += Facing.Unit() * thrustCommand *
                                     (forward ? Acceleration : ReverseAcceleration);
                 }
@@ -235,6 +262,36 @@ namespace EndlessSky.Sim
             }
 
             Position += Velocity;
+        }
+
+        /// <summary>
+        /// How much of a commanded manoeuvre this ship can currently pay for, in
+        /// [0, 1]. Port of upstream's <c>ResourceLevels::FractionalUsage</c>.
+        /// </summary>
+        /// <remarks>
+        /// Upstream scales the command rather than refusing it, so a ship low on power
+        /// turns and accelerates weakly instead of freezing. A cost of zero is free and
+        /// always affordable, which is what an unpowered manoeuvring system means.
+        /// </remarks>
+        private double AffordableFraction(double energyCost, double heatCost)
+        {
+            if (energyCost <= 0.0)
+                return 1.0;
+
+            if (Energy <= 0.0)
+                return 0.0;
+
+            return Math.Min(1.0, Energy / energyCost);
+        }
+
+        /// <summary>Pays for a manoeuvre performed at <paramref name="fraction"/> of full.</summary>
+        private void Spend(double energyCost, double heatCost, double fraction)
+        {
+            if (energyCost > 0.0)
+                Energy = Math.Max(0.0, Energy - energyCost * fraction);
+
+            if (heatCost > 0.0)
+                Heat += heatCost * fraction;
         }
 
         public override string ToString() => $"{Definition.DisplayName} @ {Position}";

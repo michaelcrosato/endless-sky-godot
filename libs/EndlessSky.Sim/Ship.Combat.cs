@@ -117,6 +117,89 @@ namespace EndlessSky.Sim
             MaximumTemperature * (CargoMass + Attributes.Get("mass") + Attributes.Get("heat capacity"));
 
         /// <summary>
+        /// Fraction of accumulated heat shed each frame, upstream's
+        /// <c>Ship::HeatDissipation</c>: the hull attribute scaled by .001.
+        /// </summary>
+        public double HeatDissipation => Attributes.Get("heat dissipation") * 0.001;
+
+        /// <summary>
+        /// Runs one frame of resource generation: power, cooling, and shield and hull
+        /// repair. Partial port of upstream <c>Ship::DoGeneration</c>.
+        /// </summary>
+        /// <remarks>
+        /// Nothing regenerated anything before this existed. Energy, shields and hull
+        /// only ever went down, which is survivable while nothing spends energy but
+        /// becomes total once manoeuvring costs power: every ship in the game would
+        /// brown out permanently within about a minute of flying, and no ship would
+        /// ever recover its shields between fights.
+        ///
+        /// Order matters and is upstream's: repair spends what is left of LAST frame's
+        /// energy, so it cannot steal power from movement or weapons, and only then is
+        /// this frame's generation added. Repair is also capped by what the ship can
+        /// pay for, which is why a battered ship with a weak reactor mends slowly
+        /// rather than instantly.
+        ///
+        /// INCOMPLETE, tracked rather than dropped: repair delays after taking damage,
+        /// carried fighters drawing on their parent, ramscoop and solar collection,
+        /// active cooling, heat-driven shield disruption, and the fuel-burning
+        /// generators. Depleted-shield and disabled-hull delays in particular make
+        /// upstream's combat pacing slower than this.
+        /// </remarks>
+        public void StepResources()
+        {
+            // 1. Hull repair, then shields, out of energy already in the bank.
+            double hullRate = Attributes.Get("hull repair rate");
+            if (hullRate > 0.0 && Hull < MaxHull)
+                Repair(hullRate, Attributes.Get("hull energy"), Attributes.Get("hull heat"),
+                       Hull, MaxHull, repaired => SetLevels(hull: repaired));
+
+            double shieldRate = Attributes.Get("shield generation");
+            if (shieldRate > 0.0 && Shields < MaxShields)
+                Repair(shieldRate, Attributes.Get("shield energy"), Attributes.Get("shield heat"),
+                       Shields, MaxShields, regenerated => SetLevels(shields: regenerated));
+
+            // 2. This frame's power, minus what the ship's systems draw idling.
+            double generated = Attributes.Get("energy generation") - Attributes.Get("energy consumption");
+            if (generated != 0.0)
+                SetLevels(energy: Math.Clamp(Energy + generated, 0.0, MaxEnergy));
+
+            // 3. Heat: what the hull makes, less what it sheds. Dissipation is a
+            //    fraction of current heat, so a hot ship cools faster than a cool one.
+            Heat += Attributes.Get("heat generation") - Attributes.Get("cooling");
+            Heat -= Heat * HeatDissipation;
+            if (Heat < 0.0)
+                Heat = 0.0;
+        }
+
+        /// <summary>
+        /// Restores up to <paramref name="rate"/> points, limited by the energy the
+        /// ship can actually spend on it.
+        /// </summary>
+        private void Repair(double rate, double energyPerPoint, double heatPerPoint,
+                            double current, double maximum, Action<double> apply)
+        {
+            double wanted = Math.Min(rate, maximum - current);
+            if (wanted <= 0.0)
+                return;
+
+            // Costs are stated per point repaired, so a ship short of power repairs
+            // proportionally less rather than repairing free.
+            if (energyPerPoint > 0.0)
+                wanted = Math.Min(wanted, Energy / energyPerPoint);
+
+            if (wanted <= 0.0)
+                return;
+
+            if (energyPerPoint > 0.0)
+                SetLevels(energy: Math.Max(0.0, Energy - energyPerPoint * wanted));
+
+            if (heatPerPoint > 0.0)
+                Heat += heatPerPoint * wanted;
+
+            apply(current + wanted);
+        }
+
+        /// <summary>
         /// Hull level below which the ship is disabled rather than destroyed.
         /// Port of the minimumHull block in upstream <c>Ship::CacheAttributes</c>.
         /// </summary>
