@@ -59,6 +59,23 @@ namespace EndlessSky.Sim
         /// <summary>Crew required to fly the ship at all.</summary>
         public int RequiredCrew => (int)Attributes.Get("required crew");
 
+        private int? _crew;
+
+        /// <summary>
+        /// Crew actually aboard. Defaults to the required minimum; extra crew matter
+        /// for boarding actions and, on the flagship only, for salaries.
+        /// </summary>
+        public int Crew
+        {
+            get => _crew ??= RequiredCrew;
+            set => _crew = Math.Max(0, Math.Min(value, Math.Max(Bunks, RequiredCrew)));
+        }
+
+        /// <summary>
+        /// A parked ship stays on the ground: it flies nowhere and costs no salaries.
+        /// </summary>
+        public bool IsParked { get; set; }
+
         /// <summary>Total berths, which bounds crew plus passengers.</summary>
         public int Bunks => (int)Attributes.Get("bunks");
 
