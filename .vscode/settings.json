@@ -9,7 +9,7 @@
   "godotTools.lsp.serverPort": 6005,
   "godotTools.lsp.autoReconnect.enabled": true,
 
-  "dotnet.defaultSolution": "GdCcT.sln",
+  "dotnet.defaultSolution": "EndlessSky.sln",
 
   "[gdscript]": {
     "editor.insertSpaces": false,

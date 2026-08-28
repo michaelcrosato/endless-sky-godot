@@ -1,61 +1,66 @@
 #Requires -Version 7
 <#
 .SYNOPSIS
-  Runs the test suites. Both by default; exits non-zero if any suite fails.
+  Runs the test suites. All of them by default; exits non-zero if any fails.
+.DESCRIPTION
+  Two tiers, matching the directive's separation of simulation from rendering:
+
+    sim    NUnit over libs/EndlessSky.{Data,Sim}. Those projects cannot see
+           GodotSharp, so these run on the bare .NET host in under a second.
+           This is where behavioural parity with upstream is pinned down.
+
+    godot  gdUnit4 over the presentation layer, which needs a real engine
+           process. Skipped cleanly while no such suites exist yet.
 .PARAMETER Suite
-  'all' (default), 'gd' (GDScript via gdUnit4 CLI), or 'cs' (C# via dotnet test).
-.PARAMETER Path
-  GDScript only: restrict the scan to a directory or single test suite.
+  'all' (default), 'sim', or 'godot'.
 .PARAMETER Filter
-  C# only: passed through to `dotnet test --filter`.
+  Passed through to `dotnet test --filter` (sim) / gdUnit4 `-a` path (godot).
 .EXAMPLE
   pwsh tools/test.ps1
-  pwsh tools/test.ps1 -Suite gd -Path tests/gd/health_test.gd
-  pwsh tools/test.ps1 -Suite cs -Filter "FullyQualifiedName~Inventory"
+  pwsh tools/test.ps1 -Suite sim -Filter "FullyQualifiedName~ShipPhysics"
 #>
 [CmdletBinding()]
 param(
-    [ValidateSet('all', 'gd', 'cs', 'sim')] [string]$Suite = 'all',
-    [string]$Path = 'tests/gd',
+    [ValidateSet('all', 'sim', 'godot')] [string]$Suite = 'all',
     [string]$Filter
 )
 
 . "$PSScriptRoot/_env.ps1"
 Set-Location $script:ProjectRoot
 
-Write-Host "[godot] $(Get-GodotVersion $script:GodotBin)`n"
 $failures = [System.Collections.Generic.List[string]]::new()
 
-if ($Suite -in 'all', 'gd') {
-    Write-Host '=== GDScript (gdUnit4) ==='
-    # --ignoreHeadlessMode: headless Godot does not deliver InputEvents, so gdUnit4
-    #   refuses to start without it. Safe here -- no suite drives simulated input.
-    # --remote-debug on port 0 is never bound, so the connection is refused instantly;
-    #   that keeps a parse error from dropping Godot into its interactive `debug>` prompt.
-    & $script:GodotBin --headless --path . -s -d --remote-debug tcp://127.0.0.1:0 `
-        res://addons/gdUnit4/bin/GdUnitCmdTool.gd -a $Path --ignoreHeadlessMode
-    if ($LASTEXITCODE -ne 0) { $failures.Add("GDScript (exit $LASTEXITCODE)") }
-    Write-Host ''
-}
-
-if ($Suite -in 'all', 'cs') {
-    Write-Host '=== C# (gdUnit4Net / VSTest) ==='
-    $dotnetArgs = @('test', 'GdCcT.csproj', '--settings', '.runsettings', '--nologo')
-    if ($Filter) { $dotnetArgs += @('--filter', $Filter) }
-    dotnet @dotnetArgs
-    if ($LASTEXITCODE -ne 0) { $failures.Add("C# (exit $LASTEXITCODE)") }
-    Write-Host ''
-}
-
 if ($Suite -in 'all', 'sim') {
-    Write-Host '=== Simulation (NUnit, engine-free) ==='
-    # Plain NUnit on the bare .NET host: the EndlessSky data/sim layer never
-    # touches Godot types, so these need no engine, no .runsettings, no adapter.
+    Write-Host '=== Simulation + data (NUnit, engine-free) ===' -ForegroundColor Cyan
     $simArgs = @('test', 'tests/sim/EndlessSky.SimTests.csproj', '--nologo')
     if ($Filter) { $simArgs += @('--filter', $Filter) }
     dotnet @simArgs
-    if ($LASTEXITCODE -ne 0) { $failures.Add("Simulation (exit $LASTEXITCODE)") }
+    if ($LASTEXITCODE -ne 0) { $failures.Add("sim (exit $LASTEXITCODE)") }
     Write-Host ''
+}
+
+if ($Suite -in 'all', 'godot') {
+    Write-Host '=== Presentation (gdUnit4, in-engine) ===' -ForegroundColor Cyan
+
+    # gdUnit4 exits non-zero when it finds nothing to run, which would make a
+    # green build look broken while the presentation layer has no suites yet.
+    $gdSuites = @(Get-ChildItem 'tests/godot' -Recurse -Include '*_test.gd', '*Test.cs' -EA SilentlyContinue)
+    if ($gdSuites.Count -eq 0) {
+        Write-Host '[skip] no presentation suites in tests/godot yet.'
+        Write-Host ''
+    }
+    else {
+        Write-Host "[godot] $(Get-GodotVersion $script:GodotBin)"
+        # --ignoreHeadlessMode: headless Godot delivers no InputEvents, so gdUnit4
+        #   refuses to start without it. Safe unless a suite drives simulated input.
+        # --remote-debug on a never-bound port is refused instantly, which stops a
+        #   parse error from dropping Godot into its interactive `debug>` prompt.
+        $path = if ($Filter) { $Filter } else { 'tests/godot' }
+        & $script:GodotBin --headless --path . -s -d --remote-debug tcp://127.0.0.1:0 `
+            res://addons/gdUnit4/bin/GdUnitCmdTool.gd -a $path --ignoreHeadlessMode
+        if ($LASTEXITCODE -ne 0) { $failures.Add("godot (exit $LASTEXITCODE)") }
+        Write-Host ''
+    }
 }
 
 if ($failures.Count -gt 0) {

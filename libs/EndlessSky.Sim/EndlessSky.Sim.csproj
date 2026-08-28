@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <!-- Simulation depends on the data layer, never on the engine. -->
+  <ItemGroup>
+    <ProjectReference Include="../EndlessSky.Data/EndlessSky.Data.csproj" />
+  </ItemGroup>
+
+</Project>

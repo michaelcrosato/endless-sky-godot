@@ -6,16 +6,25 @@ config_version=5
 
 [application]
 
-config/name="gd-cc-t"
-config/description="Godot engine test bench: GDScript + C#, headless-testable."
+config/name="Endless Sky 3D"
+config/description="Endless Sky reimplemented on Godot 4 (.NET): faithful data-driven simulation, low-poly 3D presentation."
 config/version="0.1.0"
-run/main_scene="res://scenes/main.tscn"
+run/main_scene="res://scenes/flight.tscn"
 config/features=PackedStringArray("4.7", "C#", "Forward Plus")
 config/icon="res://icon.svg"
 
+[display]
+
+window/size/viewport_width=1600
+window/size/viewport_height=900
+
+[physics]
+
+common/physics_ticks_per_second=60
+
 [dotnet]
 
-project/assembly_name="GdCcT"
+project/assembly_name="EndlessSky"
 
 [editor_plugins]
 

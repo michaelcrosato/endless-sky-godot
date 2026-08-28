@@ -29,7 +29,7 @@ Write-Host '[1/2] Importing assets...'
 if ($LASTEXITCODE -ne 0) { throw "Godot import failed ($LASTEXITCODE)" }
 
 Write-Host "[2/2] Building C# ($Configuration)..."
-dotnet build GdCcT.csproj --configuration $Configuration --nologo -v minimal
+dotnet build EndlessSky.csproj --configuration $Configuration --nologo -v minimal
 if ($LASTEXITCODE -ne 0) { throw "dotnet build failed ($LASTEXITCODE)" }
 
 Write-Host '[ok] build complete'

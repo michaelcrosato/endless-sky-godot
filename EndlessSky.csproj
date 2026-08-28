@@ -4,11 +4,30 @@
     <!-- net8.0 is what gdUnit4.test.adapter targets; Godot 4.7 loads it fine. -->
     <TargetFramework>net8.0</TargetFramework>
     <EnableDynamicLoading>true</EnableDynamicLoading>
-    <RootNamespace>GdCcT</RootNamespace>
+    <RootNamespace>EndlessSky.Presentation</RootNamespace>
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
     <IsPackable>false</IsPackable>
   </PropertyGroup>
+
+  <!-- The engine-free layers. Referencing them as projects (not source) is what
+       makes the directive's "do not mix rendering with simulation" rule a
+       compile error: neither library can see GodotSharp. -->
+  <ItemGroup>
+    <ProjectReference Include="libs/EndlessSky.Data/EndlessSky.Data.csproj" />
+    <ProjectReference Include="libs/EndlessSky.Sim/EndlessSky.Sim.csproj" />
+  </ItemGroup>
+
+  <!-- Godot.NET.Sdk globs every .cs under the project root, which would compile
+       the referenced libraries a second time. -->
+  <ItemGroup>
+    <Compile Remove="libs/**/*.cs" />
+    <Compile Remove="external/**/*.cs" />
+    <!-- tests/sim is its own NUnit project against the engine-free libraries.
+         Globbing it here would compile NUnit attributes into the Godot
+         assembly, which has no NUnit reference. -->
+    <Compile Remove="tests/sim/**/*.cs" />
+  </ItemGroup>
 
   <!-- Test tooling is Debug-only. Godot builds exports under its own
        ExportDebug / ExportRelease configurations, so anything not gated to
@@ -27,14 +46,6 @@
   <ItemGroup Condition="'$(Configuration)' != 'Debug'">
     <Compile Remove="tests/**/*.cs" />
     <Compile Remove="gdunit4_testadapter_v5/**/*.cs" />
-  </ItemGroup>
-
-  <!-- tests/sim is its own NUnit project (EndlessSky.SimTests.csproj) that
-       references this assembly; its sources must never be globbed in here, in
-       any configuration, or its NUnit attributes fail this build and its types
-       get compiled twice. -->
-  <ItemGroup>
-    <Compile Remove="tests/sim/**/*.cs" />
   </ItemGroup>
 
 </Project>
