@@ -71,7 +71,15 @@ namespace EndlessSky.Sim
         /// <summary>Sign of the steering applied this step, for visual banking.</summary>
         public double SteeringDirection { get; private set; }
 
-        public void AddOutfit(Outfit outfit, int count = 1)
+        /// <summary>
+        /// Adds an outfit to this ship, loading it into a hardpoint if it is a weapon
+        /// and one is free.
+        /// </summary>
+        /// <param name="arm">
+        /// False when the caller has already placed the weapon itself, so it is not
+        /// loaded into a second hardpoint.
+        /// </param>
+        public void AddOutfit(Outfit outfit, int count = 1, bool arm = true)
         {
             for (int i = 0; i < count; i++)
             {
@@ -79,6 +87,13 @@ namespace EndlessSky.Sim
             }
 
             Attributes.Add(outfit.Attributes, count);
+
+            // Giving a ship a gun has to put the gun on the ship. Upstream's Armament
+            // takes every weapon outfit as it is installed; keeping the two apart meant
+            // a ship could carry weapons it had no way to fire.
+            if (arm && outfit.Weapon is not null && outfit.Weapon.IsWeapon)
+                for (int i = 0; i < count; i++)
+                    ArmMount(outfit);
         }
 
         // --- Derived quantities, matching upstream accessor semantics -------------
@@ -144,6 +159,13 @@ namespace EndlessSky.Sim
         /// </summary>
         public void Step(Command command)
         {
+            // Reload clocks advance with the ship, as upstream's Ship::Move does
+            // (armament.Step). Leaving it to the caller meant it was simply forgotten:
+            // the flight scene stepped the drone's armament and not the player's, so
+            // the player could fire each gun exactly once and then never again, and
+            // every scenario written against the simulation had the same hole.
+            StepArmament();
+
             IsThrusting = false;
             IsReversing = false;
             IsSteering = false;

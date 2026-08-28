@@ -76,19 +76,31 @@ namespace EndlessSky.Sim
                 if (projectile.IsDead)
                     continue;
 
-                Point before = projectile.Position;
-                IReadOnlyList<Submunition> submunitions = projectile.Step();
+                // Collision-test the segment this projectile's velocity describes,
+                // BEFORE consuming the frame's lifetime.
+                // Upstream appends newly fired projectiles and then runs DoCollisions
+                // over every one of them (Engine.cpp:1909 then :1921), so a round is
+                // always tested against the ground it is about to cover, and only moves
+                // on the following frame.
+                //
+                // Testing after the move instead loses the hit entirely for a
+                // short-lived round, because Projectile.Step marks an expiring
+                // projectile dead and returns WITHOUT moving it: the segment collapses
+                // to a point. The Beam Laser - the standard human starter gun, and what
+                // a stock Sparrow carries - has a lifetime of exactly 1, so it dealt no
+                // damage at all. No unit test could see it, because the weapon, the
+                // projectile and the damage model were each individually correct.
+                Point from = projectile.Position;
+                Ship? struck = FirstShipHit(projectile, from, from + projectile.Velocity);
 
-                if (projectile.IsDead)
+                if (struck is null)
                 {
-                    // Natural expiry.
-                    SpawnSubmunitions(projectile, submunitions, spawned, DeathType.Natural);
+                    IReadOnlyList<Submunition> submunitions = projectile.Step();
+                    if (projectile.IsDead)
+                        SpawnSubmunitions(projectile, submunitions, spawned, DeathType.Natural);
+
                     continue;
                 }
-
-                Ship? struck = FirstShipHit(projectile, before, projectile.Position);
-                if (struck is null)
-                    continue;
 
                 ShipEvent events = struck.TakeDamage(projectile.Weapon);
                 hits.Add(new HitReport(struck, projectile, events));

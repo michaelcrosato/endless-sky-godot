@@ -35,6 +35,9 @@ namespace EndlessSky.Sim
         private readonly Dictionary<string, Sale> _outfitters =
             new Dictionary<string, Sale>(StringComparer.Ordinal);
 
+        private readonly Dictionary<string, Mission> _missions =
+            new Dictionary<string, Mission>(StringComparer.Ordinal);
+
         private readonly Dictionary<string, Fleet> _fleets =
             new Dictionary<string, Fleet>(StringComparer.Ordinal);
 
@@ -61,6 +64,8 @@ namespace EndlessSky.Sim
         public IReadOnlyDictionary<string, Sale> Outfitters => _outfitters;
 
         public IReadOnlyDictionary<string, Fleet> Fleets => _fleets;
+
+        public IReadOnlyDictionary<string, Mission> Missions => _missions;
 
         /// <summary>Commodity definitions plus per-system prices.</summary>
         public TradeData Trade { get; } = new TradeData();
@@ -356,6 +361,10 @@ namespace EndlessSky.Sim
 
                     case "trade":
                         Trade.LoadTradeDefinition(node);
+                        break;
+
+                    case "mission" when node.Size >= 2:
+                        GetOrCreate(_missions, node.Token(1), n => new Mission(n)).Load(node);
                         break;
 
                     case "fleet" when node.Size >= 2:

@@ -46,6 +46,40 @@ namespace EndlessSky.Sim
 
             foreach (Hardpoint turret in Definition.Turrets)
                 _mounts.Add(new WeaponMount(turret.Offset * 0.5, default, isTurret: true));
+
+            // Arm them from the weapons this ship already carries. Building the
+            // hardpoints and loading them are one step upstream (Ship::FinishLoading
+            // hands every weapon outfit to the Armament); splitting them left a ship
+            // that had been given its stock loadout holding the guns as inventory with
+            // every hardpoint still empty. A stock Sparrow carries two Beam Lasers and
+            // could not fire either of them, which made every NPC in the game harmless.
+            foreach (Outfit outfit in Outfits)
+                if (outfit.Weapon is not null && outfit.Weapon.IsWeapon)
+                    ArmMount(outfit);
+        }
+
+        /// <summary>
+        /// Loads one weapon outfit into a free hardpoint of the matching kind, without
+        /// touching the outfit inventory. Returns the mount, or null if none is free.
+        /// </summary>
+        /// <remarks>
+        /// Which kind a weapon needs is what it consumes: a turret spends "turret
+        /// mounts" and a gun spends "gun ports", exactly as the outfitter checks.
+        /// </remarks>
+        private WeaponMount? ArmMount(Outfit outfit, bool? asTurret = null)
+        {
+            bool turret = asTurret ?? outfit.Attributes.Get("turret mounts") < 0.0;
+
+            foreach (WeaponMount mount in _mounts)
+            {
+                if (mount.IsTurret == turret && mount.IsEmpty)
+                {
+                    mount.Install(outfit);
+                    return mount;
+                }
+            }
+
+            return null;
         }
 
         /// <summary>Ammunition currently carried, by outfit name.</summary>
@@ -73,17 +107,11 @@ namespace EndlessSky.Sim
         {
             if (outfit is null) throw new ArgumentNullException(nameof(outfit));
 
-            foreach (WeaponMount mount in _mounts)
-            {
-                if (mount.IsTurret == asTurret && mount.IsEmpty)
-                {
-                    mount.Install(outfit);
-                    AddOutfit(outfit);
-                    return mount;
-                }
-            }
+            WeaponMount? mount = ArmMount(outfit, asTurret);
+            if (mount is not null)
+                AddOutfit(outfit, arm: false);
 
-            return null;
+            return mount;
         }
 
         /// <summary>Advances every mount's reload clocks by one frame.</summary>

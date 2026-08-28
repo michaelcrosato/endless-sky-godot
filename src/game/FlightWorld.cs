@@ -525,6 +525,9 @@ namespace EndlessSky.Game
 
             _drone.Position = _ship.Position + new Point(190.0, -150.0);
             _drone.Facing = new Angle(180.0);
+            // Charge both sides' batteries: firing costs stored energy.
+            _drone.SetLevels(energy: _drone.MaxEnergy);
+            _ship.SetLevels(energy: _ship.MaxEnergy);
             _field.Add(_drone);
 
             _droneView = new ShipView { Name = "Drone" };
@@ -545,8 +548,8 @@ namespace EndlessSky.Game
             }
 
             // Sim-owned engagement, in the agreed frame order:
-            // StepArmament → target → steer → fire → field.Step.
-            _drone.StepArmament();
+            // target → steer → fire → field.Step. Reload clocks now advance inside
+            // Ship.Step, so stepping them here as well would reload at double rate.
             Ship? target = ShipAi.FindTarget(_drone, _field.Ships);
             _drone.Step(target is null ? Command.None : ShipAi.Attack(_drone, target));
             _droneView.SyncWith(_drone);

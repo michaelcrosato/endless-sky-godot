@@ -286,6 +286,25 @@ namespace EndlessSky.Sim
         /// <summary>Frames between shots. Upstream treats a reload of 0 as 1.</summary>
         public double Reload => Attributes.Has("reload") ? Attributes.Get("reload") : 1.0;
 
+        /// <summary>Anti-missile strength; 0 for an ordinary weapon.</summary>
+        public double AntiMissile => Attributes.Get("anti-missile");
+
+        /// <summary>Tractor beam pull; 0 for an ordinary weapon.</summary>
+        public double TractorBeam => Attributes.Get("tractor beam");
+
+        /// <summary>
+        /// Whether this hardpoint is defensive rather than offensive, upstream's
+        /// <c>Hardpoint::IsSpecial</c>.
+        /// </summary>
+        /// <remarks>
+        /// Anti-missile and tractor mounts never fire at ships: upstream services them
+        /// on a separate path that intercepts incoming projectiles. Counting them as
+        /// armament makes a freighter look like a warship - a stock Star Barge carries
+        /// an Anti-Missile Turret and nothing else - so it would hunt for targets it
+        /// has no way to hurt, and close to a range it has no weapon to reach.
+        /// </remarks>
+        public bool IsSpecial => AntiMissile > 0.0 || TractorBeam > 0.0;
+
         /// <summary>
         /// Frames between shots WITHIN a burst. Upstream's default is 1, not the full
         /// reload: defaulting it to Reload collapses every burst into a single shot.

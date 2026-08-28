@@ -87,7 +87,8 @@ namespace EndlessSky.Sim
 
             foreach (WeaponMount mount in ship.Mounts)
             {
-                if (!mount.IsEmpty)
+                // Defensive hardpoints do not make a ship a combatant.
+                if (!mount.IsEmpty && mount.Weapon is not null && !mount.Weapon.IsSpecial)
                     return true;
             }
 
@@ -127,7 +128,10 @@ namespace EndlessSky.Sim
             bool armed = false;
             foreach (WeaponMount mount in ship.Mounts)
             {
-                if (mount.IsEmpty)
+                // A defensive mount must not set the engagement standoff: an
+                // anti-missile turret has a very short reach, and letting it count
+                // would pull a warship into knife range of its real guns.
+                if (mount.IsEmpty || mount.Weapon!.IsSpecial)
                     continue;
 
                 armed = true;
@@ -210,7 +214,20 @@ namespace EndlessSky.Sim
             if (self is null || target is null || weapon is null || !weapon.IsWeapon)
                 return false;
 
+            // Anti-missile and tractor mounts are serviced on their own path and never
+            // shoot at ships.
+            if (weapon.IsSpecial)
+                return false;
+
             if (target.IsDestroyed)
+                return false;
+
+            // A weapon the ship cannot actually fire must not be reported as one it
+            // should. Without this the predicate disagrees with the firing path: an
+            // unloaded missile pod answers "yes, fire" on every frame forever, and only
+            // Ship.Fire silently declines. Anything that trusts ShouldFire to describe
+            // what will happen - AI target selection, or a test - is then misled.
+            if (!self.CanFire(weapon))
                 return false;
 
             Point toTarget = target.Position - self.Position;
