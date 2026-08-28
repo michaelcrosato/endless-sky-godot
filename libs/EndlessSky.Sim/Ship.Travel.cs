@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace EndlessSky.Sim
@@ -43,6 +44,39 @@ namespace EndlessSky.Sim
 
         public bool HasHyperdrive => Attributes.Get("hyperdrive") > 0.0;
 
+        /// <summary>Whether this ship carries a jump drive of any kind.</summary>
+        public bool HasJumpDrive => Attributes.Get("jump drive") > 0.0;
+
+        /// <summary>
+        /// How far this ship can jump on its jump drive, in galactic map units.
+        /// </summary>
+        /// <remarks>
+        /// A jump drive does not follow hyperspace links at all: it reaches ANY system
+        /// within range on the map, which is what makes alien ships able to cross
+        /// regions the human network does not connect. Upstream takes the range from
+        /// the drive outfit's "jump range" and falls back to the default neighbour
+        /// distance of 100 when the outfit does not state one.
+        ///
+        /// INCOMPLETE, tracked rather than dropped: upstream picks the cheapest drive
+        /// per distance band and applies jump mass costs. Attributes here are summed
+        /// across outfits, so the range is the best the ship carries and the fuel cost
+        /// is the simple one.
+        /// </remarks>
+        public double JumpDriveRange
+        {
+            get
+            {
+                if (!HasJumpDrive)
+                    return 0.0;
+
+                double stated = Attributes.Get("jump range");
+                return stated > 0.0 ? stated : DefaultJumpRange;
+            }
+        }
+
+        /// <summary>Upstream's <c>System::DEFAULT_NEIGHBOR_DISTANCE</c>.</summary>
+        public const double DefaultJumpRange = 100.0;
+
         /// <summary>Max |velocity| allowed to enter hyperspace ("jump speed").</summary>
         public double JumpSpeedLimit => Attributes.Get("jump speed");
 
@@ -57,21 +91,44 @@ namespace EndlessSky.Sim
         {
             get
             {
-                if (!HasHyperdrive)
+                // Which drive pays depends on the destination, not on the ship: a ship
+                // with both takes the cheap hyperdrive along a link and only falls back
+                // to the jump drive where no link goes.
+                bool linked = TargetSystem != null && CurrentSystem != null &&
+                              CurrentSystem.Links.Contains(TargetSystem.Name);
+
+                if (HasHyperdrive && (linked || !HasJumpDrive))
                 {
-                    return 0.0;
+                    double explicitCost = Attributes.Get("hyperdrive fuel");
+                    if (explicitCost > 0.0)
+                        return Math.Max(1.0, explicitCost);
+
+                    double legacy = Attributes.Get("jump fuel");
+                    return Math.Max(1.0, legacy > 0.0 ? legacy : DefaultHyperdriveFuel);
                 }
 
-                double explicitCost = Attributes.Get("hyperdrive fuel");
-                if (explicitCost > 0.0)
+                if (HasJumpDrive)
                 {
-                    return Math.Max(1.0, explicitCost);
+                    double explicitCost = Attributes.Get("jump drive fuel");
+                    if (explicitCost > 0.0)
+                        return Math.Max(1.0, explicitCost);
+
+                    double legacy = Attributes.Get("jump fuel");
+                    return Math.Max(1.0, legacy > 0.0 ? legacy : DefaultJumpDriveFuel);
                 }
 
-                double legacy = Attributes.Get("jump fuel");
-                return Math.Max(1.0, legacy > 0.0 ? legacy : 100.0);
+                return 0.0;
             }
         }
+
+        /// <summary>Upstream's <c>Outfit::DEFAULT_HYPERDRIVE_COST</c>.</summary>
+        public const double DefaultHyperdriveFuel = 100.0;
+
+        /// <summary>
+        /// Upstream's <c>Outfit::DEFAULT_JUMP_DRIVE_COST</c>. Twice a hyperdrive jump:
+        /// going where the links do not is meant to cost more.
+        /// </summary>
+        public const double DefaultJumpDriveFuel = 200.0;
 
         /// <summary>
         /// Departure direction: between the two systems' galactic map
@@ -88,6 +145,38 @@ namespace EndlessSky.Sim
         /// step of the departure direction (crossing over or landing exactly).
         /// Vanilla has no departure-distance gate (gamerules min is 0).
         /// </summary>
+        /// <summary>
+        /// Whether this ship's drives can reach a system at all: a hyperdrive follows
+        /// the link network, a jump drive ignores it and goes by map distance.
+        /// </summary>
+        public bool CanReach(StarSystem? destination)
+        {
+            if (destination is null || CurrentSystem is null)
+                return false;
+
+            if (HasHyperdrive && CurrentSystem.Links.Contains(destination.Name))
+                return true;
+
+            if (!HasJumpDrive)
+                return false;
+
+            // A system may extend the reach of drives inside it; upstream takes the
+            // larger of the ship's range and the system's own.
+            double range = Math.Max(JumpDriveRange, CurrentSystem.JumpRange);
+            return (destination.MapPosition - CurrentSystem.MapPosition).Length <= range;
+        }
+
+        /// <summary>Every system this ship could jump to from where it is.</summary>
+        public IEnumerable<StarSystem> ReachableSystems(GameData? data)
+        {
+            if (data is null || CurrentSystem is null)
+                yield break;
+
+            foreach (StarSystem system in data.Systems.Values)
+                if (!ReferenceEquals(system, CurrentSystem) && CanReach(system))
+                    yield return system;
+        }
+
         public bool IsReadyToJump()
         {
             if (IsDisabled || HyperspaceCount != 0 || TargetSystem == null || CurrentSystem == null)
@@ -95,7 +184,7 @@ namespace EndlessSky.Sim
                 return false;
             }
 
-            if (!HasHyperdrive || !CurrentSystem.Links.Contains(TargetSystem.Name))
+            if (!CanReach(TargetSystem))
             {
                 return false;
             }

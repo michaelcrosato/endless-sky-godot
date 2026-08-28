@@ -35,6 +35,9 @@ namespace EndlessSky.Sim
         private readonly Dictionary<string, Sale> _outfitters =
             new Dictionary<string, Sale>(StringComparer.Ordinal);
 
+        private readonly Dictionary<string, Wormhole> _wormholes =
+            new Dictionary<string, Wormhole>(StringComparer.Ordinal);
+
         private readonly Dictionary<string, Government> _governments =
             new Dictionary<string, Government>(StringComparer.Ordinal);
 
@@ -77,6 +80,9 @@ namespace EndlessSky.Sim
         public IReadOnlyDictionary<string, Mission> Missions => _missions;
 
         public IReadOnlyDictionary<string, GameEvent> Events => _events;
+
+        /// <summary>Passages between systems that are not hyperspace links.</summary>
+        public IReadOnlyDictionary<string, Wormhole> Wormholes => _wormholes;
 
         /// <summary>Every faction, with its attitudes and reputation.</summary>
         public IReadOnlyDictionary<string, Government> Governments => _governments;
@@ -425,6 +431,10 @@ namespace EndlessSky.Sim
 
                     case "trade":
                         Trade.LoadTradeDefinition(node);
+                        break;
+
+                    case "wormhole" when node.Size >= 2:
+                        GetOrCreate(_wormholes, node.Token(1), n => new Wormhole(n)).Load(node);
                         break;
 
                     case "government" when node.Size >= 2:

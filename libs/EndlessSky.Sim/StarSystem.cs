@@ -144,6 +144,12 @@ namespace EndlessSky.Sim
         public double Habitable { get; private set; }
 
         /// <summary>
+        /// Extra jump-drive reach for ships inside this system, from its "jump range"
+        /// node. Zero unless content states one.
+        /// </summary>
+        public double JumpRange { get; private set; }
+
+        /// <summary>
         /// Extra distance from the arrival target for ships entering by hyperdrive,
         /// from the system's <c>arrival</c> node. Zero when unset.
         /// </summary>
@@ -210,6 +216,10 @@ namespace EndlessSky.Sim
 
                     case "habitable" when child.Size >= 2:
                         Habitable = child.Value(1);
+                        break;
+
+                    case "jump range" when child.Size >= 2:
+                        JumpRange = Math.Max(0.0, child.Value(1));
                         break;
 
                     case "arrival":
