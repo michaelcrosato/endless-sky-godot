@@ -8,13 +8,13 @@ here is quietly dropped — incomplete systems stay listed as incomplete.
 |---|---|---|
 | **M1 Flight** | **Done through gauntlet round 1** | Sim port verified exact by the gameplay critic (epoch math, quantized angles, coasting rule); visual critic's six corrections landed (key light, framing, bloom, silhouette, plume, HUD) plus the retrograde-brake input translation with hand-derived tests. Evidence: `reports/m1_flight_v3.png`. |
 | M2 Combat | **Sim complete; views wired; gauntlet run** | Weapons/damage/projectiles/governments/firing/collision/targeting-AI in `libs/EndlessSky.Sim` (shields-block-entirely, 0.25 hull epsilon, valueless flags pinned by tests); `CombatEffects`/`ProjectileView`/`ExplosionView`/`ShieldImpactView` + the `--combat-demo` hostile drone driven by `ShipAi`. Combat gauntlet round (bolt/flash captures) pending. |
-| M3 Travel | **Sim green; view wired, verification pending** | `Ship.Travel.cs` ports IsReadyToJump/DoHyperspaceLogic (hyperdrive path) with hand-derived tests (exact 100-frame phases, fuel drain, 4-jump tank); FlightWorld: J-key best-aligned-link targeting, brake-and-face autopilot, arrival advances the date and rebuilds the system. Full protocol: docs/upstream-reference.md §jump. |
-| M4 Landing economy | **Sim complete; shop UI pending** | Commodity/TradeData/CargoHold/Outfitting, plus `Trading` (buy/sell ships and outfits, with upstream's `Depreciation`) and the landing flow. Shop UI not started. |
-| M5 Missions | **Sim complete except live tracking** | Parsing, conditions, conversations (inline and top-level), events (416, incl. universe patching), availability, completion actions, and NPC entities (1,186 across 587 missions). Accepting and tracking a mission in a running game is not wired. |
-| M6 Fleet gameplay | **Sim complete** | Multiple owned ships, escorts, fleet commands (escort/gather/hold/attack on upstream's `MoveTo` + `StoppingPoint`), salaries, cargo distribution, boarding, capturing, parking and flagship selection. |
+| M3 Travel | **Sim complete; view wired** | `Ship.Travel.cs` ports IsReadyToJump/DoHyperspaceLogic (hyperdrive path) with hand-derived tests (exact 100-frame phases, fuel drain, 4-jump tank); FlightWorld: J-key best-aligned-link targeting, brake-and-face autopilot, arrival advances the date and rebuilds the system. Full protocol: docs/upstream-reference.md §jump. |
+| M4 Landing economy | **Done** | Commodity/TradeData/CargoHold/Outfitting, `Trading` (buy/sell ships and outfits with upstream's `Depreciation`), a moving economy (`StepEconomy`), and a landed screen with trade, shipyard, outfitter and job counters. |
+| M5 Missions | **Done** | Parsing, conditions, conversations (inline and top-level), events (416, incl. universe patching), NPC entities (1,186 across 587 missions), the full accept/carry/complete/fail lifecycle with deadlines, and text substitution so jobs read as prose rather than templates. |
+| M6 Fleet gameplay | **Done** | Multiple owned ships, escorts, fleet commands (escort/gather/hold/attack on upstream's `MoveTo` + `StoppingPoint`), salaries, cargo distribution, boarding, capturing, parking and flagship selection. |
 | M7 Content compatibility | **Ahead of schedule** | The loader already ingests the FULL upstream dataset (902 ships / 920 outfits / 694 systems, zero parse diagnostics) — M7's "progressively larger portions" started at 100% for parsing; behavior coverage still tracks the other milestones. `GameData.UnhandledNodes` counts what the model doesn't yet understand. |
 | M8 Visual production | Done | Hulls generated per ship from ShipAppearance; faction plating from fleets/shipyards. See `docs/art-direction.md`. |
-| M9 Full gauntlet | Running | Scenario suite across all nine dimensions; four combat-breaking defects found and fixed. See `docs/m9-gauntlet.md`. |
+| M9 Full gauntlet | **Running — see below** | Scenario suite across all nine dimensions. Four combat-breaking defects found and fixed in the first pass; the directive's own wording ("continue correcting discrepancies") makes this milestone open-ended by design. See `docs/m9-gauntlet.md`. |
 
 ## Directive audit
 
@@ -31,13 +31,20 @@ it skips — to find gaps objectively. What that turned up:
 | M4 "ship purchasing" | No transaction path | `Trading` + `Depreciation` |
 | M6 "fleet commands" | Escorts listed, inert | `FleetOrders` on upstream's `MoveTo`/`StoppingPoint` |
 | Philosophy "energy", "heat" | Manoeuvring was free | Costed and throttled; generation added |
+| Philosophy "jump drives" | Not implemented | Range from the drive, fuel charged by destination |
+| M3 travel (wormholes) | Not parsed | 18 wormholes, cycle-linked, traversed by landing |
+| M5 "mission completion" | No lifecycle | Accept, carry, complete, fail, deadlines |
+| M4 "ship purchasing" | Unreachable in game | Shipyard and outfitter counters on the landed screen |
+| M2 "NPC ships" | Systems were empty | Fleets spawn and fly; 599 systems declare traffic |
+| Rendering "asteroid fields" | Not parsed | 71,984 rocks across 669 systems, instanced |
+| M7 "do not hard-code content" | Start was 4 constants | Loaded from `starts.txt`, conditions included |
+| Progression (save/load) | None | Whole game round-trips through the data format |
 
-Still unparsed, and deliberately so for now: `phrase` (867, procedural naming),
-`effect` (309) and `color`/`swizzle`/`interface`/`tip`/`help` (presentation),
-`news` (219), `person` (16), `wormhole` (18), `minable` (34) and `hazard` (30).
-These are listed here rather than dropped; none is named in a milestone
-checklist, though asteroid fields appear under Rendering and wormholes bear on
-travel.
+Still unparsed, and listed rather than dropped: `phrase` (867, procedural naming),
+`effect` (309), `news` (219), `color`/`swizzle`/`interface`/`tip`/`help`
+(presentation), `person` (16), `hazard` (30), `formation` (14) and `galaxy` (26).
+None is named in a milestone checklist. The ones that were — wormholes, minables
+and asteroids, governments, events, conversations, starts — are now in.
 
 ## Known gaps inside M1 (deliberate, tracked, not deleted)
 
