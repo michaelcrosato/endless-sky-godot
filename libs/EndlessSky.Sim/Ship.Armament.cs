@@ -89,7 +89,16 @@ namespace EndlessSky.Sim
             if (weapon is null || !weapon.IsWeapon || IsDisabled)
                 return false;
 
+            // Upstream gates on the whole firing cost, not energy alone. The human
+            // Flamethrower runs on fuel and must stop when the tank is dry; several
+            // Korath and Kahet weapons spend hull.
             if (Energy < weapon.FiringEnergy)
+                return false;
+
+            if (weapon.FiringFuel > 0.0 && Fuel < weapon.FiringFuel)
+                return false;
+
+            if (weapon.FiringHull > 0.0 && Hull < weapon.FiringHull)
                 return false;
 
             // A weapon that names ammunition cannot fire without a round left.
@@ -122,6 +131,7 @@ namespace EndlessSky.Sim
             // cleanly rather than firing on credit.
             Energy -= weapon.FiringEnergy;
             Heat += weapon.FiringHeat;
+            SpendFiringResources(weapon);
             if (weapon.AmmoName is not null)
                 AddAmmo(weapon.AmmoName, -(int)weapon.AmmoUsage);
 

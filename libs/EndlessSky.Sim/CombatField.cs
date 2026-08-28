@@ -81,7 +81,8 @@ namespace EndlessSky.Sim
 
                 if (projectile.IsDead)
                 {
-                    SpawnSubmunitions(projectile, submunitions, spawned);
+                    // Natural expiry.
+                    SpawnSubmunitions(projectile, submunitions, spawned, DeathType.Natural);
                     continue;
                 }
 
@@ -93,7 +94,11 @@ namespace EndlessSky.Sim
                 hits.Add(new HitReport(struck, projectile, events));
 
                 projectile.Kill();
-                SpawnSubmunitions(projectile, projectile.Weapon.Submunitions, spawned);
+                // A hit is a COLLISION death. Upstream releases submunitions only on
+                // the death types a cluster opts into, and the default is natural
+                // expiry alone - so a cluster round that strikes a ship head-on does
+                // not also shower it with its children.
+                SpawnSubmunitions(projectile, projectile.Weapon.Submunitions, spawned, DeathType.Collision);
             }
 
             _projectiles.AddRange(spawned);
@@ -102,9 +107,16 @@ namespace EndlessSky.Sim
         }
 
         /// <summary>
-        /// The first ship the segment strikes. Friendly fire is skipped: a shot never
-        /// hits a ship of the government that fired it.
+        /// The first ship the segment strikes.
         /// </summary>
+        /// <remarks>
+        /// Port of the filter in upstream <c>CollisionSet::Line</c>, which is broader
+        /// than "not my own government": a shot passes through ANY body whose
+        /// government is not an enemy of the shooter's, so a pirate firing at the
+        /// player does not shred neutral traffic that drifts through the line. The
+        /// converse also holds - a shot ALWAYS collides with the body it was aimed at,
+        /// even a friendly one, which is how a deliberately targeted shot connects.
+        /// </remarks>
         private Ship? FirstShipHit(Projectile projectile, Point from, Point to)
         {
             Ship? closest = null;
@@ -115,9 +127,17 @@ namespace EndlessSky.Sim
                 if (ship.IsDestroyed)
                     continue;
 
-                // Shots pass through the government that fired them.
-                if (projectile.Government is not null && ReferenceEquals(ship.Government, projectile.Government))
+                // The aimed-at body is always hittable, whatever its allegiance.
+                bool isIntendedTarget = projectile.Target is not null
+                    && ReferenceEquals(projectile.Target, ship);
+
+                if (!isIntendedTarget
+                    && projectile.Government is not null
+                    && ship.Government is not null
+                    && !projectile.Government.IsEnemy(ship.Government))
+                {
                     continue;
+                }
 
                 double? fraction = Collision.SweepCircle(from, to, ship.Position, ship.CollisionRadius);
                 if (fraction.HasValue && fraction.Value < closestFraction)
@@ -131,14 +151,18 @@ namespace EndlessSky.Sim
         }
 
         private void SpawnSubmunitions(Projectile parent, IReadOnlyList<Submunition>? submunitions,
-                                       List<Projectile> into)
+                                       List<Projectile> into, DeathType death)
         {
-            if (submunitions is null || submunitions.Count == 0 || WeaponLookup is null)
+            if (submunitions is null || submunitions.Count == 0)
                 return;
 
             foreach (Submunition submunition in submunitions)
             {
-                Weapon? weapon = WeaponLookup(submunition.WeaponName);
+                if ((submunition.SpawnOn & death) == DeathType.None)
+                    continue;
+
+                Weapon? weapon = submunition.Weapon
+                    ?? (WeaponLookup is null ? null : WeaponLookup(submunition.WeaponName));
                 if (weapon is null)
                     continue;
 

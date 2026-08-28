@@ -108,12 +108,19 @@ namespace EndlessSky.Tests
         }
 
         [Test]
-        public void NegativeDamageIsPreservedRatherThanClampedAway()
+        public void NegativeDeclaredDamageIsPreservedRatherThanClampedAway()
         {
+            // The carrier shell's OWN attributes are negative and must survive parsing
+            // unchanged. What it actually deals is a different question: damage folds
+            // in the submunitions, so the mine hurts rather than heals. Asserting the
+            // negative value on ShieldDamage - as this test originally did - encoded
+            // the missing submunition fold as correct behaviour.
             Weapon minelayer = Data.Outfits["Korath Minelayer"].Weapon;
 
-            Assert.AreEqual(-3200.0, minelayer.ShieldDamage, 1e-9);
-            Assert.AreEqual(-2400.0, minelayer.HullDamage, 1e-9);
+            Assert.AreEqual(-3200.0, minelayer.OwnDamage("shield damage"), 1e-9);
+            Assert.AreEqual(-2400.0, minelayer.OwnDamage("hull damage"), 1e-9);
+
+            Assert.Greater(minelayer.ShieldDamage, 0.0, "total damage includes the submunitions");
         }
 
         [Test]

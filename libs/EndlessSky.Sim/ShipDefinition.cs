@@ -28,6 +28,7 @@ namespace EndlessSky.Sim
     public class ShipDefinition
     {
         private readonly List<string> _outfitNames = new List<string>();
+        private readonly HashSet<string> _flags = new HashSet<string>(StringComparer.Ordinal);
         private readonly List<Hardpoint> _engines = new List<Hardpoint>();
         private readonly List<Hardpoint> _guns = new List<Hardpoint>();
         private readonly List<Hardpoint> _turrets = new List<Hardpoint>();
@@ -51,6 +52,17 @@ namespace EndlessSky.Sim
         public string Category { get; private set; } = string.Empty;
 
         public Attributes Attributes { get; } = new Attributes();
+
+        /// <summary>Valueless boolean flags declared on the ship node itself.</summary>
+        public IReadOnlyCollection<string> Flags => _flags;
+
+        public bool HasFlag(string flag) => flag is not null && _flags.Contains(flag);
+
+        /// <summary>Upstream forces minimumHull to 0 for these: they fight until destroyed.</summary>
+        public bool IsNeverDisabled => _flags.Contains("never disabled");
+
+        /// <summary>Cannot be taken by boarding.</summary>
+        public bool IsUncapturable => _flags.Contains("uncapturable");
 
         /// <summary>
         /// Attributes from an <c>add attributes</c> block. Upstream keeps these separate
@@ -88,6 +100,20 @@ namespace EndlessSky.Sim
                 {
                     case "sprite":
                         Sprite = child.Token(1);
+                        break;
+
+                    // Valueless boolean flags, written quoted as a direct child of the
+                    // ship node rather than inside the attributes block:
+                    //     ship "Archon"
+                    //         "never disabled"
+                    // They are NOT numeric attributes, so LoadAttributes never sees
+                    // them. They are kept in their own set rather than in Attributes,
+                    // because InheritFrom copies a base hull's attributes only when the
+                    // variant's own bag is empty - putting a flag there would silently
+                    // disinherit the variant's hull, mass, drag and thrust.
+                    case "never disabled":
+                    case "uncapturable":
+                        _flags.Add(key);
                         break;
 
                     case "attributes":
@@ -187,6 +213,11 @@ namespace EndlessSky.Sim
             {
                 Attributes.Add(baseShip.Attributes);
                 Category = baseShip.Category;
+            }
+
+            foreach (string flag in baseShip._flags)
+            {
+                _flags.Add(flag);
             }
 
             if (string.IsNullOrEmpty(Sprite))

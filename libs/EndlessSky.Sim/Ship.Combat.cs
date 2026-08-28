@@ -100,11 +100,21 @@ namespace EndlessSky.Sim
         public double MaxEnergy => Attributes.Get("energy capacity");
         public double MaxFuel => Attributes.Get("fuel capacity");
 
+        /// <summary>Upstream's MAXIMUM_TEMPERATURE constant.</summary>
+        public const double MaximumTemperature = 100.0;
+
         /// <summary>
-        /// Heat capacity. Upstream scales it by mass, so a heavier ship tolerates more
-        /// absolute heat before overheating.
+        /// Heat capacity. Port of upstream <c>Ship::MaxHeat</c>.
         /// </summary>
-        public double MaxHeat => Mass * Attributes.Get("heat capacity");
+        /// <remarks>
+        /// The base term is the ship's own mass plus its cargo, NOT a multiple of the
+        /// "heat capacity" attribute: that attribute is an additive bonus from
+        /// heatsink outfits. Reading it as a multiplier gives every ship without such
+        /// an outfit a maximum heat of zero, which makes overheating instantaneous
+        /// and relative heat damage meaningless.
+        /// </remarks>
+        public double MaxHeat =>
+            MaximumTemperature * (CargoMass + Attributes.Get("mass") + Attributes.Get("heat capacity"));
 
         /// <summary>
         /// Hull level below which the ship is disabled rather than destroyed.
@@ -114,7 +124,9 @@ namespace EndlessSky.Sim
         {
             get
             {
-                if (Attributes.Get("never disabled") != 0.0)
+                // The flag lives on the definition, not in the attribute bag; an
+                // outfit may also grant it numerically.
+                if (Definition.IsNeverDisabled || Attributes.Get("never disabled") != 0.0)
                     return 0.0;
 
                 double absoluteThreshold = Attributes.Get("absolute threshold");
@@ -154,6 +166,23 @@ namespace EndlessSky.Sim
 
         /// <summary>Recomputes the disabled flag from current levels, as upstream does after every hit.</summary>
         private bool ComputeDisabled() => Hull < MinimumHull;
+
+        /// <summary>
+        /// Pays a weapon's non-energy firing costs. Fuel, hull and shields can all be
+        /// spent per shot, and the hull/shield costs are negative on the weapons that
+        /// repair the firing ship as they fire.
+        /// </summary>
+        internal void SpendFiringResources(Weapon weapon)
+        {
+            if (weapon.FiringFuel != 0.0)
+                Fuel = Math.Min(Math.Max(Fuel - weapon.FiringFuel, 0.0), MaxFuel);
+
+            if (weapon.FiringHull != 0.0)
+                Hull = Math.Min(Math.Max(Hull - weapon.FiringHull, 0.0), MaxHull);
+
+            if (weapon.FiringShields != 0.0)
+                Shields = Math.Min(Math.Max(Shields - weapon.FiringShields, 0.0), MaxShields);
+        }
 
         /// <summary>Sets levels directly. For tests and for restoring a saved game.</summary>
         public void SetLevels(double? shields = null, double? hull = null,
@@ -225,7 +254,8 @@ namespace EndlessSky.Sim
             Hull = Math.Min(Hull - hullDamage, MaxHull);
             Energy = Math.Max(Energy - (weapon.EnergyDamage + weapon.RelativeEnergyDamage * MaxEnergy) * halfBlockedScale, 0.0);
             Fuel = Math.Max(Fuel - (weapon.FuelDamage + weapon.RelativeFuelDamage * MaxFuel) * halfBlockedScale, 0.0);
-            Heat += (weapon.HeatDamage + weapon.RelativeHeatDamage * MaxHeat) * halfBlockedScale;
+            // Heat floors at zero; cooling effects reduce it but cannot go negative.
+            Heat = Math.Max(0.0, Heat + (weapon.HeatDamage + weapon.RelativeHeatDamage * MaxHeat) * halfBlockedScale);
 
             IsDisabled = ComputeDisabled();
 

@@ -105,6 +105,28 @@ namespace EndlessSky.Sim
             }
 
             ResolveOrbits();
+            ResolveWeapons();
+        }
+
+        /// <summary>
+        /// Links each cluster weapon to the weapons it releases.
+        /// </summary>
+        /// <remarks>
+        /// Must run after every outfit is loaded, because a weapon's damage INCLUDES
+        /// its submunitions' damage. Until this runs, a carrier round such as the
+        /// Korath Minelayer reports only its own negative damage and appears to repair
+        /// whatever it hits.
+        /// </remarks>
+        private void ResolveWeapons()
+        {
+            Weapon? Lookup(string name) =>
+                _outfits.TryGetValue(name, out Outfit? outfit) && outfit.IsWeapon ? outfit.Weapon : null;
+
+            foreach (Outfit outfit in _outfits.Values)
+            {
+                if (outfit.IsWeapon)
+                    outfit.Weapon.ResolveSubmunitions(Lookup);
+            }
         }
 
         private void ResolveVariant(ShipDefinition ship, HashSet<string> visiting)

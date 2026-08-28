@@ -188,16 +188,53 @@ namespace EndlessSky.Tests
         public void HullDamageCanCrossTheThresholdByExactlyTheUpstreamEpsilon()
         {
             // Upstream clamps hull damage to (hull + 0.25 - minimumHull). The 0.25 is
-            // what allows a plain weapon to land a ship strictly below its threshold,
-            // which is the only reason ordinary guns can disable anything.
+            // what allows a weapon to land a ship strictly below its threshold.
+            // "disabled damage" is declared explicitly as 0 here to isolate that
+            // clamp: left unset it DEFAULTS to hull damage and the shot carries on
+            // past the threshold.
             var ship = MakeShip(shields: 0.0, hull: 100.0);
             double threshold = ship.MinimumHull;
 
-            ship.TakeDamage(MakeWeapon(("hull damage", 10000.0)));
+            ship.TakeDamage(MakeWeapon(("hull damage", 10000.0), ("disabled damage", 0.0)));
 
             Assert.AreEqual(threshold - 0.25, ship.Hull, 1e-9);
             Assert.IsTrue(ship.IsDisabled, "landing 0.25 below the threshold disables");
             Assert.IsFalse(ship.IsDestroyed);
+        }
+
+        [Test]
+        public void DisabledDamageDefaultsToHullDamageSoOrdinaryWeaponsCanKill()
+        {
+            // No vanilla weapon declares "disabled damage"; upstream fills it in from
+            // hull damage after parsing. Without that default the overshoot past the
+            // disable threshold is paid at zero, and a ship becomes indestructible by
+            // gunfire the moment it is disabled.
+            var weapon = MakeWeapon(("hull damage", 40.0));
+            Assert.AreEqual(40.0, weapon.DisabledDamage, 1e-9,
+                "disabled damage should mirror hull damage when unset");
+
+            var ship = MakeShip(shields: 0.0, hull: 100.0);
+            ship.TakeDamage(MakeWeapon(("hull damage", 10000.0)));
+
+            Assert.IsTrue(ship.IsDestroyed, "an overwhelming hit destroys rather than merely disabling");
+        }
+
+        [Test]
+        public void ADisabledShipCanStillBeFinishedOff()
+        {
+            // The regression this guards: once hull sits at the threshold,
+            // HullUntilDisabled is ~0, so if disabled damage were 0 every later shot
+            // would do literally nothing and the wreck would be immortal.
+            var ship = MakeShip(shields: 0.0, hull: 100.0);
+
+            ship.TakeDamage(MakeWeapon(("hull damage", 60.0)));
+            Assert.IsTrue(ship.IsDisabled);
+            Assert.IsFalse(ship.IsDestroyed);
+
+            for (int shot = 0; shot < 20 && !ship.IsDestroyed; shot++)
+                ship.TakeDamage(MakeWeapon(("hull damage", 20.0)));
+
+            Assert.IsTrue(ship.IsDestroyed, "sustained fire must eventually destroy a disabled ship");
         }
 
         [Test]
