@@ -56,8 +56,25 @@ namespace EndlessSky.Sim
         /// <summary>Value of the installed outfits alone.</summary>
         public long OutfitCost => Cost - ChassisCost;
 
-        /// <summary>Crew required to fly the ship at all.</summary>
-        public int RequiredCrew => (int)Attributes.Get("required crew");
+        /// <summary>
+        /// Crew required to fly the ship at all. Port of upstream
+        /// <c>Ship::RequiredCrew</c>.
+        /// </summary>
+        /// <remarks>
+        /// An automaton needs no crew; everything else needs at least one however its
+        /// attributes read. Reading the raw attribute gives drones a phantom crew
+        /// requirement and lets a badly-configured hull claim it needs nobody.
+        /// </remarks>
+        public int RequiredCrew
+        {
+            get
+            {
+                if (Attributes.Get("automaton") != 0.0)
+                    return 0;
+
+                return Math.Max(1, (int)Attributes.Get("required crew"));
+            }
+        }
 
         private int? _crew;
 

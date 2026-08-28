@@ -33,7 +33,7 @@ namespace EndlessSky.Sim
     /// </remarks>
     public class Conversation
     {
-        internal enum Kind { Text, Choice, Label, Goto, Branch, Action, End }
+        internal enum Kind { Text, Choice, Label, Goto, Branch, Action, End, NamePrompt }
 
         internal sealed class Element
         {
@@ -45,6 +45,9 @@ namespace EndlessSky.Sim
 
             /// <summary>Branch only: label taken when the condition fails.</summary>
             public string? ElseTarget;
+
+            /// <summary>Branch only: endpoint reached when the condition fails.</summary>
+            public ConversationOutcome ElseOutcome;
 
             public ConditionSet? Condition;
             public ConditionAssignments? Assignments;
@@ -84,22 +87,49 @@ namespace EndlessSky.Sim
                 switch (key)
                 {
                     case "label" when child.Size >= 2:
-                        // Labels are positions, not elements the runner stops on.
-                        _labels[child.Token(1)] = _elements.Count;
+                        // Labels are positions, not elements the runner stops on. A
+                        // duplicate resolves to the FIRST occurrence upstream, so a
+                        // later redefinition must not silently move every jump.
+                        if (!_labels.ContainsKey(child.Token(1)))
+                            _labels[child.Token(1)] = _elements.Count;
+
                         _elements.Add(new Element { Kind = Kind.Label, Text = child.Token(1) });
                         break;
 
                     case "goto" when child.Size >= 2:
+                        // Upstream comments this explicitly: a goto seeks the LABEL of
+                        // that name even when the name matches an endpoint.
                         _elements.Add(new Element { Kind = Kind.Goto, Target = child.Token(1) });
                         break;
 
+                    case "name":
+                        // Not narration: upstream represents a name-entry field as an
+                        // empty choice node. Rendering it as dialogue puts a line
+                        // reading "name" in front of the player.
+                        _elements.Add(new Element { Kind = Kind.NamePrompt });
+                        break;
+
+                    case "apply":
+                        // Same shape as "action": condition changes, applied in place.
+                        _elements.Add(new Element
+                        {
+                            Kind = Kind.Action,
+                            Assignments = ConditionAssignments.Load(child),
+                        });
+                        break;
+
                     case "branch" when child.Size >= 2:
-                        // "branch <label> [<else label>]" with the test as children.
+                        // "branch <target> [<else target>]" with the test as children.
+                        // A target may be a LABEL or an endpoint name: upstream runs
+                        // each through Endpoint::TokenIndex first, so "branch accept"
+                        // ends the conversation rather than seeking a label.
                         _elements.Add(new Element
                         {
                             Kind = Kind.Branch,
                             Target = child.Token(1),
+                            Outcome = EndpointFor(child.Token(1)),
                             ElseTarget = child.Size >= 3 ? child.Token(2) : null,
+                            ElseOutcome = child.Size >= 3 ? EndpointFor(child.Token(2)) : ConversationOutcome.None,
                             Condition = ConditionSet.Load(child),
                         });
                         break;
@@ -159,6 +189,22 @@ namespace EndlessSky.Sim
 
             return element;
         }
+
+        /// <summary>
+        /// Maps an endpoint keyword to its outcome, or None when the token is an
+        /// ordinary label name.
+        /// </summary>
+        internal static ConversationOutcome EndpointFor(string? token) => token switch
+        {
+            "accept" => ConversationOutcome.Accept,
+            "decline" => ConversationOutcome.Decline,
+            "defer" => ConversationOutcome.Defer,
+            "die" => ConversationOutcome.Die,
+            "launch" => ConversationOutcome.Launch,
+            "flee" => ConversationOutcome.Flee,
+            "depart" => ConversationOutcome.Depart,
+            _ => ConversationOutcome.None,
+        };
 
         /// <summary>An ending declared as a child of a text node or choice option.</summary>
         private static ConversationOutcome FindOutcome(DataNode node)

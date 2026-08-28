@@ -110,6 +110,9 @@ namespace EndlessSky.Sim
                 switch (element.Kind)
                 {
                     case Conversation.Kind.Label:
+                    case Conversation.Kind.NamePrompt:
+                        // A name-entry prompt asks the player for a name; it is not
+                        // narration and must not be shown as a line of dialogue.
                         _index++;
                         break;
 
@@ -143,6 +146,16 @@ namespace EndlessSky.Sim
                         {
                             bool taken = element.Condition?.Test(_conditions) ?? false;
                             string? target = taken ? element.Target : element.ElseTarget;
+                            ConversationOutcome outcome = taken ? element.Outcome : element.ElseOutcome;
+
+                            // A branch target may be an endpoint rather than a label.
+                            if (outcome != ConversationOutcome.None)
+                            {
+                                Outcome = outcome;
+                                IsFinished = true;
+                                return;
+                            }
+
                             if (!Jump(target))
                                 _index++;
                             break;
@@ -172,7 +185,11 @@ namespace EndlessSky.Sim
                 }
             }
 
-            // Running off the end finishes the conversation with no explicit outcome.
+            // Running off the end is a DECLINE upstream, not a neutral ending: any
+            // jump landing outside the node list is mapped to Endpoint::DECLINE. A
+            // caller treating "no outcome" as acceptance would silently hand out
+            // missions the player never agreed to.
+            Outcome = ConversationOutcome.Decline;
             IsFinished = true;
         }
 

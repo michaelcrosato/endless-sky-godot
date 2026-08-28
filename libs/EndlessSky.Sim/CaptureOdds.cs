@@ -89,7 +89,12 @@ namespace EndlessSky.Sim
                 return Array.Empty<double>();
 
             string attribute = isDefender ? "capture defense" : "capture attack";
-            double crewPower = isDefender ? DefaultCrewDefense : DefaultCrewAttack;
+
+            // A government may override its crew's innate fighting power; upstream
+            // reads it from the ship's government rather than assuming 1.0/2.0.
+            double crewPower = ship.Government is not null
+                ? (isDefender ? ship.Government.CrewDefense : ship.Government.CrewAttack)
+                : (isDefender ? DefaultCrewDefense : DefaultCrewAttack);
 
             // One entry per installed copy, so two cutlasses arm two crew.
             var weapons = new List<double>();

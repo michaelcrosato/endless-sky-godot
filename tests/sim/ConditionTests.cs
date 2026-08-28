@@ -161,13 +161,16 @@ namespace EndlessSky.Tests
         }
 
         [Test]
-        public void DivisionByZeroYieldsZeroRatherThanFaulting()
+        public void DivisionByZeroSaturatesAndModuloIsIdentity()
         {
-            // One bad condition in one content file must not take down the game.
+            // It must not fault, but it does NOT yield zero either: upstream saturates
+            // division to the largest representable value and leaves modulo as the
+            // dividend. Returning zero flips comparisons that content depends on.
             var conditions = new Conditions();
             conditions.Set("n", 10);
 
-            Assert.IsTrue(Test("to offer\n\t\"n\" / \"missing\" == 0\n", conditions));
+            Assert.IsTrue(Test("to offer\n\t\"n\" / \"missing\" > 1000000\n", conditions));
+            Assert.IsTrue(Test("to offer\n\t\"n\" % \"missing\" == 10\n", conditions));
         }
 
         // --- Assignments ----------------------------------------------------------
@@ -213,15 +216,61 @@ namespace EndlessSky.Tests
         }
 
         [Test]
-        public void ABareNameIncrementsACounter()
+        public void IncrementAndDecrementOperatorsWork()
+        {
+            var conditions = new Conditions();
+            conditions.Set("count", 5);
+
+            ConditionAssignments.Load(Parse("on visit\n\t\"count\" ++\n\t\"other\" --\n"))
+                .Apply(conditions);
+
+            Assert.AreEqual(6L, conditions.Get("count"));
+            Assert.AreEqual(-1L, conditions.Get("other"));
+        }
+
+        [Test]
+        public void MinAndMaxAssignmentOperatorsClampTowardTheirSide()
+        {
+            var conditions = new Conditions();
+            conditions.Set("floor", 10);
+            conditions.Set("ceiling", 10);
+
+            ConditionAssignments.Load(Parse(
+                "on complete\n\t\"floor\" >?= 25\n\t\"ceiling\" <?= 4\n")).Apply(conditions);
+
+            Assert.AreEqual(25L, conditions.Get("floor"), ">?= keeps the larger");
+            Assert.AreEqual(4L, conditions.Get("ceiling"), "<?= keeps the smaller");
+
+            ConditionAssignments.Load(Parse(
+                "on complete\n\t\"floor\" >?= 1\n\t\"ceiling\" <?= 99\n")).Apply(conditions);
+
+            Assert.AreEqual(25L, conditions.Get("floor"), "no change when the current value already wins");
+            Assert.AreEqual(4L, conditions.Get("ceiling"));
+        }
+
+        [Test]
+        public void ABareNameIsNotAnAssignmentAndDoesNotLeakIntoTheStore()
+        {
+            // Treating a bare token as "increment this" was my invention, and it made
+            // every non-assignment key inside an action block - conversation, dialog,
+            // payment - appear in the player's condition store.
+            var conditions = new Conditions();
+
+            ConditionAssignments.Load(Parse(
+                "on offer\n\tconversation \"some talk\"\n\t\"visited New Boston\"\n")).Apply(conditions);
+
+            Assert.IsEmpty(conditions.Values,
+                "neither the conversation key nor a bare name should be recorded");
+        }
+
+        [Test]
+        public void NonIntegerLiteralsAreTruncatedRatherThanReadAsConditionNames()
         {
             var conditions = new Conditions();
 
-            var assignments = ConditionAssignments.Load(Parse("on visit\n\t\"visited New Boston\"\n"));
-            assignments.Apply(conditions);
-            assignments.Apply(conditions);
+            ConditionAssignments.Load(Parse("on complete\n\t\"x\" = 2.7\n")).Apply(conditions);
 
-            Assert.AreEqual(2L, conditions.Get("visited New Boston"));
+            Assert.AreEqual(2L, conditions.Get("x"));
         }
 
         [Test]

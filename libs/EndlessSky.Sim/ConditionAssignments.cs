@@ -57,6 +57,15 @@ namespace EndlessSky.Sim
                     continue;
                 }
 
+                // "<name> ++" / "<name> --": increment or decrement by one.
+                if (child.Size == 2 && (child.Token(1) == "++" || child.Token(1) == "--"))
+                {
+                    _assignments.Add((child.Token(0),
+                        child.Token(1) == "++" ? "+=" : "-=",
+                        new List<string> { "1" }));
+                    continue;
+                }
+
                 // "<name> <op> <expression...>"
                 if (child.Size >= 3 && IsAssignmentOperator(child.Token(1)))
                 {
@@ -81,7 +90,7 @@ namespace EndlessSky.Sim
         }
 
         private static bool IsAssignmentOperator(string token) =>
-            token is "=" or "+=" or "-=" or "*=" or "/=" or "%=";
+            token is "=" or "+=" or "-=" or "*=" or "/=" or "%=" or "<?=" or ">?=";
 
         /// <summary>Applies every assignment, in declaration order.</summary>
         public void Apply(Conditions conditions)
@@ -96,12 +105,16 @@ namespace EndlessSky.Sim
                 long result = op switch
                 {
                     "=" => value,
-                    "+=" or "++" => current + value,
+                    "+=" => current + value,
                     "-=" => current - value,
                     "*=" => current * value,
-                    // Division by zero leaves the value alone rather than faulting.
-                    "/=" => value == 0L ? current : current / value,
+                    // Upstream saturates rather than skipping, matching the expression
+                    // evaluator's division rule.
+                    "/=" => value == 0L ? long.MaxValue : current / value,
                     "%=" => value == 0L ? current : current % value,
+                    // "<?=" keeps the smaller value, ">?=" the larger: min/max assign.
+                    "<?=" => Math.Min(current, value),
+                    ">?=" => Math.Max(current, value),
                     _ => current,
                 };
 
@@ -117,10 +130,18 @@ namespace EndlessSky.Sim
         {
             if (tokens.Count == 1)
             {
-                return long.TryParse(tokens[0], NumberStyles.Integer, CultureInfo.InvariantCulture,
-                                     out long literal)
-                    ? literal
-                    : conditions.Get(tokens[0]);
+                // Content writes non-integer literals (".5", "1.0"); conditions are an
+                // integer keyspace, so upstream truncates rather than treating the
+                // token as an unknown condition name worth zero.
+                if (long.TryParse(tokens[0], NumberStyles.Integer, CultureInfo.InvariantCulture,
+                                  out long literal))
+                    return literal;
+
+                if (double.TryParse(tokens[0], NumberStyles.Float, CultureInfo.InvariantCulture,
+                                    out double real))
+                    return (long)real;
+
+                return conditions.Get(tokens[0]);
             }
 
             return ConditionExpression.Evaluate(tokens, conditions);

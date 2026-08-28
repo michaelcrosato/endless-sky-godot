@@ -195,13 +195,85 @@ namespace EndlessSky.Tests
         }
 
         [Test]
-        public void RunningOffTheEndFinishesWithNoOutcome()
+        public void RunningOffTheEndIsADecline()
         {
-            Conversation conversation = Load("\t`They say nothing more.`");
+            // Upstream maps any jump landing outside the node list to
+            // Endpoint::DECLINE. Reporting "no outcome" instead invites a caller
+            // to treat it as acceptance and hand out a mission the player never
+            // agreed to.
+            Conversation conversation = Load("	`They say nothing more.`");
             ConversationRunner runner = Run(conversation);
 
             Assert.IsTrue(runner.IsFinished);
-            Assert.AreEqual(ConversationOutcome.None, runner.Outcome);
+            Assert.AreEqual(ConversationOutcome.Decline, runner.Outcome);
+        }
+
+        [Test]
+        public void BranchCanTargetAnEndpointRatherThanALabel()
+        {
+            // "branch accept" is an ending, not a search for a label called
+            // "accept"; upstream resolves the token as an endpoint first.
+            Conversation conversation = Load(
+                "	branch accept",
+                "		has \"agreed\"",
+                "	`You hesitate.`",
+                "		decline");
+
+            var agreed = new Conditions();
+            agreed.Set("agreed", 1);
+            Assert.AreEqual(ConversationOutcome.Accept, Run(conversation, agreed).Outcome);
+
+            Assert.AreEqual(ConversationOutcome.Decline, Run(conversation, new Conditions()).Outcome);
+        }
+
+        [Test]
+        public void ANamePromptIsNotRenderedAsDialogue()
+        {
+            // Upstream represents a name-entry field as an empty choice node.
+            // Treating it as narration puts a line reading "name" on screen.
+            Conversation conversation = Load(
+                "	`What should we call you?`",
+                "	name",
+                "	`Pleased to meet you.`",
+                "		accept");
+
+            ConversationRunner runner = Run(conversation);
+
+            Assert.AreEqual(ConversationOutcome.Accept, runner.Outcome);
+            CollectionAssert.DoesNotContain(runner.PendingText, "name");
+        }
+
+        [Test]
+        public void ApplyRunsItsAssignmentsLikeAction()
+        {
+            Conversation conversation = Load(
+                "	apply",
+                "		set \"applied\"",
+                "	`Done.`",
+                "		accept");
+
+            var conditions = new Conditions();
+            Run(conversation, conditions);
+
+            Assert.AreEqual(1L, conditions.Get("applied"));
+        }
+
+        [Test]
+        public void ADuplicateLabelResolvesToItsFirstOccurrence()
+        {
+            Conversation conversation = Load(
+                "	goto twice",
+                "	label twice",
+                "	`First.`",
+                "		accept",
+                "	label twice",
+                "	`Second.`",
+                "		decline");
+
+            ConversationRunner runner = Run(conversation);
+
+            Assert.AreEqual(ConversationOutcome.Accept, runner.Outcome);
+            CollectionAssert.Contains(runner.PendingText, "First.");
         }
 
         [Test]

@@ -20,8 +20,10 @@ namespace EndlessSky.Sim
         private static readonly Dictionary<string, int> Precedence =
             new Dictionary<string, int>(StringComparer.Ordinal)
             {
+                // and/or share a precedence upstream; giving "and" a higher one
+                // silently re-associates mixed inline expressions.
                 ["or"] = 0,
-                ["and"] = 1,
+                ["and"] = 0,
                 ["=="] = 2, ["!="] = 2, ["<"] = 2, [">"] = 2, ["<="] = 2, [">="] = 2,
                 ["+"] = 3, ["-"] = 3,
                 ["*"] = 4, ["/"] = 4, ["%"] = 4,
@@ -80,10 +82,12 @@ namespace EndlessSky.Sim
             "+" => left + right,
             "-" => left - right,
             "*" => left * right,
-            // Division and modulo by zero yield zero rather than faulting: one bad
-            // condition in one content file must not take down the game.
-            "/" => right == 0L ? 0L : left / right,
-            "%" => right == 0L ? 0L : left % right,
+            // Division and modulo by zero do not fault, but they do not yield zero
+            // either: upstream saturates division to the largest representable value
+            // and leaves modulo as the dividend. Returning 0 flips comparisons that
+            // content relies on, e.g. "x / 0 > 100".
+            "/" => right == 0L ? long.MaxValue : left / right,
+            "%" => right == 0L ? left : left % right,
             "and" => left != 0L && right != 0L ? 1L : 0L,
             "or" => left != 0L || right != 0L ? 1L : 0L,
             _ => 0L,

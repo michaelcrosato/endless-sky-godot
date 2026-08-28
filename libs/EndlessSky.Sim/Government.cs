@@ -5,22 +5,30 @@ using EndlessSky.Data;
 namespace EndlessSky.Sim
 {
     /// <summary>
-    /// A faction. Port of the subset of upstream <c>Government</c> that combat needs:
-    /// who shoots at whom, and how that changes when you shoot back.
+    /// A faction. Port of upstream <c>Government</c> plus the hostility rules from
+    /// <c>Politics::IsEnemy</c>.
     /// </summary>
     /// <remarks>
-    /// Hostility upstream is not a static table. A government has a default attitude
-    /// toward others, a player-specific reputation, and a set of provoked governments
-    /// that grows when someone fires on it. Reputation is what makes attacking a
-    /// friendly patrol have consequences that outlive the fight.
+    /// Hostility is not a symmetric flag on one side's enemy list, and it is not the
+    /// same question for the player as for anyone else:
     ///
-    /// INCOMPLETE, tracked rather than dropped: penalty scaling by ship cost, bribes,
-    /// fines, "friendly"/"hostile" hail phrases, custom enemy/friendly overrides per
-    /// government pair, and the atrocity flag.
+    /// Between two non-player governments it is <c>a.AttitudeToward(b) &lt; 0 ||
+    /// b.AttitudeToward(a) &lt; 0</c> - EITHER side's dislike is enough. Checking only
+    /// one side means a government that nobody has listed as an enemy is hostile to
+    /// nobody, even when half the galaxy has listed it.
+    ///
+    /// For the player it is reputation-driven: bribed governments are never enemies,
+    /// provoked ones always are, and otherwise the player is an enemy exactly while
+    /// standing is negative. Without that path no government is ever hostile to the
+    /// player no matter how many of their ships you destroy.
+    ///
+    /// INCOMPLETE, tracked rather than dropped: penalty scaling by ship cost, fines,
+    /// hail phrases, raid fleets, and per-government crew attack/defense overrides
+    /// beyond the defaults.
     /// </remarks>
     public class Government
     {
-        // Default reputation penalties upstream applies for acting against a government.
+        /// <summary>Default reputation penalties upstream applies for acting against a government.</summary>
         private static readonly IReadOnlyDictionary<string, double> DefaultPenalties =
             new Dictionary<string, double>(StringComparer.Ordinal)
             {
@@ -32,7 +40,11 @@ namespace EndlessSky.Sim
                 ["atrocity"] = 10.0,
             };
 
+        private readonly Dictionary<string, double> _attitude =
+            new Dictionary<string, double>(StringComparer.Ordinal);
+
         private readonly HashSet<string> _provoked = new HashSet<string>(StringComparer.Ordinal);
+        private readonly HashSet<string> _bribed = new HashSet<string>(StringComparer.Ordinal);
 
         public Government(string name)
         {
@@ -45,16 +57,34 @@ namespace EndlessSky.Sim
         /// <summary>Name shown to the player; upstream lets content override it.</summary>
         public string DisplayName { get; private set; }
 
+        /// <summary>True for the government representing the player themself.</summary>
+        public bool IsPlayer { get; set; }
+
         /// <summary>
-        /// The player's standing. Negative means hostile; upstream starts most
-        /// governments at 0 and lets missions and combat move it.
+        /// The player's standing with this government. Negative means hostile.
         /// </summary>
         public double Reputation { get; private set; }
 
-        /// <summary>Below this reputation the government turns hostile to the player.</summary>
-        public double AttitudeThreshold { get; private set; }
+        /// <summary>
+        /// Attitude toward governments not named explicitly. Upstream defaults it to
+        /// 0 (indifferent) but content may set it, which is how a xenophobic faction
+        /// is hostile to everyone without listing them.
+        /// </summary>
+        public double DefaultAttitude { get; private set; }
 
-        /// <summary>Governments this one is permanently at war with, by name.</summary>
+        /// <summary>Crew power when boarding another ship.</summary>
+        public double CrewAttack { get; private set; } = 1.0;
+
+        /// <summary>Crew power when repelling boarders.</summary>
+        public double CrewDefense { get; private set; } = 2.0;
+
+        /// <summary>Attitudes toward named governments, negative meaning hostile.</summary>
+        public IReadOnlyDictionary<string, double> Attitudes => _attitude;
+
+        /// <summary>
+        /// Governments this one has explicitly listed as disliked. Retained as a
+        /// convenience for content and tests that only care about the boolean.
+        /// </summary>
         public HashSet<string> Enemies { get; } = new HashSet<string>(StringComparer.Ordinal);
 
         public void Load(DataNode node)
@@ -71,11 +101,27 @@ namespace EndlessSky.Sim
                         Reputation = child.Value(1);
                         break;
 
+                    case "default attitude" when child.Size >= 2:
+                        DefaultAttitude = child.Value(1);
+                        break;
+
+                    case "crew attack" when child.Size >= 2:
+                        CrewAttack = Math.Max(0.0, child.Value(1));
+                        break;
+
+                    case "crew defense" when child.Size >= 2:
+                        CrewDefense = Math.Max(0.0, child.Value(1));
+                        break;
+
                     case "attitude toward":
-                        // Nested: each child is "<government> <value>", negative meaning hostile.
                         foreach (DataNode attitude in child.Children)
                         {
-                            if (attitude.Size >= 2 && attitude.Value(1) < 0.0)
+                            if (attitude.Size < 2 || !attitude.IsNumber(1))
+                                continue;
+
+                            double value = attitude.Value(1);
+                            _attitude[attitude.Token(0)] = value;
+                            if (value < 0.0)
                                 Enemies.Add(attitude.Token(0));
                         }
                         break;
@@ -84,30 +130,74 @@ namespace EndlessSky.Sim
         }
 
         /// <summary>
-        /// Whether this government currently shoots at <paramref name="other"/>.
-        /// A government is never its own enemy, and provocation is one-directional
-        /// until the other side reciprocates.
+        /// How this government feels about another. Falls back to
+        /// <see cref="DefaultAttitude"/> for governments it never names.
         /// </summary>
-        public bool IsEnemy(Government other)
+        public double AttitudeToward(Government other)
         {
-            if (other is null) return false;
-            if (ReferenceEquals(other, this) || other.Name == Name) return false;
+            if (other is null || ReferenceEquals(other, this))
+                return 0.0;
 
-            return Enemies.Contains(other.Name) || _provoked.Contains(other.Name);
+            if (_attitude.TryGetValue(other.Name, out double value))
+                return value;
+
+            // The convenience set is authoritative when content set it directly.
+            return Enemies.Contains(other.Name) ? -1.0 : DefaultAttitude;
         }
 
-        /// <summary>Whether this government is hostile to the player, by reputation.</summary>
-        public bool IsPlayerEnemy => Reputation < AttitudeThreshold;
+        /// <summary>
+        /// Whether these two governments currently shoot at each other. Port of
+        /// <c>Politics::IsEnemy</c>.
+        /// </summary>
+        public bool IsEnemy(Government? other)
+        {
+            if (other is null || ReferenceEquals(other, this) || other.Name == Name)
+                return false;
+
+            // Normalise so the player, if involved, is the first party.
+            Government first = this, second = other;
+            if (second.IsPlayer)
+                (first, second) = (second, first);
+
+            if (first.IsPlayer)
+            {
+                if (first._bribed.Contains(second.Name))
+                    return false;
+                if (first._provoked.Contains(second.Name))
+                    return true;
+
+                // The player is an enemy exactly while their standing is negative.
+                return second.Reputation < 0.0;
+            }
+
+            // Between non-player governments, EITHER side's dislike suffices.
+            if (first._provoked.Contains(second.Name) || second._provoked.Contains(first.Name))
+                return true;
+
+            return first.AttitudeToward(second) < 0.0 || second.AttitudeToward(first) < 0.0;
+        }
+
+        /// <summary>Whether this government is currently hostile to the player.</summary>
+        public bool IsPlayerEnemy => Reputation < 0.0;
 
         /// <summary>
         /// Marks <paramref name="aggressor"/> as an enemy for the rest of this flight.
-        /// Upstream provokes a government when it is fired on by one it did not already
-        /// consider hostile, which is why a stray shot starts a fight.
+        /// Upstream provokes a government when it is fired on by one it did not
+        /// already consider hostile, which is why a stray shot starts a fight.
         /// </summary>
-        public void Provoke(Government aggressor)
+        public void Provoke(Government? aggressor)
         {
             if (aggressor is null || ReferenceEquals(aggressor, this)) return;
             _provoked.Add(aggressor.Name);
+            _bribed.Remove(aggressor.Name);
+        }
+
+        /// <summary>A bribed government stops treating the briber as an enemy.</summary>
+        public void Bribe(Government? briber)
+        {
+            if (briber is null || ReferenceEquals(briber, this)) return;
+            _bribed.Add(briber.Name);
+            _provoked.Remove(briber.Name);
         }
 
         /// <summary>Clears provocations, as upstream does when the player leaves the system.</summary>

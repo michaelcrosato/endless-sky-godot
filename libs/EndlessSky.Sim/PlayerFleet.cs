@@ -77,8 +77,10 @@ namespace EndlessSky.Sim
         {
             long crew = 0;
 
+            // NOT clamped at zero: an under-crewed flagship reduces the bill
+            // upstream, and flooring the shortfall overcharges the player.
             if (Flagship is not null)
-                crew += Math.Max(0, Flagship.Crew - Flagship.RequiredCrew);
+                crew += Flagship.Crew - Flagship.RequiredCrew;
 
             foreach (Ship ship in ActiveShips)
                 crew += ship.RequiredCrew;

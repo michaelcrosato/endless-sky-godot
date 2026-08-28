@@ -40,6 +40,12 @@ namespace EndlessSky.Tests
 
             var ship = new Ship(definition) { Position = position, Government = government };
             ship.BuildMounts();
+
+            // Upstream ships with nothing to shoot with do not pick targets, so an
+            // AI test ship needs a weapon or FindTarget correctly returns nothing.
+            if (gunMounts > 0)
+                ship.InstallWeapon(MakeGun("Test Gun", "\"reload\" 5", "\"velocity\" 20", "\"lifetime\" 200"));
+
             return ship;
         }
 
@@ -102,8 +108,11 @@ namespace EndlessSky.Tests
         }
 
         [Test]
-        public void WreckageIsNotTargetedButDisabledShipsStillAre()
+        public void NeitherWreckageNorCrippledShipsAreChasedByDefault()
         {
+            // Upstream re-picks a target once it is disabled, unless the pilot is
+            // vindictive or is deliberately disabling. Treating a crippled ship as a
+            // live threat keeps NPCs pounding a derelict while the real fight moves on.
             (Government mine, Government theirs) = HostilePair();
 
             Ship self = MakeShip("Self", Point.Zero, mine);
@@ -111,13 +120,54 @@ namespace EndlessSky.Tests
             disabled.SetLevels(shields: 0.0, hull: 1.0);
             Ship wreck = MakeShip("Wreck", new Point(50.0, 0.0), theirs);
             wreck.SetLevels(hull: -1.0);
+            Ship live = MakeShip("Live", new Point(900.0, 0.0), theirs);
 
             Assert.IsTrue(disabled.IsDisabled);
             Assert.IsTrue(wreck.IsDestroyed);
 
-            // The wreck is closer, but upstream keeps attacking disabled ships and
-            // ignores destroyed ones.
-            Assert.AreSame(disabled, ShipAi.FindTarget(self, new[] { wreck, disabled }));
+            Assert.AreSame(live, ShipAi.FindTarget(self, new[] { wreck, disabled, live }),
+                "the only live threat is chosen even though it is furthest away");
+        }
+
+        [Test]
+        public void ACrippledShipCanStillBeFinishedOffOnRequest()
+        {
+            (Government mine, Government theirs) = HostilePair();
+
+            Ship self = MakeShip("Self", Point.Zero, mine);
+            Ship disabled = MakeShip("Disabled", new Point(150.0, 0.0), theirs);
+            disabled.SetLevels(shields: 0.0, hull: 1.0);
+
+            Assert.IsNull(ShipAi.FindTarget(self, new[] { disabled }));
+            Assert.AreSame(disabled,
+                ShipAi.FindTarget(self, new[] { disabled }, attackDisabled: true));
+        }
+
+        [Test]
+        public void AnUnarmedShipDoesNotGoLookingForAFight()
+        {
+            (Government mine, Government theirs) = HostilePair();
+
+            Ship unarmed = MakeShip("Unarmed", Point.Zero, mine, gunMounts: 0);
+            Ship enemy = MakeShip("Enemy", new Point(200.0, 0.0), theirs);
+
+            Assert.IsFalse(ShipAi.IsArmed(unarmed));
+            Assert.IsNull(ShipAi.FindTarget(unarmed, new[] { enemy }));
+        }
+
+        [Test]
+        public void TargetsBeyondEngagementRangeAreIgnored()
+        {
+            // Upstream scans a bounded neighbourhood; without a ceiling a ship sets
+            // off across the entire system after anything hostile.
+            (Government mine, Government theirs) = HostilePair();
+
+            Ship self = MakeShip("Self", Point.Zero, mine);
+            Ship distant = MakeShip("Distant", new Point(50000.0, 0.0), theirs);
+
+            Assert.IsNull(ShipAi.FindTarget(self, new[] { distant }));
+            Assert.AreSame(distant, ShipAi.FindTarget(self, new[] { distant }, engagementRange: 0.0),
+                "an unlimited search still finds it");
         }
 
         [Test]
@@ -176,18 +226,41 @@ namespace EndlessSky.Tests
         }
 
         [Test]
-        public void AnAttackerClosesTheDistance()
+        public void AnAttackerClosesToWeaponRangeAndThenHolds()
         {
+            // The anti-ram behaviour. Upstream stands off around its shortest weapon
+            // range rather than charging to contact; thrusting whenever the target is
+            // merely ahead makes every NPC collide with whatever it is shooting at.
             (Government mine, Government theirs) = HostilePair();
             Ship self = MakeShip("Self", Point.Zero, mine);
-            Ship target = MakeShip("Target", new Point(3000.0, 0.0), theirs);
+            Ship target = MakeShip("Target", new Point(30000.0, 0.0), theirs);
+
+            double standoff = ShipAi.ShortestWeaponRange(self);
+            Assert.Greater(standoff, 0.0, "the test ship carries a gun with a real range");
 
             double before = (target.Position - self.Position).Length;
-            for (int frame = 0; frame < 300; frame++)
+            for (int frame = 0; frame < 4000; frame++)
                 self.Step(ShipAi.Attack(self, target));
 
             double after = (target.Position - self.Position).Length;
-            Assert.Less(after, before * 0.5, "it should have closed most of the gap");
+
+            Assert.Less(after, before, "it should have closed");
+            Assert.Greater(after, standoff * 0.5,
+                "it should hold off rather than ram: closed to roughly weapon range, not to contact");
+        }
+
+        [Test]
+        public void AnAttackerDoesNotThrustOnceInsideWeaponRange()
+        {
+            (Government mine, Government theirs) = HostilePair();
+            Ship self = MakeShip("Self", Point.Zero, mine);
+
+            double standoff = ShipAi.ShortestWeaponRange(self);
+            Ship target = MakeShip("Target", new Point(standoff * 0.25, 0.0), theirs);
+            self.Facing = Angle.FromPoint(target.Position - self.Position);
+
+            Assert.IsFalse(ShipAi.Attack(self, target).Forward,
+                "already well inside range; closing further would only risk a collision");
         }
 
         // --- Firing decisions -----------------------------------------------------

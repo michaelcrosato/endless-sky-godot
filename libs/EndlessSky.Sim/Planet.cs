@@ -52,17 +52,27 @@ namespace EndlessSky.Sim
 
         public bool HasOutfitter => _outfitters.Count > 0;
 
-        /// <summary>Chance a landing is challenged; drives the smuggling checks upstream.</summary>
-        public double Security { get; private set; }
+        /// <summary>
+        /// Chance a landing is challenged; drives the smuggling checks upstream.
+        /// Defaults to 0.25, not 0 - a world that declares nothing still runs
+        /// inspections, and defaulting to zero makes every unlisted world a free port.
+        /// </summary>
+        public double Security { get; private set; } = 0.25;
 
         /// <summary>Credits per day this world pays once dominated, or 0.</summary>
         public int Tribute { get; private set; }
 
         /// <summary>
-        /// Whether a ship can land here at all. Upstream infers this from services
-        /// rather than storing a flag.
+        /// Whether a ship can land here at all.
         /// </summary>
-        public bool IsInhabited => HasSpaceport || HasShipyard || HasOutfitter;
+        /// <remarks>
+        /// Upstream computes this from services AND an explicit veto:
+        /// <c>(HasServices() || requiredReputation || defenseFleets) &amp;&amp;
+        /// !attributes.contains("uninhabited")</c>. The veto matters - content tags a
+        /// world uninhabited to make it scenery even when it carries other data.
+        /// </remarks>
+        public bool IsInhabited =>
+            (HasSpaceport || HasShipyard || HasOutfitter) && !_attributes.Contains("uninhabited");
 
         public void Load(DataNode node)
         {
@@ -91,7 +101,10 @@ namespace EndlessSky.Sim
                         break;
 
                     case "spaceport":
-                        // Present at all means the world has one; the text is flavour.
+                    case "port":
+                        // "port" is upstream's newer spelling and is handled by the
+                        // same branch there; treating it as unrecognised leaves 19
+                        // vanilla worlds reporting no spaceport, unable to refuel.
                         HasSpaceport = true;
                         break;
 
