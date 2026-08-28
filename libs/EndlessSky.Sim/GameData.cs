@@ -26,6 +26,15 @@ namespace EndlessSky.Sim
         private readonly Dictionary<string, StarSystem> _systems =
             new Dictionary<string, StarSystem>(StringComparer.Ordinal);
 
+        private readonly Dictionary<string, Planet> _planets =
+            new Dictionary<string, Planet>(StringComparer.Ordinal);
+
+        private readonly Dictionary<string, Sale> _shipyards =
+            new Dictionary<string, Sale>(StringComparer.Ordinal);
+
+        private readonly Dictionary<string, Sale> _outfitters =
+            new Dictionary<string, Sale>(StringComparer.Ordinal);
+
         private readonly Dictionary<string, double> _spriteMass =
             new Dictionary<string, double>(StringComparer.Ordinal);
 
@@ -37,6 +46,15 @@ namespace EndlessSky.Sim
         public IReadOnlyDictionary<string, Outfit> Outfits => _outfits;
 
         public IReadOnlyDictionary<string, StarSystem> Systems => _systems;
+
+        public IReadOnlyDictionary<string, Planet> Planets => _planets;
+
+        public IReadOnlyDictionary<string, Sale> Shipyards => _shipyards;
+
+        public IReadOnlyDictionary<string, Sale> Outfitters => _outfitters;
+
+        /// <summary>Commodity definitions plus per-system prices.</summary>
+        public TradeData Trade { get; } = new TradeData();
 
         /// <summary>Root-node keys that no loader claimed yet, with occurrence counts.</summary>
         public IReadOnlyDictionary<string, int> UnhandledNodes => _unhandled;
@@ -165,6 +183,23 @@ namespace EndlessSky.Sim
 
                     case "system" when node.Size >= 2:
                         GetOrCreate(_systems, node.Token(1), n => new StarSystem(n)).Load(node);
+                        Trade.LoadSystemPrices(node.Token(1), node);
+                        break;
+
+                    case "planet" when node.Size >= 2:
+                        GetOrCreate(_planets, node.Token(1), n => new Planet(n)).Load(node);
+                        break;
+
+                    case "trade":
+                        Trade.LoadTradeDefinition(node);
+                        break;
+
+                    case "shipyard" when node.Size >= 2:
+                        GetOrCreate(_shipyards, node.Token(1), n => new Sale(n)).Load(node);
+                        break;
+
+                    case "outfitter" when node.Size >= 2:
+                        GetOrCreate(_outfitters, node.Token(1), n => new Sale(n)).Load(node);
                         break;
 
                     case "star" when node.Size >= 2:

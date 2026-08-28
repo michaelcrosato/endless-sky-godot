@@ -41,6 +41,11 @@ namespace EndlessSky.Game
         private double _currentDay;
         private bool _jumpAutopilot;
         private bool _jumpKeyWasDown;
+        private bool _landKeyWasDown;
+        private bool _landAtStart;
+        private bool _isLanded;
+        private long _credits = 480_000; // vanilla start: mortgaged to the hilt
+        private LandedOverlay? _landedOverlay;
         private StarSystem? _lastSystem;
         private DirectionalLight3D _keyLight = null!;  // set by BuildLighting
         private DirectionalLight3D _fillLight = null!; // set by BuildLighting
@@ -129,6 +134,36 @@ namespace EndlessSky.Game
             // One sim step per physics tick; the project pins physics to 60 Hz,
             // the rate every upstream per-frame quantity assumes.
             _simFrames++;
+
+            // Landed: the sim is frozen and the overlay owns input.
+            if (_isLanded)
+            {
+                return;
+            }
+
+            // L lands on a nearby planet when slow enough (menu-driven per the
+            // directive; upstream's landing zoom animation is later polish).
+            if (_landAtStart && _simFrames == 5)
+            {
+                TryLand();
+                if (_isLanded)
+                {
+                    return;
+                }
+            }
+
+            bool landKeyDown = Input.IsPhysicalKeyPressed(Key.L);
+            if (landKeyDown && !_landKeyWasDown)
+            {
+                TryLand();
+                if (_isLanded)
+                {
+                    _landKeyWasDown = landKeyDown;
+                    return;
+                }
+            }
+
+            _landKeyWasDown = landKeyDown;
 
             // Hyperspace owns the whole frame: no turning, thrust, or combat.
             if (_ship.StepHyperspace())
@@ -304,6 +339,67 @@ namespace EndlessSky.Game
             };
             AddChild(_fillLight);
             _fillLight.LookAtFromPosition(Vector3.Zero, -toPlayArea + new Vector3(0f, -0.35f, 0f) * toPlayArea.Length(), Vector3.Up);
+        }
+
+        /// <summary>
+        /// Land on the nearest named planet within range at low speed. Opens
+        /// the landed overlay; departing refuels at spaceport worlds (an
+        /// approximation of upstream's landing refuel/recharge) and hands
+        /// flight control back.
+        /// </summary>
+        private void TryLand()
+        {
+            if (_ship == null || _ship.CurrentSystem == null || _ship.IsHyperspacing)
+            {
+                return;
+            }
+
+            if (_ship.Velocity.Length > 3.0)
+            {
+                return;
+            }
+
+            foreach (StellarObject obj in _ship.CurrentSystem.AllObjects())
+            {
+                if (obj.PlanetName == null || (obj.Position - _ship.Position).Length > 260.0)
+                {
+                    continue;
+                }
+
+                if (!_universe.Planets.TryGetValue(obj.PlanetName, out Planet? planet))
+                {
+                    continue;
+                }
+
+                _isLanded = true;
+                _jumpAutopilot = false;
+                _landedOverlay = LandedOverlay.Open(this, _ship, planet, _ship.CurrentSystem.Name,
+                    _universe, _credits);
+                _landedOverlay.Departed += OnDepart;
+                GD.Print($"[flight] landed on {planet.Name} (credits={_credits:n0})");
+                return;
+            }
+        }
+
+        private void OnDepart()
+        {
+            if (_landedOverlay == null || _ship == null)
+            {
+                return;
+            }
+
+            _credits = _landedOverlay.Credits;
+            bool refuel = _landedOverlay.PlanetHasSpaceport;
+            _landedOverlay.QueueFree();
+            _landedOverlay = null;
+            _isLanded = false;
+            _ship.Velocity = Point.Zero;
+            if (refuel)
+            {
+                _ship.SetLevels(fuel: _ship.MaxFuel);
+            }
+
+            GD.Print($"[flight] departed (credits={_credits:n0} fuel={_ship.Fuel:0})");
         }
 
         /// <summary>Upstream J behavior: target the linked system best aligned with facing.</summary>
@@ -534,7 +630,7 @@ namespace EndlessSky.Game
             keysPanel.SetAnchorsPreset(Control.LayoutPreset.BottomLeft);
             keysPanel.AddThemeStyleboxOverride("panel", HudPanelStyle());
             hud.AddChild(keysPanel);
-            var keys = new Label { Text = "↑ thrust · ←/→ turn · ↓ turn retrograde (brake) · J jump · wheel zoom · WASD also works" };
+            var keys = new Label { Text = "↑ thrust · ←/→ turn · ↓ retrograde brake · J jump · L land · wheel zoom · WASD too" };
             keys.AddThemeFontSizeOverride("font_size", 12);
             keys.AddThemeColorOverride("font_color", new Color(0.40f, 0.48f, 0.56f));
             keysPanel.AddChild(keys);
@@ -594,6 +690,10 @@ namespace EndlessSky.Game
                 else if (arg == "--combat-demo")
                 {
                     _combatDemo = true;
+                }
+                else if (arg == "--land-at-start")
+                {
+                    _landAtStart = true;
                 }
             }
 
