@@ -477,8 +477,9 @@ namespace EndlessSky.Game
 
                 _isLanded = true;
                 _jumpAutopilot = false;
-                _landedOverlay = LandedOverlay.Open(this, _ship, planet, _ship.CurrentSystem.Name,
-                    _universe, _credits);
+                _player.Land(planet);
+                _landedOverlay = LandedOverlay.Open(this, _player, _missions, planet,
+                    _ship.CurrentSystem.Name, _universe);
                 _landedOverlay.Departed += OnDepart;
                 GD.Print($"[flight] landed on {planet.Name} (credits={_credits:n0})");
                 return;
@@ -493,6 +494,20 @@ namespace EndlessSky.Game
             }
 
             _credits = _landedOverlay.Credits;
+            _player.Depart();
+
+            // The flagship may have changed at the shipyard.
+            if (_player.Fleet.Flagship != null && !ReferenceEquals(_player.Fleet.Flagship, _ship))
+            {
+                Ship replacement = _player.Fleet.Flagship;
+                replacement.Position = _ship.Position;
+                replacement.Facing = _ship.Facing;
+                replacement.CurrentSystem = _ship.CurrentSystem;
+                _field?.Remove(_ship);
+                _ship = replacement;
+                _field?.Add(_ship);
+                GD.Print($"[flight] flagship is now a {_ship.Definition.DisplayName}");
+            }
             bool refuel = _landedOverlay.PlanetHasSpaceport;
             _landedOverlay.QueueFree();
             _landedOverlay = null;
@@ -801,6 +816,13 @@ namespace EndlessSky.Game
                 else if (arg == "--land-at-start")
                 {
                     _landAtStart = true;
+                }
+                else if (arg.StartsWith("--landed-tab=", StringComparison.Ordinal) &&
+                         int.TryParse(arg["--landed-tab=".Length..], out int tab))
+                {
+                    // Capture aid: the landed screen's other counters need a keypress
+                    // to reach, and a headless capture has no keyboard.
+                    LandedOverlay.OpenOnCounter = tab;
                 }
             }
 

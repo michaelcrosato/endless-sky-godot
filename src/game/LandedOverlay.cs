@@ -7,133 +7,178 @@ using Godot;
 namespace EndlessSky.Game
 {
     /// <summary>
-    /// The landed screen: menu-driven per the directive (no walking sims).
-    /// Shows the planet's spaceport, a working commodity market driven by the
-    /// real per-system prices, and the shipyard stock. The sim is frozen
+    /// The landed screen: menu-driven per the directive (no walking sims). Four
+    /// counters — the commodity market, the shipyard, the outfitter and the job
+    /// board — over the planet the player set down on. The simulation is frozen
     /// while this is open; Depart hands control back to FlightWorld.
-    ///
-    /// Trade math: buy/sell at the local quote, 5 tons per keypress, bounded
-    /// by credits, cargo space, and what's in the hold. Selling cargo you
-    /// don't have, or buying past a full hold, simply does nothing.
     /// </summary>
+    /// <remarks>
+    /// Everything here is a thin view over the simulation. The market moves cargo
+    /// through the fleet's hold, the two shops go through <see cref="Trading"/> so
+    /// they obey the same stock, capacity and money rules a test does, and the job
+    /// board goes through <see cref="MissionLog"/>. Nothing on this screen knows a
+    /// rule of its own, which is why a refusal here reads the same as a refusal
+    /// anywhere else.
+    ///
+    /// The shipyard used to be a read-only line of text listing what was for sale,
+    /// which is the shape of the whole gap this closes: the stock lists, the
+    /// installation rules and the mission gates were all implemented and none of them
+    /// could be reached from inside the game.
+    /// </remarks>
     public partial class LandedOverlay : CanvasLayer
     {
         private const int TonsPerPress = 5;
 
-        private Ship _ship = null!;
+        /// <summary>The counters this screen offers, in the order Tab cycles them.</summary>
+        private enum Counter
+        {
+            Trade,
+            Shipyard,
+            Outfitter,
+            Jobs,
+        }
+
+        private PlayerState _player = null!;
+        private MissionLog _missions = null!;
+        private GameData _universe = null!;
         private Planet _planet = null!;
         private string _systemName = "";
-        private TradeData _trade = null!;
+
         private List<TradeQuote> _quotes = new();
-        private IReadOnlyList<string> _shipyardStock = Array.Empty<string>();
+        private List<string> _shipyardStock = new();
+        private List<string> _outfitterStock = new();
+        private List<Mission> _jobs = new();
 
-        private Label _marketLabel = null!;
+        private Counter _counter = Counter.Trade;
+        private readonly Dictionary<Counter, int> _selected = new();
+        private string _message = "";
+
+        private Label _listLabel = null!;
+        private Label _tabLabel = null!;
         private Label _statusLine = null!;
-        private int _selected;
-        private bool _upWas, _downWas, _buyWas, _sellWas, _departWas;
 
-        public long Credits { get; set; }
+        private bool _upWas, _downWas, _buyWas, _sellWas, _departWas, _tabWas;
+
+        /// <summary>Credits, kept for the caller that still tracks them separately.</summary>
+        public long Credits => _player.Credits;
 
         public bool PlanetHasSpaceport => _planet.HasSpaceport;
 
         public event Action? Departed;
 
-        public static LandedOverlay Open(Node parent, Ship ship, Planet planet, string systemName,
-            GameData universe, long credits)
+        /// <summary>
+        /// Which counter to open on. Only used to capture a screen that would
+        /// otherwise need a keypress to reach.
+        /// </summary>
+        public static int OpenOnCounter { get; set; }
+
+        public static LandedOverlay Open(Node parent, PlayerState player, MissionLog missions,
+            Planet planet, string systemName, GameData universe)
         {
             var overlay = new LandedOverlay
             {
+                _counter = (Counter)Math.Clamp(OpenOnCounter, 0, 3),
                 Name = "Landed",
-                _ship = ship,
+                _player = player,
+                _missions = missions,
                 _planet = planet,
                 _systemName = systemName,
-                _trade = universe.Trade,
-                Credits = credits,
+                _universe = universe,
             };
-            overlay._quotes = universe.Trade.Quotes(systemName)
-                .Where(q => universe.Trade.Commodities.TryGetValue(q.Commodity, out Commodity? c) && c.IsTradeable)
-                .OrderBy(q => q.Commodity, StringComparer.Ordinal)
-                .ToList();
-            overlay._shipyardStock =
-                Planet.Stock(planet.Shipyards, universe.Shipyards).OrderBy(s => s, StringComparer.Ordinal).ToList();
+
             parent.AddChild(overlay);
             return overlay;
         }
 
         public override void _Ready()
         {
-            var dim = new ColorRect
-            {
-                Color = new Color(0f, 0f, 0f, 0.55f),
-            };
+            RefreshStock();
+
+            var dim = new ColorRect { Color = new Color(0f, 0f, 0f, 0.55f) };
             dim.SetAnchorsPreset(Control.LayoutPreset.FullRect);
             AddChild(dim);
 
+            // A CenterContainer over the whole screen, rather than the Center anchor
+            // preset on the panel itself: that preset captures offsets from the panel's
+            // size at the moment it is applied, which is before the contents below have
+            // given it one, so the panel ends up pinned to a corner.
+            var centre = new CenterContainer();
+            centre.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+            AddChild(centre);
+
             var panel = new PanelContainer();
-            panel.SetAnchorsPreset(Control.LayoutPreset.Center);
-            var style = new StyleBoxFlat
+            panel.AddThemeStyleboxOverride("panel", new StyleBoxFlat
             {
                 BgColor = new Color(0.05f, 0.07f, 0.11f, 0.95f),
                 BorderColor = new Color(0.35f, 0.55f, 0.75f, 0.8f),
+                BorderWidthLeft = 1, BorderWidthRight = 1,
+                BorderWidthTop = 1, BorderWidthBottom = 1,
                 CornerRadiusTopLeft = 8, CornerRadiusTopRight = 8,
                 CornerRadiusBottomLeft = 8, CornerRadiusBottomRight = 8,
                 ContentMarginLeft = 22, ContentMarginRight = 22,
                 ContentMarginTop = 16, ContentMarginBottom = 16,
-            };
-            style.SetBorderWidthAll(1);
-            panel.AddThemeStyleboxOverride("panel", style);
-            AddChild(panel);
+            });
+            centre.AddChild(panel);
 
-            var column = new VBoxContainer();
-            column.AddThemeConstantOverride("separation", 6);
+            var column = new VBoxContainer { CustomMinimumSize = new Vector2(660f, 0f) };
             panel.AddChild(column);
 
-            var title = new Label { Text = $"{_planet.Name.ToUpperInvariant()} — {_systemName}" };
-            title.AddThemeFontSizeOverride("font_size", 24);
-            title.AddThemeColorOverride("font_color", new Color(0.88f, 0.93f, 1.0f));
+            var title = new Label { Text = $"{_planet.Name.ToUpperInvariant()}  ·  {_systemName}" };
+            title.AddThemeFontSizeOverride("font_size", 22);
             column.AddChild(title);
 
-            string government = string.IsNullOrEmpty(_planet.Government) ? "Independent" : _planet.Government!;
             var subtitle = new Label
             {
-                Text = $"{government} world · {(_planet.HasSpaceport ? "spaceport" : "no spaceport")}" +
-                       $"{(_planet.HasShipyard ? " · shipyard" : "")}{(_planet.HasOutfitter ? " · outfitter" : "")}",
+                Text = _planet.HasSpaceport ? "SPACEPORT" : "NO SPACEPORT",
             };
-            subtitle.AddThemeFontSizeOverride("font_size", 14);
+            subtitle.AddThemeFontSizeOverride("font_size", 12);
             subtitle.AddThemeColorOverride("font_color", new Color(0.55f, 0.65f, 0.75f));
             column.AddChild(subtitle);
 
             column.AddChild(new HSeparator());
 
-            var marketHeader = new Label { Text = "COMMODITY MARKET" };
-            marketHeader.AddThemeFontSizeOverride("font_size", 13);
-            marketHeader.AddThemeColorOverride("font_color", new Color(0.65f, 0.75f, 0.85f));
-            column.AddChild(marketHeader);
-
-            _marketLabel = new Label();
-            _marketLabel.AddThemeFontSizeOverride("font_size", 15);
-            column.AddChild(_marketLabel);
-
-            if (_shipyardStock.Count > 0)
-            {
-                column.AddChild(new HSeparator());
-                var yardHeader = new Label { Text = "SHIPYARD" };
-                yardHeader.AddThemeFontSizeOverride("font_size", 13);
-                yardHeader.AddThemeColorOverride("font_color", new Color(0.65f, 0.75f, 0.85f));
-                column.AddChild(yardHeader);
-                var yard = new Label { Text = string.Join("  ·  ", _shipyardStock) };
-                yard.AddThemeFontSizeOverride("font_size", 14);
-                yard.AddThemeColorOverride("font_color", new Color(0.72f, 0.78f, 0.85f));
-                column.AddChild(yard);
-            }
+            _tabLabel = new Label();
+            _tabLabel.AddThemeFontSizeOverride("font_size", 14);
+            column.AddChild(_tabLabel);
 
             column.AddChild(new HSeparator());
+
+            _listLabel = new Label();
+            _listLabel.AddThemeFontSizeOverride("font_size", 14);
+            _listLabel.AddThemeColorOverride("font_color", new Color(0.82f, 0.87f, 0.92f));
+            column.AddChild(_listLabel);
+
+            column.AddChild(new HSeparator());
+
             _statusLine = new Label();
             _statusLine.AddThemeFontSizeOverride("font_size", 14);
             _statusLine.AddThemeColorOverride("font_color", new Color(0.55f, 0.65f, 0.75f));
             column.AddChild(_statusLine);
 
-            RefreshMarket();
+            Refresh();
+        }
+
+        /// <summary>Re-reads what this world has on offer.</summary>
+        private void RefreshStock()
+        {
+            _quotes = _universe.Trade.Quotes(_systemName)
+                .Where(q => _universe.Trade.Commodities.TryGetValue(q.Commodity, out Commodity? c) &&
+                            c.IsTradeable)
+                .OrderBy(q => q.Commodity, StringComparer.Ordinal)
+                .ToList();
+
+            _shipyardStock = Trading.ShipsFor(_universe, _planet)
+                .Where(_universe.Ships.ContainsKey)
+                .OrderBy(s => s, StringComparer.Ordinal)
+                .ToList();
+
+            _outfitterStock = Trading.OutfitsFor(_universe, _planet)
+                .Where(_universe.Outfits.ContainsKey)
+                .OrderBy(o => o, StringComparer.Ordinal)
+                .ToList();
+
+            _jobs = _missions.Available(_universe).OrderBy(m => m.DisplayName, StringComparer.Ordinal)
+                .ToList();
         }
 
         public override void _Process(double delta)
@@ -143,17 +188,24 @@ namespace EndlessSky.Game
             bool buy = Input.IsPhysicalKeyPressed(Key.B);
             bool sell = Input.IsPhysicalKeyPressed(Key.N);
             bool depart = Input.IsPhysicalKeyPressed(Key.D);
+            bool tab = Input.IsPhysicalKeyPressed(Key.Tab);
 
-            if (up && !_upWas && _quotes.Count > 0)
+            if (tab && !_tabWas)
             {
-                _selected = (_selected + _quotes.Count - 1) % _quotes.Count;
-                RefreshMarket();
+                _counter = (Counter)(((int)_counter + 1) % 4);
+                _message = "";
+                Refresh();
             }
 
-            if (down && !_downWas && _quotes.Count > 0)
+            int count = CurrentCount();
+            if (up && !_upWas && count > 0)
             {
-                _selected = (_selected + 1) % _quotes.Count;
-                RefreshMarket();
+                Select((Selection() + count - 1) % count);
+            }
+
+            if (down && !_downWas && count > 0)
+            {
+                Select((Selection() + 1) % count);
             }
 
             if (buy && !_buyWas)
@@ -171,56 +223,287 @@ namespace EndlessSky.Game
                 Departed?.Invoke();
             }
 
-            (_upWas, _downWas, _buyWas, _sellWas, _departWas) = (up, down, buy, sell, depart);
+            (_upWas, _downWas, _buyWas, _sellWas, _departWas, _tabWas) =
+                (up, down, buy, sell, depart, tab);
         }
+
+        private int Selection() => _selected.TryGetValue(_counter, out int value) ? value : 0;
+
+        private void Select(int index)
+        {
+            _selected[_counter] = index;
+            Refresh();
+        }
+
+        private int CurrentCount() => _counter switch
+        {
+            Counter.Trade => _quotes.Count,
+            Counter.Shipyard => _shipyardStock.Count,
+            Counter.Outfitter => _outfitterStock.Count,
+            Counter.Jobs => _jobs.Count,
+            _ => 0,
+        };
+
+        // --- Buying -----------------------------------------------------------------
 
         private void Buy()
         {
-            if (_selected >= _quotes.Count)
+            int index = Selection();
+            if (index >= CurrentCount())
             {
                 return;
             }
 
-            TradeQuote quote = _quotes[_selected];
-            int affordable = quote.Price > 0 ? (int)Math.Min(TonsPerPress, Credits / quote.Price) : TonsPerPress;
-            int bought = _ship.Cargo.Add(quote.Commodity, Math.Max(0, affordable));
-            Credits -= (long)bought * quote.Price;
-            RefreshMarket();
+            switch (_counter)
+            {
+                case Counter.Trade:
+                {
+                    TradeQuote quote = _quotes[index];
+                    int affordable = quote.Price > 0
+                        ? (int)Math.Min(TonsPerPress, _player.Credits / quote.Price)
+                        : TonsPerPress;
+                    int bought = _player.Fleet.LoadCargo(quote.Commodity, Math.Max(0, affordable));
+                    _player.AddCredits(-(long)bought * quote.Price);
+                    _message = bought > 0
+                        ? $"bought {bought} t of {quote.Commodity}"
+                        : "no room, or not enough credits";
+                    break;
+                }
+
+                case Counter.Shipyard:
+                {
+                    string model = _shipyardStock[index];
+                    TradeResult result = Trading.BuyShip(_player, _universe, model, out Ship? bought);
+                    _message = result == TradeResult.Ok
+                        ? $"bought a {model}"
+                        : Explain(result);
+                    break;
+                }
+
+                case Counter.Outfitter:
+                {
+                    string outfit = _outfitterStock[index];
+                    Ship? flagship = _player.Fleet.Flagship;
+                    TradeResult result = flagship is null
+                        ? TradeResult.NotOwned
+                        : Trading.BuyOutfit(_player, _universe, flagship, outfit);
+                    _message = result == TradeResult.Ok ? $"installed {outfit}" : Explain(result);
+                    break;
+                }
+
+                case Counter.Jobs:
+                {
+                    Mission job = _jobs[index];
+                    ActiveMission? taken = _missions.Accept(job);
+                    _message = taken != null ? $"accepted: {job.DisplayName}" : "could not accept";
+                    RefreshStock();
+                    break;
+                }
+            }
+
+            Refresh();
         }
 
         private void Sell()
         {
-            if (_selected >= _quotes.Count)
+            int index = Selection();
+            if (index >= CurrentCount())
             {
                 return;
             }
 
-            TradeQuote quote = _quotes[_selected];
-            int sold = _ship.Cargo.Remove(quote.Commodity, TonsPerPress);
-            Credits += (long)sold * quote.Price;
-            RefreshMarket();
+            switch (_counter)
+            {
+                case Counter.Trade:
+                {
+                    TradeQuote quote = _quotes[index];
+                    int sold = _player.Fleet.UnloadCargo(quote.Commodity, TonsPerPress);
+                    _player.AddCredits((long)sold * quote.Price);
+                    _message = sold > 0 ? $"sold {sold} t of {quote.Commodity}" : "nothing to sell";
+                    break;
+                }
+
+                case Counter.Shipyard:
+                {
+                    // Sells the flagship's model if the player has a spare of it, which
+                    // is the only unambiguous thing this list can mean.
+                    string model = _shipyardStock[index];
+                    Ship? owned = _player.Fleet.Ships
+                        .FirstOrDefault(s => s.Definition.DisplayName == model);
+
+                    _message = owned is null
+                        ? "you own none of those"
+                        : Explain(Trading.SellShip(_player, owned), $"sold a {model}");
+                    break;
+                }
+
+                case Counter.Outfitter:
+                {
+                    string name = _outfitterStock[index];
+                    Ship? flagship = _player.Fleet.Flagship;
+                    Outfit? outfit = _universe.Outfits.TryGetValue(name, out Outfit? found) ? found : null;
+
+                    _message = flagship is null || outfit is null
+                        ? "nothing to sell"
+                        : Explain(Trading.SellOutfit(_player, flagship, outfit), $"sold {name}");
+                    break;
+                }
+
+                case Counter.Jobs:
+                {
+                    ActiveMission? taken = _missions.Active.FirstOrDefault();
+                    if (taken is null)
+                    {
+                        _message = "no mission to abandon";
+                        break;
+                    }
+
+                    _missions.Abort(taken);
+                    _message = $"abandoned: {taken.Mission.DisplayName}";
+                    RefreshStock();
+                    break;
+                }
+            }
+
+            Refresh();
         }
 
-        private void RefreshMarket()
+        private static string Explain(TradeResult result, string success = "done") => result switch
         {
-            var lines = new List<string>();
-            for (int i = 0; i < _quotes.Count; i++)
-            {
-                TradeQuote quote = _quotes[i];
-                string cursor = i == _selected ? "▶ " : "   ";
-                int held = _ship.Cargo.Count(quote.Commodity);
-                lines.Add($"{cursor}{quote.Commodity,-16} {quote.Price,6} cr/t   hold {held,3} t");
-            }
+            TradeResult.Ok => success,
+            TradeResult.NotSold => "not sold here",
+            TradeResult.CannotAfford => "you cannot afford that",
+            TradeResult.DoesNotFit => "it will not fit",
+            TradeResult.NotOwned => "you do not own that",
+            TradeResult.LastShip => "you cannot sell your only ship",
+            _ => "no",
+        };
 
-            if (lines.Count == 0)
-            {
-                lines.Add("   (no market on this world)");
-            }
+        // --- Rendering --------------------------------------------------------------
 
-            _marketLabel.Text = string.Join("\n", lines);
+        private void Refresh()
+        {
+            _tabLabel.Text = string.Join("   ", Enum.GetValues<Counter>()
+                .Select(c => c == _counter ? $"[ {Title(c)} ]" : $"  {Title(c)}  "));
+
+            _listLabel.Text = string.Join("\n", Lines());
+
+            Ship? flagship = _player.Fleet.Flagship;
+            string hold = flagship is null
+                ? ""
+                : $"   cargo {_player.Fleet.CargoUsed()}/{_player.Fleet.CargoCapacity()} t" +
+                  $"   fuel {flagship.Fuel:0}";
+
             _statusLine.Text =
-                $"credits {Credits:n0}   cargo {_ship.Cargo.Used}/{_ship.Cargo.Capacity} t   fuel {_ship.Fuel:0}\n" +
-                "↑/↓ select · B buy 5t · N sell 5t · D depart";
+                $"credits {_player.Credits:n0}   ships {_player.Fleet.Ships.Count}" +
+                $"   missions {_missions.Active.Count}{hold}\n" +
+                $"TAB counter · ↑/↓ select · {ActionHint()} · D depart" +
+                (_message.Length > 0 ? $"\n{_message}" : "");
         }
+
+        private string ActionHint() => _counter switch
+        {
+            Counter.Trade => "B buy 5t · N sell 5t",
+            Counter.Shipyard => "B buy ship · N sell ship",
+            Counter.Outfitter => "B install · N remove",
+            Counter.Jobs => "B accept · N abandon",
+            _ => "",
+        };
+
+        private static string Title(Counter counter) => counter switch
+        {
+            Counter.Trade => "TRADE",
+            Counter.Shipyard => "SHIPYARD",
+            Counter.Outfitter => "OUTFITTER",
+            Counter.Jobs => "JOBS",
+            _ => "",
+        };
+
+        private IEnumerable<string> Lines()
+        {
+            int selected = Selection();
+            var lines = new List<string>();
+
+            switch (_counter)
+            {
+                case Counter.Trade:
+                    for (int i = 0; i < _quotes.Count; i++)
+                    {
+                        TradeQuote quote = _quotes[i];
+                        int held = _player.Fleet.CargoCount(quote.Commodity);
+                        lines.Add($"{Cursor(i, selected)}{quote.Commodity,-18} {quote.Price,6} cr/t" +
+                                  $"   hold {held,3} t");
+                    }
+
+                    if (lines.Count == 0) lines.Add("   (no market on this world)");
+                    break;
+
+                case Counter.Shipyard:
+                    for (int i = 0; i < _shipyardStock.Count; i++)
+                    {
+                        string model = _shipyardStock[i];
+                        long cost = (long)_universe.Ships[model].Attributes.Get("cost");
+                        int owned = _player.Fleet.Ships.Count(s => s.Definition.DisplayName == model);
+                        lines.Add($"{Cursor(i, selected)}{model,-26} {cost,10:n0} cr" +
+                                  (owned > 0 ? $"   owned {owned}" : ""));
+                    }
+
+                    if (lines.Count == 0) lines.Add("   (no shipyard on this world)");
+                    break;
+
+                case Counter.Outfitter:
+                    for (int i = 0; i < _outfitterStock.Count; i++)
+                    {
+                        string name = _outfitterStock[i];
+                        Outfit outfit = _universe.Outfits[name];
+                        int installed = _player.Fleet.Flagship?.Outfits.Count(o => o.Name == name) ?? 0;
+                        lines.Add($"{Cursor(i, selected)}{name,-30} {outfit.Cost,9:n0} cr" +
+                                  (installed > 0 ? $"   fitted {installed}" : ""));
+                    }
+
+                    if (lines.Count == 0) lines.Add("   (no outfitter on this world)");
+                    break;
+
+                case Counter.Jobs:
+                    for (int i = 0; i < _jobs.Count; i++)
+                    {
+                        Mission job = _jobs[i];
+                        string where = job.Destination is null ? "" : $"  → {job.Destination}";
+                        string load = job.CargoTons > 0 ? $"  {job.CargoTons} t" : "";
+
+                        // Mission text is a template; showing it unsubstituted puts
+                        // "<planet> business convention" on the board.
+                        string name = TextSubstitution.NameOf(job, _player, _universe);
+                        lines.Add($"{Cursor(i, selected)}{name}{where}{load}");
+                    }
+
+                    if (lines.Count == 0) lines.Add("   (nothing on the board)");
+
+                    foreach (ActiveMission taken in _missions.Active)
+                    {
+                        lines.Add($"   ACTIVE: {TextSubstitution.NameOf(taken.Mission, _player, _universe)}" +
+                                  (taken.Deadline.HasValue ? $" by {taken.Deadline:yyyy-MM-dd}" : ""));
+                    }
+
+                    break;
+            }
+
+            // Window the list around the selection. A job board can hold hundreds of
+            // entries - New Boston offers 424 - and rendering them all runs off the
+            // bottom of the screen and past the status line with it.
+            const int Rows = 12;
+            int first = Math.Max(0, Math.Min(selected - Rows / 2, lines.Count - Rows));
+            var window = lines.Skip(first).Take(Rows).ToList();
+
+            if (lines.Count > Rows)
+            {
+                window.Add($"   … {lines.Count} entries, showing {first + 1}-{first + window.Count}");
+            }
+
+            while (window.Count < Rows) window.Add("");
+            return window;
+        }
+
+        private static string Cursor(int index, int selected) => index == selected ? "▶ " : "   ";
     }
 }
