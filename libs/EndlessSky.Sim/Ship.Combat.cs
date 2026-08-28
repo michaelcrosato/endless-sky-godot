@@ -23,8 +23,14 @@ namespace EndlessSky.Sim
     /// disruption, cloaking interactions, crew loss, and blast-radius falloff.
     /// The scaling hooks below are written so those slot in without restructuring.
     /// </remarks>
-    public partial class Ship
+    public partial class Ship : ITarget
     {
+        // Position and Velocity are public fields on the flight half, which cannot
+        // satisfy an interface directly; explicit implementation bridges them so a
+        // ship can be chased by a homing projectile.
+        Point ITarget.Position => Position;
+        Point ITarget.Velocity => Velocity;
+
         // Levels start full. They are lazily initialised because attributes are not
         // final until every outfit has been installed, which happens after the ctor.
         private double? _shields;
@@ -60,7 +66,7 @@ namespace EndlessSky.Sim
         public double Heat { get; private set; }
 
         /// <summary>The faction this ship belongs to. Shots pass through their own side.</summary>
-        public Government Government { get; set; }
+        public Government? Government { get; set; }
 
         private double? _collisionRadius;
 

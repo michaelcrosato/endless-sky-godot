@@ -42,9 +42,9 @@ namespace EndlessSky.Sim
         /// <summary>Turrets aim independently; guns fire along the hull.</summary>
         public bool IsTurret { get; }
 
-        public Outfit InstalledOutfit { get; private set; }
+        public Outfit? InstalledOutfit { get; private set; }
 
-        public Weapon Weapon => InstalledOutfit?.Weapon;
+        public Weapon? Weapon => InstalledOutfit?.Weapon;
 
         public bool IsEmpty => InstalledOutfit is null;
 
@@ -54,7 +54,7 @@ namespace EndlessSky.Sim
         /// <summary>Shots left in the current burst.</summary>
         public double BurstRemaining => _burstCount;
 
-        public void Install(Outfit outfit)
+        public void Install(Outfit? outfit)
         {
             if (outfit is not null && !outfit.IsWeapon)
                 throw new ArgumentException($"{outfit.Name} is not a weapon", nameof(outfit));
@@ -80,7 +80,7 @@ namespace EndlessSky.Sim
 
             // A completed full reload refills the burst magazine.
             if (_reload <= 0.0)
-                _burstCount = Weapon.BurstCount;
+                _burstCount = Weapon!.BurstCount;
 
             if (_burstReload > 0.0)
                 --_burstReload;
@@ -99,12 +99,12 @@ namespace EndlessSky.Sim
         /// </summary>
         internal void RecordShot()
         {
-            _reload += Weapon.Reload;
-            _burstReload += Weapon.BurstReload;
+            _reload += Weapon!.Reload;
+            _burstReload += Weapon!.BurstReload;
             --_burstCount;
         }
 
         public override string ToString() =>
-            $"{(IsTurret ? "turret" : "gun")} {(IsEmpty ? "(empty)" : InstalledOutfit.Name)}";
+            $"{(IsTurret ? "turret" : "gun")} {(IsEmpty ? "(empty)" : InstalledOutfit!.Name)}";
     }
 }

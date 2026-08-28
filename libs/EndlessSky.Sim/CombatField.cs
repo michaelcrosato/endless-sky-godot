@@ -40,22 +40,22 @@ namespace EndlessSky.Sim
         private readonly List<Projectile> _projectiles = new List<Projectile>();
 
         /// <summary>Looks up the weapon a submunition names, so clusters can spawn.</summary>
-        public Func<string, Weapon> WeaponLookup { get; set; }
+        public Func<string, Weapon?>? WeaponLookup { get; set; }
 
         public IReadOnlyList<Ship> Ships => _ships;
         public IReadOnlyList<Projectile> Projectiles => _projectiles;
 
-        public void Add(Ship ship)
+        public void Add(Ship? ship)
         {
             if (ship is not null) _ships.Add(ship);
         }
 
-        public void Add(Projectile projectile)
+        public void Add(Projectile? projectile)
         {
             if (projectile is not null) _projectiles.Add(projectile);
         }
 
-        public void Add(IEnumerable<Projectile> projectiles)
+        public void Add(IEnumerable<Projectile>? projectiles)
         {
             if (projectiles is null) return;
             foreach (Projectile projectile in projectiles)
@@ -85,7 +85,7 @@ namespace EndlessSky.Sim
                     continue;
                 }
 
-                Ship struck = FirstShipHit(projectile, before, projectile.Position);
+                Ship? struck = FirstShipHit(projectile, before, projectile.Position);
                 if (struck is null)
                     continue;
 
@@ -105,9 +105,9 @@ namespace EndlessSky.Sim
         /// The first ship the segment strikes. Friendly fire is skipped: a shot never
         /// hits a ship of the government that fired it.
         /// </summary>
-        private Ship FirstShipHit(Projectile projectile, Point from, Point to)
+        private Ship? FirstShipHit(Projectile projectile, Point from, Point to)
         {
-            Ship closest = null;
+            Ship? closest = null;
             double closestFraction = double.PositiveInfinity;
 
             foreach (Ship ship in _ships)
@@ -130,7 +130,7 @@ namespace EndlessSky.Sim
             return closest;
         }
 
-        private void SpawnSubmunitions(Projectile parent, IReadOnlyList<Submunition> submunitions,
+        private void SpawnSubmunitions(Projectile parent, IReadOnlyList<Submunition>? submunitions,
                                        List<Projectile> into)
         {
             if (submunitions is null || submunitions.Count == 0 || WeaponLookup is null)
@@ -138,7 +138,7 @@ namespace EndlessSky.Sim
 
             foreach (Submunition submunition in submunitions)
             {
-                Weapon weapon = WeaponLookup(submunition.WeaponName);
+                Weapon? weapon = WeaponLookup(submunition.WeaponName);
                 if (weapon is null)
                     continue;
 

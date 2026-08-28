@@ -140,7 +140,7 @@ namespace EndlessSky.Sim
         /// Outfit consumed per shot, or null for weapons that need no ammunition.
         /// Upstream names it as a string: <c>ammo "Sidewinder Missile"</c>.
         /// </summary>
-        public string AmmoName { get; private set; }
+        public string? AmmoName { get; private set; }
 
         /// <summary>Rounds consumed per shot. Only meaningful when <see cref="AmmoName"/> is set.</summary>
         public double AmmoUsage => Attributes.Has("ammo usage") ? Attributes.Get("ammo usage") : 1.0;
@@ -166,5 +166,21 @@ namespace EndlessSky.Sim
 
         /// <summary>True when the projectile chases a target rather than flying straight.</summary>
         public bool IsHoming => Homing != 0.0;
+
+        /// <summary>Explicit range cap; upstream uses it for weapons whose reach is not velocity times lifetime.</summary>
+        public double RangeOverride => Attributes.Get("range override");
+
+        /// <summary>
+        /// How far a shot reaches, in simulation units. Port of upstream
+        /// <c>Weapon::Range</c>: the range override if set, else velocity times
+        /// lifetime.
+        /// </summary>
+        /// <remarks>
+        /// INCOMPLETE: upstream uses a *weighted* velocity that accounts for a
+        /// projectile's acceleration and drag, and extends total lifetime by the
+        /// longest-lived submunition. Neither is included here, so accelerating and
+        /// cluster weapons read shorter than they truly reach.
+        /// </remarks>
+        public double Range => RangeOverride > 0.0 ? RangeOverride : Velocity * Lifetime;
     }
 }

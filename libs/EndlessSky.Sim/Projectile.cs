@@ -35,7 +35,7 @@ namespace EndlessSky.Sim
         /// momentum: a fleeing ship's fire is genuinely slower to close.
         /// </summary>
         public Projectile(Weapon weapon, Point position, Point parentVelocity, Angle angle,
-                          ITarget target = null, Government government = null)
+                          ITarget? target = null, Government? government = null)
         {
             _weapon = weapon ?? throw new ArgumentNullException(nameof(weapon));
 
@@ -57,10 +57,10 @@ namespace EndlessSky.Sim
         public int Lifetime { get; private set; }
 
         /// <summary>What this shot is chasing. Null for unguided fire.</summary>
-        public ITarget Target { get; set; }
+        public ITarget? Target { get; set; }
 
         /// <summary>Who fired it, so it does not damage its own side.</summary>
-        public Government Government { get; }
+        public Government? Government { get; }
 
         /// <summary>True once the projectile has expired and should be removed.</summary>
         public bool IsDead { get; private set; }

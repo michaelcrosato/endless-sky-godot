@@ -36,10 +36,10 @@ namespace EndlessSky.Sim
         }
 
         /// <summary>Ammunition currently carried, by outfit name.</summary>
-        public int AmmoCount(string outfitName) =>
+        public int AmmoCount(string? outfitName) =>
             outfitName is not null && _ammo.TryGetValue(outfitName, out int count) ? count : 0;
 
-        public void AddAmmo(string outfitName, int count)
+        public void AddAmmo(string? outfitName, int count)
         {
             if (string.IsNullOrEmpty(outfitName) || count == 0)
                 return;
@@ -56,7 +56,7 @@ namespace EndlessSky.Sim
         /// Installs a weapon in the first free mount of the matching kind.
         /// Returns the mount used, or null when every suitable mount is taken.
         /// </summary>
-        public WeaponMount InstallWeapon(Outfit outfit, bool asTurret = false)
+        public WeaponMount? InstallWeapon(Outfit outfit, bool asTurret = false)
         {
             if (outfit is null) throw new ArgumentNullException(nameof(outfit));
 
@@ -84,7 +84,7 @@ namespace EndlessSky.Sim
         /// Whether the ship can pay for a shot from this weapon right now.
         /// A disabled ship cannot fire at all.
         /// </summary>
-        public bool CanFire(Weapon weapon)
+        public bool CanFire(Weapon? weapon)
         {
             if (weapon is null || !weapon.IsWeapon || IsDisabled)
                 return false;
@@ -93,7 +93,7 @@ namespace EndlessSky.Sim
                 return false;
 
             // A weapon that names ammunition cannot fire without a round left.
-            string ammo = weapon.AmmoName;
+            string? ammo = weapon.AmmoName;
             if (ammo is not null && AmmoCount(ammo) < weapon.AmmoUsage)
                 return false;
 
@@ -107,14 +107,14 @@ namespace EndlessSky.Sim
         /// <param name="mount">A mount belonging to this ship.</param>
         /// <param name="target">Optional target for homing weapons.</param>
         /// <param name="government">The firing government, carried by the projectile.</param>
-        public Projectile Fire(WeaponMount mount, ITarget target = null, Government government = null)
+        public Projectile? Fire(WeaponMount mount, ITarget? target = null, Government? government = null)
         {
             if (mount is null) throw new ArgumentNullException(nameof(mount));
 
             if (!mount.IsReady)
                 return null;
 
-            Weapon weapon = mount.Weapon;
+            Weapon weapon = mount.Weapon!;
             if (!CanFire(weapon))
                 return null;
 
@@ -137,13 +137,13 @@ namespace EndlessSky.Sim
         /// Fires every mount that is ready and affordable. This is the "hold the
         /// trigger" path; mounts that cannot fire are simply skipped.
         /// </summary>
-        public List<Projectile> FireAll(ITarget target = null, Government government = null)
+        public List<Projectile> FireAll(ITarget? target = null, Government? government = null)
         {
             var shots = new List<Projectile>();
 
             foreach (WeaponMount mount in _mounts)
             {
-                Projectile shot = Fire(mount, target, government);
+                Projectile? shot = Fire(mount, target, government);
                 if (shot is not null)
                     shots.Add(shot);
             }
