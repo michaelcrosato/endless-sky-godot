@@ -43,6 +43,14 @@ namespace EndlessSky.Sim
             new Dictionary<string, Commodity>(StringComparer.Ordinal);
 
         // system name -> commodity name -> price
+        /// <summary>Base price per system and commodity, before supply moves it.</summary>
+        private readonly Dictionary<string, Dictionary<string, int>> _bases =
+            new Dictionary<string, Dictionary<string, int>>(StringComparer.Ordinal);
+
+        /// <summary>Standing supply per system and commodity, which drives price.</summary>
+        private readonly Dictionary<string, Dictionary<string, double>> _supply =
+            new Dictionary<string, Dictionary<string, double>>(StringComparer.Ordinal);
+
         private readonly Dictionary<string, Dictionary<string, int>> _prices =
             new Dictionary<string, Dictionary<string, int>>(StringComparer.Ordinal);
 
@@ -86,8 +94,112 @@ namespace EndlessSky.Sim
                 if (child.Token(0) != "trade" || child.Size < 3 || !child.IsNumber(2))
                     continue;
 
-                SetPrice(systemName, child.Token(1), (int)child.Value(2));
+                int basePrice = (int)child.Value(2);
+
+                // Keep the base separately: the data file states a base, and the price
+                // a player sees is that base moved by standing supply.
+                if (!_bases.TryGetValue(systemName, out Dictionary<string, int>? bases))
+                {
+                    bases = new Dictionary<string, int>(StringComparer.Ordinal);
+                    _bases[systemName] = bases;
+                }
+
+                bases[child.Token(1)] = basePrice;
+                SetPrice(systemName, child.Token(1), basePrice);
             }
+        }
+
+        /// <summary>How much of last frame's supply a system keeps (upstream KEEP).</summary>
+        private const double SupplyKept = 0.89;
+
+        /// <summary>Scale of the random daily swing in supply (upstream VOLUME).</summary>
+        private const double SupplyVolume = 2000.0;
+
+        /// <summary>Supply at which price has moved most of its range (upstream LIMIT).</summary>
+        private const double SupplyLimit = 20000.0;
+
+        /// <summary>Widest the price can move from its base, in credits.</summary>
+        private const double PriceSwing = 100.0;
+
+        /// <summary>
+        /// Advances the economy one day: supply decays toward zero, takes a random
+        /// nudge, and prices follow it. Port of upstream <c>System::StepEconomy</c>.
+        /// </summary>
+        /// <remarks>
+        /// Prices in the data files are BASES, not the price a player pays. Without
+        /// this every world quotes the same number forever, so a trade route found once
+        /// is the best route always and there is no reason to look for another. The
+        /// swing is bounded - at most 100 credits either side of base - so a route
+        /// stays broadly worth running while never being quite the same twice.
+        ///
+        /// Randomness is injected rather than ambient, so a test can pin the walk.
+        /// </remarks>
+        public void StepEconomy(Func<double>? normal = null)
+        {
+            var draw = normal ?? StandardNormal;
+
+            foreach (KeyValuePair<string, Dictionary<string, int>> system in _bases)
+            {
+                if (!_supply.TryGetValue(system.Key, out Dictionary<string, double>? supplies))
+                {
+                    supplies = new Dictionary<string, double>(StringComparer.Ordinal);
+                    _supply[system.Key] = supplies;
+                }
+
+                foreach (KeyValuePair<string, int> quote in system.Value)
+                {
+                    supplies.TryGetValue(quote.Key, out double supply);
+                    supply = supply * SupplyKept + draw() * SupplyVolume;
+                    supplies[quote.Key] = supply;
+
+                    SetPrice(system.Key, quote.Key, PriceFor(quote.Value, supply));
+                }
+            }
+        }
+
+        /// <summary>The price a base and a standing supply produce.</summary>
+        public static int PriceFor(int basePrice, double supply) =>
+            basePrice + (int)(-PriceSwing * Erf(supply / SupplyLimit));
+
+        /// <summary>Standing supply of a commodity, 0 if the economy has not run.</summary>
+        public double Supply(string systemName, string commodity) =>
+            systemName != null && _supply.TryGetValue(systemName, out Dictionary<string, double>? s) &&
+            s.TryGetValue(commodity, out double value)
+                ? value
+                : 0.0;
+
+        /// <summary>The unmoved price a system's data file states.</summary>
+        public int? BasePrice(string systemName, string commodity) =>
+            systemName != null && _bases.TryGetValue(systemName, out Dictionary<string, int>? b) &&
+            b.TryGetValue(commodity, out int value)
+                ? value
+                : null;
+
+        private static readonly Random SharedRandom = new Random();
+
+        /// <summary>Box-Muller: a standard normal from two uniforms.</summary>
+        private static double StandardNormal()
+        {
+            double u1 = 1.0 - SharedRandom.NextDouble();
+            double u2 = SharedRandom.NextDouble();
+            return Math.Sqrt(-2.0 * Math.Log(u1)) * Math.Cos(2.0 * Math.PI * u2);
+        }
+
+        /// <summary>
+        /// Error function, Abramowitz and Stegun 7.1.26 (accurate to about 1e-7).
+        /// .NET has no erf, and the price curve is defined in terms of it.
+        /// </summary>
+        private static double Erf(double x)
+        {
+            int sign = Math.Sign(x);
+            x = Math.Abs(x);
+
+            const double a1 = 0.254829592, a2 = -0.284496736, a3 = 1.421413741;
+            const double a4 = -1.453152027, a5 = 1.061405429, p = 0.3275911;
+
+            double t = 1.0 / (1.0 + p * x);
+            double y = 1.0 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.Exp(-x * x);
+            return sign * y;
         }
 
         public void SetPrice(string systemName, string commodity, int price)

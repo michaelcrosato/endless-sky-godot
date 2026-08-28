@@ -79,6 +79,9 @@ namespace EndlessSky.Sim
 
         public void SetDate(DateTime date) => Date = date;
 
+        /// <summary>Restores the campaign's start date, which "days since start" counts from.</summary>
+        public void SetStartDate(DateTime date) => StartDate = date;
+
         public void AdvanceDays(int days) => Date = Date.AddDays(days);
 
         /// <summary>Records arrival in a system, marking it visited.</summary>

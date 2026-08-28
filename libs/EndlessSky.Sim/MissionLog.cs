@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using EndlessSky.Data;
 
 namespace EndlessSky.Sim
 {
@@ -237,6 +238,61 @@ namespace EndlessSky.Sim
             }
 
             return ended;
+        }
+
+        /// <summary>
+        /// Puts a mission back in the log as it was saved, without re-firing its accept
+        /// action or reloading its cargo - both already happened when it was taken.
+        /// </summary>
+        public ActiveMission Restore(Mission mission, DataNode node)
+        {
+            DateTime accepted = _player.Date, deadline = default;
+            bool hasDeadline = false;
+            int cargo = 0;
+
+            foreach (DataNode child in node.Children)
+            {
+                switch (child.Token(0))
+                {
+                    case "accepted" when child.Size >= 4:
+                        accepted = ReadDate(child) ?? accepted;
+                        break;
+
+                    case "deadline" when child.Size >= 4:
+                        DateTime? read = ReadDate(child);
+                        if (read.HasValue)
+                        {
+                            deadline = read.Value;
+                            hasDeadline = true;
+                        }
+                        break;
+
+                    case "cargo" when child.Size >= 2:
+                        cargo = (int)child.Value(1);
+                        break;
+                }
+            }
+
+            var taken = new ActiveMission(mission, accepted, hasDeadline ? deadline : null)
+            {
+                CargoLoaded = cargo,
+            };
+
+            _active.Add(taken);
+            _player.Conditions.Set($"mission: {mission.Name}", 1);
+            return taken;
+        }
+
+        private static DateTime? ReadDate(DataNode node)
+        {
+            try
+            {
+                return new DateTime((int)node.Value(3), (int)node.Value(2), (int)node.Value(1));
+            }
+            catch (ArgumentOutOfRangeException)
+            {
+                return null;
+            }
         }
 
         private void Finish(ActiveMission taken, MissionOutcome outcome)
