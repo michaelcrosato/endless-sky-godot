@@ -93,6 +93,28 @@ Everything under `data/` is one merged namespace: definitions of the same
 `human/outfits.txt`, `human/power.txt`, `human/weapons.txt`,
 `human/sales.txt`, `commodities.txt`, `gamerules.txt`.
 
+## Combat rules that contradict first assumptions (M2 findings)
+
+1. **Shields block hull damage entirely, not proportionally.** Hull damage
+   scales by `(1 − shieldFraction)` and is zero while any shields remain;
+   bleed-through happens only in the frame a shot overruns the shields, and
+   only for the excess.
+2. **Hull damage is clamped to `(hull + 0.25 − minimumHull)`**
+   (`Entity::HullLevelUntilDisabled`). The 0.25 epsilon is load-bearing:
+   disabled is `hull < minimumHull` strictly, so without it no weapon lacking
+   explicit `"disabled damage"` could ever disable anything.
+3. **`"homing"` and `"stream"` are valueless flags** — bare lines inside the
+   weapon block, set on key presence (a following number is deprecated legacy
+   syntax). A parser that only records key/number pairs reads all 68 upstream
+   homing weapons as straight-firing guns.
+4. **Damage can be negative, and a submunition carrier can have velocity with
+   no lifetime.** The Korath Minelayer's carrier shell carries −3200 shield /
+   −2400 hull (hitting it early does less than the cloud it splits into); the
+   Ion Hail Turret's carrier bursts on frame one.
+5. A missile exactly antiparallel to its target computes
+   `desiredTurn = asin(0) = 0` and flies straight — upstream does the same;
+   pinned by test so nobody "fixes" it into divergence.
+
 ## Hyperspace constants (for the travel milestone)
 
 `HYPER_C = 100` frames, `HYPER_A = 2` px/f², `HYPER_D = 1000` px; arrival

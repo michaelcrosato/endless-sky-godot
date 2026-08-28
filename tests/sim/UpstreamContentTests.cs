@@ -18,71 +18,8 @@ namespace EndlessSky.Tests
     /// </summary>
     public class UpstreamContentTests
     {
-        private static GameData _cached;
-        private static string _dataPath;
-
-        /// <summary>Finds the upstream data directory, or null when it is not available.</summary>
-        private static string FindDataPath()
-        {
-            if (_dataPath != null)
-            {
-                return _dataPath.Length == 0 ? null : _dataPath;
-            }
-
-            string fromEnv = Environment.GetEnvironmentVariable("ENDLESS_SKY_DATA");
-            var candidates = new List<string>();
-            if (!string.IsNullOrEmpty(fromEnv))
-            {
-                candidates.Add(fromEnv);
-            }
-
-            // Walk up from the test binary to the Godot project root (the directory
-            // holding project.godot), then probe the documented checkout locations.
-            string projectRoot = AppContext.BaseDirectory;
-            while (projectRoot != null && !File.Exists(Path.Combine(projectRoot, "project.godot")))
-            {
-                projectRoot = Path.GetDirectoryName(projectRoot);
-            }
-            if (projectRoot != null)
-            {
-                candidates.Add(Path.Combine(projectRoot, "..", "es-upstream", "data"));
-                candidates.Add(Path.Combine(projectRoot, "external", "endless-sky", "data"));
-            }
-
-            foreach (string candidate in candidates)
-            {
-                string full = Path.GetFullPath(candidate);
-                if (Directory.Exists(full))
-                {
-                    _dataPath = full;
-                    return full;
-                }
-            }
-
-            _dataPath = string.Empty;
-            return null;
-        }
-
-        private static GameData Data()
-        {
-            if (_cached != null)
-            {
-                return _cached;
-            }
-
-            string path = FindDataPath();
-            if (path == null)
-            {
-                Assert.Ignore(
-                    "Upstream Endless Sky data not found. Set ENDLESS_SKY_DATA or clone " +
-                    "endless-sky beside this project as ../es-upstream.");
-            }
-
-            var data = new GameData();
-            data.LoadDirectory(path);
-            _cached = data;
-            return data;
-        }
+        // Dataset location + caching live in the shared UpstreamData loader.
+        private static GameData Data() => UpstreamData.Instance;
 
         [Test]
         public void DatasetLoadsWithoutParseErrors()
@@ -109,7 +46,7 @@ namespace EndlessSky.Tests
 
             TestContext.WriteLine(
                 $"Loaded {data.Ships.Count} ships, {data.Outfits.Count} outfits, " +
-                $"{data.Systems.Count} systems from {FindDataPath()}");
+                $"{data.Systems.Count} systems from {UpstreamData.Path}");
         }
 
         [Test]
