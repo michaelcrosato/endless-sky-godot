@@ -89,7 +89,7 @@ its could reach.
 
 | Dimension | State | Evidence and what is still missing |
 |---|---|---|
-| **Controls** | Verified | Acceleration equals thrust over mass; drag caps the ship at its rated top speed; a turn cannot exceed the rated turn rate in one frame; retrograde braking slows the ship from any heading. No energy cost on thrust yet (upstream throttles via `FractionalUsage`), and no afterburner. |
+| **Controls** | Verified | Acceleration equals thrust over mass; drag caps the ship at its rated top speed; a turn cannot exceed the rated turn rate in one frame; retrograde braking slows the ship from any heading. Manoeuvring now costs energy and heat and is throttled by what the ship can afford, and ships generate power, shields and hull back. No afterburner yet. |
 | **Travel** | Verified | A jump between linked systems costs fuel and arrives in the destination. Systems that set an arrival distance hold arrivals away from their worlds — see the arrival fix below. Jump drives, wormholes and scram drives are not implemented. |
 | **Economics** | Verified | A real route on real prices turns a profit equal to the spread times the tonnage; crew salaries accrue against the fleet. 480 of 694 systems quote prices. Supply and demand do not move prices yet: upstream's `System::StepEconomy` walks supply each day and we do not. |
 | **Outfitting** | Verified | Every gun-port weapon in the game fits some hull in the game — the check that caught the derived-gun-ports defect. Installing consumes a port and adds mass; the outfitter names the limit that binds. |
@@ -120,6 +120,13 @@ the shipyards that stock it — 738 of 902 ships across 58 governments.
 
 **Binary stars had no derived orbital period**, and `DataWriter` wrote round-trip
 precision where upstream writes eight significant digits.
+
+**Manoeuvring was free, and nothing regenerated.** Upstream charges thrust and
+turning against energy and heat, throttling the command by what the ship can
+afford. Adding that alone would have browned out every ship in the game
+permanently, because energy, shields and hull only ever went down — nothing in the
+simulation regenerated anything. Both halves are now in: see `Ship::DoGeneration`
+and the movement costs in `Ship::Move`.
 
 ## Standing caveat
 
