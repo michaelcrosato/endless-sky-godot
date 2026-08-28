@@ -35,6 +35,7 @@ owned by a different session. This repo is the Godot arm of that comparison.
 | Headless smoke | `pwsh tools/run.ps1 -Headless` |
 | Open the editor | `pwsh tools/editor.ps1` |
 | Export a build | `pwsh tools/export.ps1 -Preset "Windows Desktop" -Release` |
+| Clickable build (exe + dataset) | `pwsh tools/package.ps1` |
 | Install export templates | `pwsh tools/install-export-templates.ps1` |
 
 ## Layout
@@ -113,6 +114,13 @@ Export templates are per-user by design and stay at
 - **GDScript cannot name a C# class at parse time** unless the assembly is built
   — it is a hard parse error that kills the whole script. Load it dynamically
   and check `can_instantiate()`.
+- **An export is not a runnable game on its own.** The dataset is read from
+  disk with `System.IO`, not through `res://`, so it can never come out of the
+  `.pck` however the export is configured — an exported build with no data
+  beside it boots to "Endless Sky data not found" and idles. `EsData` resolves
+  `external/endless-sky/data` relative to `res://`, which in an export
+  globalizes to the executable's own directory. `tools/package.ps1` does the
+  export and the copy together; the output folder is movable, the exe alone is not.
 - **Release exports have no console wrapper** (`debug/export_console_wrapper=1`
   is debug-only), so redirect stdout to inspect their output.
 - `Godot.Environment` shadows `System.Environment` in any file with
