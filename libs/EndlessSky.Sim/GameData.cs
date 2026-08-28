@@ -35,6 +35,12 @@ namespace EndlessSky.Sim
         private readonly Dictionary<string, Sale> _outfitters =
             new Dictionary<string, Sale>(StringComparer.Ordinal);
 
+        private readonly Dictionary<string, Government> _governments =
+            new Dictionary<string, Government>(StringComparer.Ordinal);
+
+        private readonly Dictionary<string, Conversation> _conversations =
+            new Dictionary<string, Conversation>(StringComparer.Ordinal);
+
         private readonly Dictionary<string, GameEvent> _events =
             new Dictionary<string, GameEvent>(StringComparer.Ordinal);
 
@@ -71,6 +77,12 @@ namespace EndlessSky.Sim
         public IReadOnlyDictionary<string, Mission> Missions => _missions;
 
         public IReadOnlyDictionary<string, GameEvent> Events => _events;
+
+        /// <summary>Every faction, with its attitudes and reputation.</summary>
+        public IReadOnlyDictionary<string, Government> Governments => _governments;
+
+        /// <summary>Conversations defined at top level, referenced by missions by name.</summary>
+        public IReadOnlyDictionary<string, Conversation> Conversations => _conversations;
 
         /// <summary>Commodity definitions plus per-system prices.</summary>
         public TradeData Trade { get; } = new TradeData();
@@ -415,6 +427,14 @@ namespace EndlessSky.Sim
                         Trade.LoadTradeDefinition(node);
                         break;
 
+                    case "government" when node.Size >= 2:
+                        GetOrCreate(_governments, node.Token(1), n => new Government(n)).Load(node);
+                        break;
+
+                    case "conversation" when node.Size >= 2:
+                        _conversations[node.Token(1)] = Conversation.Load(node);
+                        break;
+
                     case "event" when node.Size >= 2:
                         GetOrCreate(_events, node.Token(1), n => new GameEvent(n)).Load(node);
                         break;
@@ -536,6 +556,16 @@ namespace EndlessSky.Sim
             }
 
             var ship = new Ship(definition);
+
+            // Give it the faction that flies it. A ship with no government is not a
+            // valid game state: hostility, reputation and even projectile filtering all
+            // key off it - a shot passes through any body its shooter is not at war
+            // with, and that check is what stops a round striking the hull it was fired
+            // from.
+            string? government = GovernmentOf(definition.DisplayName);
+            if (government != null && _governments.TryGetValue(government, out Government? faction))
+                ship.Government = faction;
+
             foreach (string outfitName in definition.OutfitNames)
             {
                 if (_outfits.TryGetValue(outfitName, out Outfit? outfit))
