@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using EndlessSky.Sim;
 using Godot;
 
@@ -30,6 +31,11 @@ namespace EndlessSky.Game
         private int _renderedFrames;
         private bool _autopilot;
         private int _simFrames;
+        private bool _combatDemo;
+        private CombatField? _field;
+        private CombatEffects _effects = null!; // set with _field; guarded by _field != null
+        private Ship? _drone;
+        private ShipView _droneView = null!;    // set with _drone; guarded by _drone != null
 
         public override void _Ready()
         {
@@ -89,6 +95,11 @@ namespace EndlessSky.Game
             AddChild(_camera);
             _camera.Snap(_ship);
 
+            if (_combatDemo)
+            {
+                BuildCombatDemo(universe);
+            }
+
             BuildHud(null);
             GD.Print($"[flight] data={EsData.DataPath} system={system.Name} " +
                      $"objects={_stellarViews.Count} ship={StartShip} " +
@@ -130,6 +141,7 @@ namespace EndlessSky.Game
 
             _ship.Step(command);
             _shipView.SyncWith(_ship);
+            StepCombatDemo();
             UpdateHud();
         }
 
@@ -214,6 +226,92 @@ namespace EndlessSky.Game
             };
             AddChild(fill);
             fill.LookAtFromPosition(Vector3.Zero, -toPlayArea + new Vector3(0f, -0.35f, 0f) * toPlayArea.Length(), Vector3.Up);
+        }
+
+        /// <summary>
+        /// --combat-demo: one hostile drone exercising the M2 pipeline so the
+        /// visual gauntlet has combat evidence. The drone's steering here is
+        /// throwaway placeholder logic; the real engagement behavior is the
+        /// targeting AI milestone work in the sim layer.
+        /// </summary>
+        private void BuildCombatDemo(GameData universe)
+        {
+            _field = new CombatField
+            {
+                // Null means "no such weapon"; the field skips those clusters.
+                WeaponLookup = name =>
+                    universe.Outfits.TryGetValue(name, out Outfit? outfit) ? outfit.Weapon : null!,
+            };
+            _field.Add(_ship!);
+
+            // Hostility is government-driven with no implicit aggression: both
+            // sides need governments and an enmity edge or the AI stays calm.
+            var merchant = new Government("Merchant");
+            var raider = new Government("Pirate");
+            raider.Enemies.Add("Merchant");
+            _ship!.Government = merchant;
+
+            string droneType = universe.Ships.ContainsKey("Sparrow") ? "Sparrow" : StartShip;
+            _drone = universe.BuildShip(droneType);
+            _drone.Government = raider;
+            _drone.BuildMounts();
+            // Snapshot: InstallWeapon mutates the ship's outfit collection.
+            foreach (Outfit outfit in _drone.Outfits.Where(o => o.IsWeapon).ToArray())
+            {
+                _drone.InstallWeapon(outfit);
+            }
+
+            _drone.Position = _ship.Position + new Point(190.0, -150.0);
+            _drone.Facing = new Angle(180.0);
+            _field.Add(_drone);
+
+            _droneView = new ShipView { Name = "Drone" };
+            AddChild(_droneView);
+            _droneView.SyncWith(_drone);
+
+            _effects = new CombatEffects { Name = "CombatEffects" };
+            AddChild(_effects);
+            GD.Print($"[flight] combat demo: hostile {droneType} with " +
+                     $"{_drone.Mounts.Count} mounts engaged");
+        }
+
+        private void StepCombatDemo()
+        {
+            if (_field == null || _drone == null || _ship == null)
+            {
+                return;
+            }
+
+            // Sim-owned engagement, in the agreed frame order:
+            // StepArmament → target → steer → fire → field.Step.
+            _drone.StepArmament();
+            Ship? target = ShipAi.FindTarget(_drone, _field.Ships);
+            _drone.Step(target is null ? Command.None : ShipAi.Attack(_drone, target));
+            _droneView.SyncWith(_drone);
+            if (target is not null)
+            {
+                _field.Add(ShipAi.AutoFire(_drone, target));
+            }
+
+            foreach (HitReport report in _field.Step())
+            {
+                Node3D targetView = report.Target == _ship ? _shipView : _droneView;
+                if (report.Events.HasFlag(ShipEvent.Destroy))
+                {
+                    _effects.SpawnExplosion(report.Target.Position, 3.5f);
+                    targetView.Visible = false;
+                }
+                else if (report.Target.Shields > 0.0)
+                {
+                    CombatEffects.FlashShields(targetView);
+                }
+                else
+                {
+                    _effects.SpawnExplosion(report.Projectile.Position, 1f);
+                }
+            }
+
+            _effects.SyncProjectiles(_field.Projectiles);
         }
 
         private static StyleBoxFlat HudPanelStyle()
@@ -320,6 +418,10 @@ namespace EndlessSky.Game
                 else if (arg == "--autopilot")
                 {
                     _autopilot = true;
+                }
+                else if (arg == "--combat-demo")
+                {
+                    _combatDemo = true;
                 }
             }
 

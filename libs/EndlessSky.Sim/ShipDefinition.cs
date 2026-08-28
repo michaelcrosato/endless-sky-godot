@@ -8,9 +8,10 @@ namespace EndlessSky.Sim
     public readonly struct Hardpoint
     {
         public readonly Point Offset;
-        public readonly string OutfitName;
+        // Null for a mount with no pre-assigned outfit (bare engine points).
+        public readonly string? OutfitName;
 
-        public Hardpoint(Point offset, string outfitName)
+        public Hardpoint(Point offset, string? outfitName)
         {
             Offset = offset;
             OutfitName = outfitName;
@@ -32,7 +33,7 @@ namespace EndlessSky.Sim
         private readonly List<Hardpoint> _turrets = new List<Hardpoint>();
         private readonly List<string> _descriptionLines = new List<string>();
 
-        public ShipDefinition(string name, string variantName = null)
+        public ShipDefinition(string name, string? variantName = null)
         {
             Name = name;
             VariantName = variantName;
@@ -41,7 +42,7 @@ namespace EndlessSky.Sim
         public string Name { get; }
 
         /// <summary>Set when this is a named variant, e.g. <c>ship "Shuttle" "Shuttle (Armed)"</c>.</summary>
-        public string VariantName { get; }
+        public string? VariantName { get; }
 
         public string DisplayName => VariantName ?? Name;
 
@@ -152,7 +153,7 @@ namespace EndlessSky.Sim
             // "engine -9.5 38" or "turret 0 -18 \"Anti-Missile Turret\""
             double x = node.Size >= 2 ? node.Value(1) : 0.0;
             double y = node.Size >= 3 ? node.Value(2) : 0.0;
-            string outfit = null;
+            string? outfit = null;
             for (int i = 3; i < node.Size; i++)
             {
                 if (!node.IsNumber(i))

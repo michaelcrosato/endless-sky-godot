@@ -19,24 +19,24 @@ namespace EndlessSky.Data
     {
         private readonly List<string> _tokens = new List<string>();
         private readonly List<DataNode> _children = new List<DataNode>();
-        private string _sourceFile;
+        private string? _sourceFile;
 
-        public DataNode(DataNode parent = null)
+        public DataNode(DataNode? parent = null)
         {
             Parent = parent;
         }
 
-        public DataNode Parent { get; internal set; }
+        public DataNode? Parent { get; internal set; }
 
         /// <summary>1-based line number in the source file; 0 if synthesized.</summary>
         public int LineNumber { get; internal set; }
 
         /// <summary>Source file this node came from, inherited from ancestors for error traces.</summary>
-        public string SourceFile
+        public string? SourceFile
         {
             get
             {
-                for (DataNode n = this; n != null; n = n.Parent)
+                for (DataNode? n = this; n != null; n = n.Parent)
                 {
                     if (n._sourceFile != null)
                     {
@@ -228,7 +228,7 @@ namespace EndlessSky.Data
         /// Diagnostic sink. The loader points this at its own collector so parse warnings
         /// are surfaced instead of silently swallowed.
         /// </summary>
-        public static Action<string> OnDiagnostic;
+        public static Action<string>? OnDiagnostic;
 
         internal void Trace(string message)
         {

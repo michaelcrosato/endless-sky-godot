@@ -12,7 +12,7 @@ namespace EndlessSky.Sim
     {
         private readonly List<StellarObject> _children = new List<StellarObject>();
 
-        public string PlanetName { get; internal set; }
+        public string? PlanetName { get; internal set; }
 
         public string Sprite { get; internal set; } = string.Empty;
 
@@ -26,7 +26,7 @@ namespace EndlessSky.Sim
 
         public bool ExplicitPeriodSet { get; internal set; }
 
-        public StellarObject Parent { get; internal set; }
+        public StellarObject? Parent { get; internal set; }
 
         public IReadOnlyList<StellarObject> Children => _children;
 
@@ -146,7 +146,7 @@ namespace EndlessSky.Sim
             }
         }
 
-        private static StellarObject LoadObject(DataNode node, StellarObject parent)
+        private static StellarObject LoadObject(DataNode node, StellarObject? parent)
         {
             var obj = new StellarObject();
             if (node.Size >= 2)

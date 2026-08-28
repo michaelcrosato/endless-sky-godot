@@ -106,7 +106,7 @@ namespace EndlessSky.Sim
 
             if (ship.VariantName != null)
             {
-                if (_ships.TryGetValue(ship.Name, out ShipDefinition baseShip))
+                if (_ships.TryGetValue(ship.Name, out ShipDefinition? baseShip))
                 {
                     // The base may itself be a variant, so resolve it first.
                     ResolveVariant(baseShip, visiting);
@@ -136,13 +136,13 @@ namespace EndlessSky.Sim
         /// single self-contained snippet is usable straight away; callers assembling a
         /// universe from several snippets should use <see cref="LoadTextDeferred"/>.
         /// </summary>
-        public void LoadText(string text, string sourceName = null)
+        public void LoadText(string text, string? sourceName = null)
         {
             LoadTextDeferred(text, sourceName);
             FinishLoading();
         }
 
-        public void LoadTextDeferred(string text, string sourceName = null)
+        public void LoadTextDeferred(string text, string? sourceName = null)
         {
             var file = new DataFile(text, sourceName);
             Diagnostics.AddRange(file.Diagnostics);
@@ -195,10 +195,10 @@ namespace EndlessSky.Sim
             // "ship <name>" defines a model; "ship <base> <variant>" defines a variant that
             // starts from the base model's definition.
             string name = node.Token(1);
-            string variant = node.Size >= 3 ? node.Token(2) : null;
+            string? variant = node.Size >= 3 ? node.Token(2) : null;
             string key = variant ?? name;
 
-            if (!_ships.TryGetValue(key, out ShipDefinition ship))
+            if (!_ships.TryGetValue(key, out ShipDefinition? ship))
             {
                 ship = new ShipDefinition(name, variant);
                 _ships[key] = ship;
@@ -235,8 +235,9 @@ namespace EndlessSky.Sim
         }
 
         private static T GetOrCreate<T>(IDictionary<string, T> map, string name, Func<string, T> create)
+            where T : class
         {
-            if (!map.TryGetValue(name, out T value))
+            if (!map.TryGetValue(name, out T? value))
             {
                 value = create(name);
                 map[name] = value;
@@ -261,7 +262,7 @@ namespace EndlessSky.Sim
         public Ship BuildShip(string definitionName, out List<string> missingOutfits)
         {
             missingOutfits = new List<string>();
-            if (!_ships.TryGetValue(definitionName, out ShipDefinition definition))
+            if (!_ships.TryGetValue(definitionName, out ShipDefinition? definition))
             {
                 throw new KeyNotFoundException($"No ship definition named \"{definitionName}\".");
             }
@@ -269,7 +270,7 @@ namespace EndlessSky.Sim
             var ship = new Ship(definition);
             foreach (string outfitName in definition.OutfitNames)
             {
-                if (_outfits.TryGetValue(outfitName, out Outfit outfit))
+                if (_outfits.TryGetValue(outfitName, out Outfit? outfit))
                 {
                     ship.AddOutfit(outfit);
                 }

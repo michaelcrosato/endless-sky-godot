@@ -66,7 +66,7 @@ namespace EndlessSky.Sim
 
         public bool Equals(Point other) => X.Equals(other.X) && Y.Equals(other.Y);
 
-        public override bool Equals(object obj) => obj is Point other && Equals(other);
+        public override bool Equals(object? obj) => obj is Point other && Equals(other);
 
         public override int GetHashCode()
         {

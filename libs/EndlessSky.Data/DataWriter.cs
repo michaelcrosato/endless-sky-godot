@@ -77,7 +77,8 @@ namespace EndlessSky.Data
                 _atLineStart = false;
             }
 
-            _out.Append(token is double d ? Number(d) : Quote(Convert.ToString(token, CultureInfo.InvariantCulture)));
+            _out.Append(token is double d ? Number(d)
+                : Quote(Convert.ToString(token, CultureInfo.InvariantCulture) ?? string.Empty));
             return this;
         }
 

@@ -27,7 +27,7 @@ namespace EndlessSky.Data
         {
         }
 
-        public DataFile(string text, string sourceName = null)
+        public DataFile(string text, string? sourceName = null)
         {
             Load(text, sourceName);
         }
@@ -49,7 +49,7 @@ namespace EndlessSky.Data
             return file;
         }
 
-        public void Load(string data, string sourceName = null)
+        public void Load(string data, string? sourceName = null)
         {
             if (data == null)
             {

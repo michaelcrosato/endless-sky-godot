@@ -115,9 +115,62 @@ Everything under `data/` is one merged namespace: definitions of the same
    `desiredTurn = asin(0) = 0` and flies straight — upstream does the same;
    pinned by test so nobody "fixes" it into divergence.
 
-## Hyperspace constants (for the travel milestone)
+- **Disabled ships stay valid targets** — only destroyed ones are dropped;
+  upstream keeps shooting a crippled ship until boarded or finished.
+- Weapon range = `velocity × lifetime` (or `"range override"`); upstream
+  actually uses a *weighted* velocity accounting for projectile acceleration
+  and drag, and extends lifetime by the longest-lived submunition — a naive
+  range reads accelerating/cluster weapons short.
+- Shots inherit the firing ship's velocity; a cluster carrier with velocity
+  but no lifetime bursts at the muzzle (Ion Hail), not downrange.
 
-`HYPER_C = 100` frames, `HYPER_A = 2` px/f², `HYPER_D = 1000` px; arrival
-offset = C²·A/2 + D = **11,000 px** short of the target point; drag does not
-apply in hyperspace. Landing: `pos = 0.97·pos + 0.03·target` per frame while
-zoom shrinks.
+## The jump protocol (M3 ground truth, from Ship.cpp/AI.cpp/Engine.cpp)
+
+Constants: `HYPER_C = 100` frames each way, `HYPER_A = 2` px/f²,
+`HYPER_D = 1000` px. Hyperdrive arrival offset = C²·A/2 + D = **11,000 px**.
+
+**IsReadyToJump** (Ship.cpp:2467): not disabled, no WAIT, `hyperspaceCount==0`,
+target+current system set; `fuelCost != 0 && fuel >= fuelCost`; position past
+the system's departure distance (vanilla: 0 — no gate); speed
+`|v| <= jump speed` (Hyperdrive attribute, 0.2 — a scram drive replaces this
+with a lateral-deviation-only test and NO speed cap); and for non-jump-drives
+the facing must be within ONE TURN STEP of `Angle(target.MapPos −
+current.MapPos)` — turn by ±TurnRate toward it and require crossing over or
+landing exactly (jump drives skip facing entirely).
+
+**The J key** (AI.cpp:4729): with no travel plan, target = the LINKED system
+best aligned with current facing (max dot of facing·direction); then the
+autopilot latches and every frame runs PrepareForHyperspace — brake to jump
+speed (AI::Stop) + TurnToward(direction) — plus `command |= JUMP` until
+IsReadyToJump passes at the commit point (DoInitializeMovement). Any manual
+input cancels the autopilot.
+
+**Sequence** (DoHyperspaceLogic, Ship.cpp:4596): commit frame still moves
+normally; then each outbound frame: `acceleration = 0`,
+`fuel −= cost/100`, `velocity += 2·facingUnit`, `position += velocity`,
+facing frozen, untargetable from count ≥ 70. At count == 100: switch system,
+teleport to `target − 11000·facingUnit (+ extra + escortOffset)`, snap
+`velocity = |v|·facingUnit`; then inbound frames decelerate
+`velocity −= 2·facingUnit` until `v·facing <= exitV`, then
+`velocity = facing·exitV`, count = 0. `exitV = max(HYPER_A, MaxVelocity)`
+capped by the quadratic `(.5/accel − .25)·v² + (150/turnRate)·v = HYPER_D`.
+Jump-drive arrival instead teleports to a random angle at
+`300·(rand+1) + extra` px with velocity untouched.
+
+**Fuel** (Outfit.cpp:424, ShipJumpNavigation.cpp): `"jump fuel"` is a legacy
+alias normalized into `"hyperdrive fuel"` (default 100; scram 150; jump drive
+200). Cost = min across drive outfits, NOT summed; flat per ship for
+hyperdrives (mass cost only if the drive declares `"jump mass cost"`).
+Hyperdrive requires `from.Links` to contain `to`. Stock Shuttle: fuel 400 →
+4 jumps.
+
+**On system entry** (Engine::EnterSystem, Engine.cpp:1494): the date advances
+by exactly **+1 day** per jump, `GameData::SetDate` re-places every stellar
+object for the new day, and the economy steps.
+
+**Arrival-distance gotcha:** modern gamerules set `habitable based arrival
+distance` true, adding `clamp(habitable, 500, 5000)` px and aiming at the
+SYSTEM CENTER; the classic "11,000 px out aimed at the target planet" is the
+`extraArrivalDistance == 0` branch. Pick one and document it.
+
+Landing (M4): `pos = 0.97·pos + 0.03·target` per frame while zoom shrinks.

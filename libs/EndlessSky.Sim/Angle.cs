@@ -88,7 +88,7 @@ namespace EndlessSky.Sim
 
         public bool Equals(Angle other) => _angle == other._angle;
 
-        public override bool Equals(object obj) => obj is Angle other && Equals(other);
+        public override bool Equals(object? obj) => obj is Angle other && Equals(other);
 
         public override int GetHashCode() => _angle;
 
