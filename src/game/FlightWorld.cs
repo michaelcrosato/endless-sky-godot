@@ -72,6 +72,7 @@ namespace EndlessSky.Game
 
         /// <summary>Most ships to keep in flight at once, so a busy system stays playable.</summary>
         private const int TrafficLimit = 12;
+        private AsteroidFieldView? _asteroidField;
         private LandedOverlay? _landedOverlay;
         private StarSystem? _lastSystem;
         private DirectionalLight3D _keyLight = null!;  // set by BuildLighting
@@ -113,6 +114,10 @@ namespace EndlessSky.Game
                 AddChild(view);
                 _stellarViews.Add(view);
             }
+
+            // The system's own asteroid belts, which the data has always carried.
+            _asteroidField = AsteroidFieldView.Create(system);
+            AddChild(_asteroidField);
 
             _ship = universe.BuildShip(StartShip, out List<string> missingOutfits);
             if (missingOutfits.Count > 0)
@@ -307,6 +312,7 @@ namespace EndlessSky.Game
             }
 
             _ship.Step(command);
+            _asteroidField?.Follow(WorldSpace.ToWorld(_ship.Position));
             StepTraffic();
             if (_jumpAutopilot && _ship.TryCommitJump())
             {

@@ -35,6 +35,9 @@ namespace EndlessSky.Sim
         private readonly Dictionary<string, Sale> _outfitters =
             new Dictionary<string, Sale>(StringComparer.Ordinal);
 
+        private readonly Dictionary<string, Minable> _minables =
+            new Dictionary<string, Minable>(StringComparer.Ordinal);
+
         private readonly Dictionary<string, StartScenario> _starts =
             new Dictionary<string, StartScenario>(StringComparer.Ordinal);
 
@@ -83,6 +86,9 @@ namespace EndlessSky.Sim
         public IReadOnlyDictionary<string, Mission> Missions => _missions;
 
         public IReadOnlyDictionary<string, GameEvent> Events => _events;
+
+        /// <summary>Mineable asteroid types, by name.</summary>
+        public IReadOnlyDictionary<string, Minable> Minables => _minables;
 
         /// <summary>Where a new pilot can begin.</summary>
         public IReadOnlyDictionary<string, StartScenario> Starts => _starts;
@@ -446,6 +452,10 @@ namespace EndlessSky.Sim
 
                     case "trade":
                         Trade.LoadTradeDefinition(node);
+                        break;
+
+                    case "minable" when node.Size >= 2:
+                        GetOrCreate(_minables, node.Token(1), n => new Minable(n)).Load(node);
                         break;
 
                     case "start" when node.Size >= 2:

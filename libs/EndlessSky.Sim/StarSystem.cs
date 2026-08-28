@@ -107,6 +107,8 @@ namespace EndlessSky.Sim
 
         private readonly List<FleetSpawn> _fleets = new List<FleetSpawn>();
 
+        private readonly List<AsteroidBelt> _asteroids = new List<AsteroidBelt>();
+
         public StarSystem(string name)
         {
             Name = name;
@@ -130,6 +132,9 @@ namespace EndlessSky.Sim
         /// makes a system feel inhabited rather than empty.
         /// </summary>
         public IReadOnlyList<FleetSpawn> Fleets => _fleets;
+
+        /// <summary>The asteroid belts in this system, plain and minable alike.</summary>
+        public IReadOnlyList<AsteroidBelt> Asteroids => _asteroids;
 
         /// <summary>Opens a hyperspace link, as an event's "link" change does.</summary>
         public void AddLink(string other)
@@ -243,6 +248,18 @@ namespace EndlessSky.Sim
 
                     case "link" when child.Size >= 2:
                         _links.Add(child.Token(1));
+                        break;
+
+                    case "asteroids" when child.Size >= 4 && child.IsNumber(2) && child.IsNumber(3):
+                        // "asteroids <sprite> <count> <energy>"
+                        _asteroids.Add(new AsteroidBelt(child.Token(1), (int)child.Value(2),
+                                                        child.Value(3), isMinable: false));
+                        break;
+
+                    case "minables" when child.Size >= 4 && child.IsNumber(2) && child.IsNumber(3):
+                        // Same shape, but the name is a minable type rather than a sprite.
+                        _asteroids.Add(new AsteroidBelt(child.Token(1), (int)child.Value(2),
+                                                        child.Value(3), isMinable: true));
                         break;
 
                     case "fleet" when child.Size >= 3 && child.IsNumber(2):
