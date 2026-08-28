@@ -1,0 +1,35 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      // Runs the game under the .NET debugger: breakpoints in C# will bind.
+      // GDScript breakpoints come from the godot-tools extension instead.
+      "name": "Godot: play (C# debug)",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "godot: build",
+      "program": "C:/Program Files/WinGet/Packages/GodotEngine.GodotEngine.Mono_Microsoft.Winget.Source_8wekyb3d8bbwe/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+      "args": ["--path", "${workspaceFolder}"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "stopAtEntry": false
+    },
+    {
+      "name": "Godot: headless smoke (C# debug)",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "godot: build",
+      "program": "C:/Program Files/WinGet/Packages/GodotEngine.GodotEngine.Mono_Microsoft.Winget.Source_8wekyb3d8bbwe/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+      "args": ["--headless", "--path", "${workspaceFolder}", "--quit-after", "5"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal"
+    },
+    {
+      // Use when Godot was started separately (tools/editor.ps1, then F5 in-editor).
+      "name": "Godot: attach to running instance",
+      "type": "coreclr",
+      "request": "attach",
+      "processName": "Godot_v4.7.2-stable_mono_win64_console.exe"
+    }
+  ]
+}

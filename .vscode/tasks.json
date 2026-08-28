@@ -1,0 +1,61 @@
+{
+  "version": "2.0.0",
+  "options": { "cwd": "${workspaceFolder}" },
+  "presentation": { "panel": "dedicated", "clear": true },
+  "tasks": [
+    {
+      "label": "godot: build",
+      "detail": "Import assets and compile C#",
+      "type": "shell",
+      "command": "pwsh -NoProfile -File tools/build.ps1",
+      "group": { "kind": "build", "isDefault": true },
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "godot: test (all)",
+      "detail": "GDScript via gdUnit4 + C# via dotnet test",
+      "type": "shell",
+      "command": "pwsh -NoProfile -File tools/test.ps1",
+      "group": { "kind": "test", "isDefault": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "godot: test (GDScript)",
+      "type": "shell",
+      "command": "pwsh -NoProfile -File tools/test.ps1 -Suite gd",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "godot: test (C#)",
+      "type": "shell",
+      "command": "pwsh -NoProfile -File tools/test.ps1 -Suite cs",
+      "group": "test",
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "godot: run",
+      "type": "shell",
+      "command": "pwsh -NoProfile -File tools/run.ps1",
+      "problemMatcher": []
+    },
+    {
+      "label": "godot: run headless (smoke)",
+      "type": "shell",
+      "command": "pwsh -NoProfile -File tools/run.ps1 -Headless",
+      "problemMatcher": []
+    },
+    {
+      "label": "godot: open editor",
+      "type": "shell",
+      "command": "pwsh -NoProfile -File tools/editor.ps1",
+      "problemMatcher": []
+    },
+    {
+      "label": "godot: export (Windows, release)",
+      "type": "shell",
+      "command": "pwsh -NoProfile -File tools/export.ps1 -Preset 'Windows Desktop' -Release",
+      "problemMatcher": []
+    }
+  ]
+}

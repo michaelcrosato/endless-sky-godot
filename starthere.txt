@@ -1,0 +1,452 @@
+# ENDLESS SKY 3D — MASTER DIRECTIVE
+
+We are rebuilding Endless Sky using Unity.
+
+This is NOT a simplified Endless Sky-inspired game.
+
+This is a reimplementation of the existing Endless Sky game and its systems using Unity as the runtime and rendering engine, while transforming the presentation from sprite-based 2D graphics into a polished low-poly 3D space game.
+
+## Source of Truth
+
+The upstream Endless Sky repository is our behavioral and content reference.
+
+Study its:
+
+* source code
+* data files
+* game rules
+* ships
+* outfits
+* weapons
+* systems
+* planets
+* missions
+* conversations
+* fleets
+* governments
+* economy
+* AI behavior
+* conditions
+* events
+* trading
+* shipyards
+* outfitters
+* boarding
+* capturing
+* escorts
+* reputation
+* progression
+* save-state behavior
+
+Do not casually remove systems because they are difficult to implement.
+
+When uncertain how something should behave, inspect the Endless Sky implementation and reproduce its observable behavior.
+
+## Fundamental Architecture
+
+Separate the project into:
+
+1. Endless Sky data compatibility
+2. Simulation
+3. Unity presentation
+4. UI
+5. Content assets
+
+Do not mix rendering code with gameplay simulation unless necessary.
+
+## Endless Sky Data
+
+Create a C# implementation capable of parsing the original Endless Sky data-file syntax.
+
+The long-term objective is to consume Endless Sky content directly rather than manually translating every definition into Unity ScriptableObjects.
+
+Support definitions including:
+
+* ships
+* outfits
+* weapons
+* effects
+* systems
+* planets
+* governments
+* fleets
+* missions
+* conversations
+* events
+* starts
+* trade
+* outfitters
+* shipyards
+* hazards
+* persons
+* phrases
+* conditions
+
+Preserve identifiers and relationships between objects.
+
+Design the loader so support for Endless Sky plugins and their override behavior can eventually be implemented.
+
+## Gameplay Philosophy
+
+The gameplay must remain recognizably Endless Sky.
+
+Preserve:
+
+* ship acceleration
+* ship turning
+* momentum
+* weapon characteristics
+* shields
+* hull
+* heat
+* energy
+* fuel
+* cargo
+* passengers
+* crew
+* outfits
+* outfit capacity
+* weapon hardpoints
+* turrets
+* missiles
+* ammunition
+* hyperspace travel
+* jump drives
+* fleets
+* escorts
+* boarding
+* capturing ships
+* trading
+* jobs
+* missions
+* faction reputation
+* governments
+* ship purchasing
+* outfitting
+* progression
+* exploration
+
+The first implementation should maintain Endless Sky's largely planar combat simulation even though the presentation is fully 3D.
+
+Do NOT introduce full six-degree-of-freedom combat until Endless Sky gameplay parity has been achieved.
+
+Ships may visually bank, pitch and react to movement, but these visual movements must not change underlying gameplay values.
+
+## Rendering
+
+All in-space gameplay is rendered in 3D.
+
+Replace ship sprites with low-poly 3D models.
+
+Replace sprite-based planets and celestial objects with 3D equivalents where appropriate.
+
+Use:
+
+* perspective rendering
+* dynamic lighting
+* shadows
+* emissive materials
+* engine glow
+* thruster particles
+* weapon effects
+* shield impacts
+* explosions
+* debris
+* asteroid fields
+* background starfields
+* nebula effects
+* trails
+* restrained post-processing
+
+Prioritize excellent composition and lighting over polygon count.
+
+The desired style is polished low-poly science fiction, not photorealism.
+
+Ships must have immediately recognizable silhouettes.
+
+## Camera
+
+Build a smooth 3D camera suitable for Endless Sky-style combat.
+
+The initial camera should remain sufficiently elevated that the player can understand:
+
+* nearby ships
+* incoming projectiles
+* planets
+* asteroids
+* destinations
+* fleet formations
+
+Camera movement should feel cinematic without reducing gameplay readability.
+
+Support:
+
+* zoom
+* smooth following
+* configurable pitch
+* speed-sensitive behavior
+* optional combat framing
+
+## UI
+
+Menus remain predominantly 2D.
+
+Use polished 2D interface design for:
+
+* conversations
+* mission board
+* spaceport
+* trading
+* outfitter
+* shipyard
+* player information
+* fleet management
+* galaxy map
+* system map
+* settings
+
+NPCs and important characters should use illustrated 2D portraits rather than requiring fully modeled 3D characters.
+
+Do not turn planets into unnecessary walking simulators.
+
+Landing remains menu-driven unless a future specification explicitly changes this.
+
+## Systems and Star Travel
+
+Treat star systems as self-contained simulation environments.
+
+Do not attempt to represent the entire galaxy in one enormous Unity coordinate space.
+
+When hyperspace travel occurs:
+
+1. initiate jump
+2. play 3D transition
+3. unload previous system
+4. load destination system
+5. reconstruct its entities from simulation state
+6. position player appropriately
+7. resume simulation
+
+Use appropriate floating-origin techniques if required inside large local spaces.
+
+## AI
+
+Reproduce Endless Sky NPC behavior before attempting more sophisticated AI.
+
+NPC pilots should understand:
+
+* governments
+* hostility
+* targets
+* escorts
+* fleets
+* fleeing
+* disabling
+* boarding
+* landing
+* jumping
+* weapon range
+* ammunition
+* ship condition
+
+More sophisticated behavior can be layered on later.
+
+## Gauntlet Development Loop
+
+No implementation agent may decide that its own work is complete.
+
+For every milestone, perform this loop:
+
+IMPLEMENT
+→ BUILD
+→ RUN
+→ TEST
+→ CAPTURE
+→ CRITIQUE
+→ FIX
+→ REPEAT
+
+Use independent critic contexts.
+
+### Gameplay Critic
+
+Compare the Unity implementation against actual Endless Sky behavior.
+
+Evaluate measurable differences.
+
+Identify the highest-impact discrepancy.
+
+Generate a concrete correction request.
+
+### Visual Critic
+
+Inspect screenshots or recordings from the current Unity implementation.
+
+Evaluate:
+
+* readability
+* composition
+* lighting
+* scale
+* camera
+* materials
+* silhouettes
+* particle effects
+* animation
+* interface quality
+* visual coherence
+
+Do not accept "good enough."
+
+Identify the most important remaining weaknesses and send them back to the implementation agent.
+
+The builder must not grade its own output.
+
+## Development Strategy
+
+Do NOT attempt to rebuild the entire game simultaneously.
+
+Build vertical slices.
+
+### Milestone 1 — Flight
+
+Implement:
+
+* Endless Sky data parser foundations
+* one star system
+* player ship
+* movement
+* acceleration
+* turning
+* camera
+* star
+* planet
+* basic 3D rendering
+
+The player must be able to fly around convincingly.
+
+### Milestone 2 — Combat
+
+Implement:
+
+* NPC ships
+* factions
+* targeting
+* shields
+* hull
+* guns
+* turrets
+* projectiles
+* missiles
+* explosions
+* destruction
+
+Compare combat against Endless Sky.
+
+### Milestone 3 — Travel
+
+Implement:
+
+* systems
+* galaxy connections
+* fuel
+* hyperspace
+* destination selection
+* arrival
+* system loading
+
+### Milestone 4 — Landing Economy
+
+Implement:
+
+* landing
+* spaceport
+* trade
+* cargo
+* shipyard
+* outfitter
+* ship purchasing
+* outfit installation
+
+### Milestone 5 — Missions
+
+Implement:
+
+* mission parsing
+* conditions
+* conversations
+* events
+* mission availability
+* mission completion
+* NPC mission entities
+
+### Milestone 6 — Fleet Gameplay
+
+Implement:
+
+* multiple owned ships
+* escorts
+* fleet commands
+* salaries
+* cargo distribution
+* boarding
+* capturing
+* ship management
+
+### Milestone 7 — Content Compatibility
+
+Load progressively larger portions of the actual Endless Sky dataset.
+
+Do not manually hard-code content that can be loaded from the source data.
+
+### Milestone 8 — Visual Production
+
+Replace prototype assets with a consistent low-poly art set.
+
+Establish common rules for:
+
+* scale
+* polygon density
+* materials
+* faction design language
+* engines
+* weapon hardpoints
+* windows
+* emissives
+* damage states
+
+### Milestone 9 — Full Gauntlet
+
+Repeatedly play representative Endless Sky scenarios in both implementations.
+
+Compare:
+
+* controls
+* economics
+* missions
+* combat
+* progression
+* difficulty
+* fleet behavior
+* travel
+* outfitting
+
+Continue correcting discrepancies until the Unity version reproduces the intended gameplay while delivering the new 3D presentation.
+
+## Non-Negotiable Rule
+
+Do not solve implementation problems by silently deleting Endless Sky features.
+
+If a system is incomplete, mark it explicitly as incomplete and continue implementing it.
+
+The objective is:
+
+ENDLESS SKY GAMEPLAY
++
+ENDLESS SKY CONTENT
++
+UNITY RUNTIME
++
+POLISHED LOW-POLY 3D SPACE PRESENTATION
++
+HIGH-QUALITY 2D RPG INTERFACE AND PORTRAITS.

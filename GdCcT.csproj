@@ -1,0 +1,32 @@
+<Project Sdk="Godot.NET.Sdk/4.7.2">
+
+  <PropertyGroup>
+    <!-- net8.0 is what gdUnit4.test.adapter targets; Godot 4.7 loads it fine. -->
+    <TargetFramework>net8.0</TargetFramework>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <RootNamespace>GdCcT</RootNamespace>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <!-- Test tooling is Debug-only. Godot builds exports under its own
+       ExportDebug / ExportRelease configurations, so anything not gated to
+       Debug gets packed into shipped games: the adapter, the gdUnit4 API and
+       all of Roslyn, which is roughly 40 MB of dead weight. -->
+  <ItemGroup Condition="'$(Configuration)' == 'Debug'">
+    <!-- Interlocked versions: adapter 3.1.1 resolves api 5.1.0-rc5 and
+         TestPlatform 18.x. Bump these three together or not at all. -->
+    <PackageReference Include="gdUnit4.api" Version="5.1.0-rc5" />
+    <PackageReference Include="gdUnit4.test.adapter" Version="3.1.1" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.9.0" />
+  </ItemGroup>
+
+  <!-- The test sources go with them, or every non-Debug configuration fails on
+       the attributes those packages provide. -->
+  <ItemGroup Condition="'$(Configuration)' != 'Debug'">
+    <Compile Remove="tests/**/*.cs" />
+    <Compile Remove="gdunit4_testadapter_v5/**/*.cs" />
+  </ItemGroup>
+
+</Project>

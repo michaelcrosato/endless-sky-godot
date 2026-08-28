@@ -1,0 +1,23 @@
+# Normalize line endings; Godot text resources are LF-friendly.
+* text=auto eol=lf
+
+*.gd     text eol=lf
+*.cs     text eol=lf diff=csharp
+*.tscn   text eol=lf
+*.tres   text eol=lf
+*.godot  text eol=lf
+*.csproj text eol=lf
+*.sln    text eol=crlf
+
+# Windows scripts need CRLF to run reliably.
+*.cmd    text eol=crlf
+*.bat    text eol=crlf
+*.ps1    text eol=crlf
+
+# Binary assets -- never diff or merge these.
+*.png binary
+*.jpg binary
+*.ogg binary
+*.wav binary
+*.glb binary
+*.ttf binary

@@ -1,0 +1,26 @@
+; Engine configuration file.
+; Generated for Godot 4.7 (.NET). Edit via the editor where possible --
+; the editor rewrites this file and will drop unknown keys.
+
+config_version=5
+
+[application]
+
+config/name="gd-cc-t"
+config/description="Godot engine test bench: GDScript + C#, headless-testable."
+config/version="0.1.0"
+run/main_scene="res://scenes/main.tscn"
+config/features=PackedStringArray("4.7", "C#", "Forward Plus")
+config/icon="res://icon.svg"
+
+[dotnet]
+
+project/assembly_name="GdCcT"
+
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/gdUnit4/plugin.cfg")
+
+[rendering]
+
+renderer/rendering_method="forward_plus"

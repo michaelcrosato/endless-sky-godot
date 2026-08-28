@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RunSettings>
+  <RunConfiguration>
+    <!-- Godot allows only one engine instance per test session. -->
+    <MaxCpuCount>1</MaxCpuCount>
+    <TestSessionTimeout>180000</TestSessionTimeout>
+    <TreatNoTestsAsError>true</TreatNoTestsAsError>
+    <ResultsDirectory>./reports/cs</ResultsDirectory>
+  </RunConfiguration>
+
+  <GdUnit4>
+    <!-- Only tests marked [RequireGodotRuntime] boot the engine; the rest run
+         on the plain .NET host. GODOT_BIN must point at a C#-capable build. -->
+    <Parameters></Parameters>
+    <DisplayName>TestCaseName</DisplayName>
+    <GodotConnectTimeout>60000</GodotConnectTimeout>
+  </GdUnit4>
+</RunSettings>

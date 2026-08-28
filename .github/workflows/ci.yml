@@ -1,0 +1,147 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  GODOT_VERSION: "4.7.2"
+  # Must match <TargetFramework> in GdCcT.csproj.
+  DOTNET_VERSION: "8.0.x"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  DOTNET_NOLOGO: "1"
+
+jobs:
+  test:
+    name: Tests (GDScript + C#)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Cache Godot .NET binary
+        id: godot-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/godot
+          key: godot-mono-${{ env.GODOT_VERSION }}-linux-x86_64
+
+      - name: Download Godot .NET
+        if: steps.godot-cache.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          base="Godot_v${GODOT_VERSION}-stable_mono_linux_x86_64"
+          curl -fsSL --retry 3 -o /tmp/godot.zip \
+            "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/${base}.zip"
+          unzip -q /tmp/godot.zip -d /tmp
+          mkdir -p ~/godot
+          mv "/tmp/${base}"/* ~/godot/
+          chmod +x ~/godot/"Godot_v${GODOT_VERSION}-stable_mono_linux.x86_64"
+          ln -sf ~/godot/"Godot_v${GODOT_VERSION}-stable_mono_linux.x86_64" ~/godot/godot
+
+      - name: Expose GODOT_BIN
+        run: |
+          echo "GODOT_BIN=$HOME/godot/godot" >> "$GITHUB_ENV"
+          "$HOME/godot/godot" --version
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      # Populates .godot/ so the engine does not pay import cost mid-test.
+      - name: Import assets
+        run: $GODOT_BIN --headless --path . --import
+
+      - name: Build C#
+        run: dotnet build GdCcT.csproj --nologo -v minimal
+
+      # --ignoreHeadlessMode: headless Godot delivers no InputEvents, so gdUnit4
+      #   refuses to start without it. Safe here: no suite drives simulated input.
+      # --remote-debug on port 0 is never bound, so the connection is refused at
+      #   once, keeping a parse error from dropping Godot into its `debug>` prompt.
+      - name: Test GDScript (gdUnit4)
+        run: |
+          $GODOT_BIN --headless --path . -s -d --remote-debug tcp://127.0.0.1:0 \
+            res://addons/gdUnit4/bin/GdUnitCmdTool.gd -a tests/gd --ignoreHeadlessMode
+
+      - name: Test C# (gdUnit4Net)
+        run: dotnet test GdCcT.csproj --settings .runsettings --nologo
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: |
+            reports/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  export:
+    name: Export (Linux)
+    runs-on: ubuntu-latest
+    needs: test
+    timeout-minutes: 30
+    # Export templates are a ~1.2 GB download; only pay it when it matters.
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Cache Godot + export templates
+        id: godot-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/godot
+            ~/.local/share/godot/export_templates
+          key: godot-export-${{ env.GODOT_VERSION }}-linux-x86_64
+
+      - name: Download Godot .NET and export templates
+        if: steps.godot-cache.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          base="Godot_v${GODOT_VERSION}-stable_mono_linux_x86_64"
+          curl -fsSL --retry 3 -o /tmp/godot.zip \
+            "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/${base}.zip"
+          unzip -q /tmp/godot.zip -d /tmp
+          mkdir -p ~/godot
+          mv "/tmp/${base}"/* ~/godot/
+          chmod +x ~/godot/"Godot_v${GODOT_VERSION}-stable_mono_linux.x86_64"
+          ln -sf ~/godot/"Godot_v${GODOT_VERSION}-stable_mono_linux.x86_64" ~/godot/godot
+
+          curl -fsSL --retry 3 -o /tmp/templates.tpz \
+            "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_mono_export_templates.tpz"
+          unzip -q /tmp/templates.tpz -d /tmp/tpl
+          dest=~/.local/share/godot/export_templates/${GODOT_VERSION}.stable.mono
+          mkdir -p "$dest"
+          mv /tmp/tpl/templates/* "$dest"/
+
+      - name: Export Linux build
+        run: |
+          set -euo pipefail
+          export GODOT_BIN="$HOME/godot/godot"
+          mkdir -p build/linux
+          $GODOT_BIN --headless --path . --import
+          $GODOT_BIN --headless --path . --export-release "Linux" build/linux/gd-cc-t.x86_64
+
+      - name: Upload build
+        uses: actions/upload-artifact@v4
+        with:
+          name: gd-cc-t-linux
+          path: build/linux/
+          retention-days: 14

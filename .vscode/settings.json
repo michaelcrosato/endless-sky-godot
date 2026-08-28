@@ -1,0 +1,37 @@
+{
+  // godot-tools drives "run current scene" and the GDScript debugger.
+  // The *_console.exe variant is required so output reaches the terminal.
+  "godotTools.editorPath.godot4": "C:/Program Files/WinGet/Packages/GodotEngine.GodotEngine.Mono_Microsoft.Winget.Source_8wekyb3d8bbwe/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+
+  // The GDScript language server runs inside the editor; start Godot
+  // (pwsh tools/editor.ps1) before expecting completion or go-to-definition.
+  "godotTools.lsp.serverHost": "127.0.0.1",
+  "godotTools.lsp.serverPort": 6005,
+  "godotTools.lsp.autoReconnect.enabled": true,
+
+  "dotnet.defaultSolution": "GdCcT.sln",
+
+  "[gdscript]": {
+    "editor.insertSpaces": false,
+    "editor.detectIndentation": false
+  },
+
+  // Engine-generated caches: noisy in search, never worth editing by hand.
+  "files.exclude": {
+    "**/.godot": true,
+    "**/bin": true,
+    "**/obj": true,
+    "**/gdunit4_testadapter_v5": true
+  },
+  "search.exclude": {
+    "**/.godot": true,
+    "**/addons/gdUnit4": true,
+    "**/reports": true,
+    "**/build": true
+  },
+  "files.associations": {
+    "*.tscn": "ini",
+    "*.tres": "ini",
+    "*.godot": "ini"
+  }
+}
