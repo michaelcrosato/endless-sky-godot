@@ -11,14 +11,14 @@ namespace EndlessSky.Game
     /// </summary>
     public partial class CameraRig : Node3D
     {
-        [Export] public float PitchDegrees { get; set; } = 62f;
-        [Export] public float MinDistance { get; set; } = 22f;
+        [Export] public float PitchDegrees { get; set; } = 52f;
+        [Export] public float MinDistance { get; set; } = 14f;
         [Export] public float MaxDistance { get; set; } = 170f;
         [Export] public float FollowSharpness { get; set; } = 4.5f;
 
         private Camera3D _camera = null!; // built in _Ready
-        private float _targetDistance = 62f;
-        private float _distance = 62f;
+        private float _targetDistance = 30f;
+        private float _distance = 30f;
         private Vector3 _focus;
 
         public override void _Ready()
@@ -55,17 +55,19 @@ namespace EndlessSky.Game
             float blend = 1f - Mathf.Exp(-FollowSharpness * (float)delta);
             _focus = _focus.Lerp(focusTarget, blend);
 
-            // Faster ships get a wider frame.
+            // Faster ships get a modestly wider frame.
             double vmax = ship.MaxVelocity;
             float speedFraction = vmax > 0.0 ? (float)Mathf.Clamp(ship.Velocity.Length / vmax, 0.0, 1.0) : 0f;
-            float distance = Mathf.Lerp(_distance, _targetDistance * (1f + 0.4f * speedFraction), blend);
+            float distance = Mathf.Lerp(_distance, _targetDistance * (1f + 0.15f * speedFraction), blend);
             _distance = distance;
 
             float pitch = Mathf.DegToRad(PitchDegrees);
             Vector3 offset = new(0f, Mathf.Sin(pitch) * distance, Mathf.Cos(pitch) * distance);
             Position = _focus;
             _camera.Position = offset;
-            _camera.LookAt(_focus, Vector3.Up);
+            // Bias the look target up in screen space so the ship rides the
+            // lower third instead of dead center.
+            _camera.LookAt(_focus + Vector3.Up * (distance * 0.10f), Vector3.Up);
         }
 
         /// <summary>Jump straight to the target with no smoothing (scene start).</summary>

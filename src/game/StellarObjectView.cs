@@ -40,41 +40,68 @@ namespace EndlessSky.Game
 
             if (Object.IsStar)
             {
+                // The star body must NOT cast shadows: a closed mesh wrapped
+                // around its own light writes depth in every direction and
+                // blacks out the entire system (the original M1 lighting bug).
+                instance.CastShadow = GeometryInstance3D.ShadowCastingSetting.Off;
                 instance.MaterialOverride = new StandardMaterial3D
                 {
                     ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
                     AlbedoColor = StarColor(Object.Sprite),
                     EmissionEnabled = true,
                     Emission = StarColor(Object.Sprite),
-                    EmissionEnergyMultiplier = 4.0f,
+                    // Headroom above the tonemap white point so the core blooms
+                    // as a gradient instead of clipping to a flat disc.
+                    EmissionEnergyMultiplier = 9.0f,
                 };
+                // Local warm accent only; the real key light is a directional
+                // in FlightWorld so shadowing is consistent at system scale.
                 AddChild(new OmniLight3D
                 {
                     Name = "StarLight",
                     LightColor = new Color(1.0f, 0.96f, 0.88f),
-                    LightEnergy = 3.2f,
-                    OmniRange = 4000f,
-                    OmniAttenuation = 0.35f,
-                    ShadowEnabled = true,
+                    LightEnergy = 1.2f,
+                    OmniRange = 120f,
+                    ShadowEnabled = false,
                 });
 
-                // Soft corona shell.
+                // Corona: one billboarded quad with a radial gradient — real
+                // falloff, two triangles (the old constant-alpha sphere shell
+                // rendered as a hard-edged flat plate).
+                var gradient = new Gradient
+                {
+                    Offsets = new[] { 0.0f, 0.45f, 1.0f },
+                    Colors = new[]
+                    {
+                        new Color(1.0f, 0.88f, 0.62f, 0.55f),
+                        new Color(1.0f, 0.55f, 0.25f, 0.12f),
+                        new Color(1.0f, 0.45f, 0.20f, 0.0f),
+                    },
+                };
+                var coronaTexture = new GradientTexture2D
+                {
+                    Gradient = gradient,
+                    Fill = GradientTexture2D.FillEnum.Radial,
+                    FillFrom = new Vector2(0.5f, 0.5f),
+                    FillTo = new Vector2(0.5f, 0.0f),
+                    Width = 256,
+                    Height = 256,
+                };
+                var coronaMaterial = new StandardMaterial3D
+                {
+                    ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
+                    Transparency = BaseMaterial3D.TransparencyEnum.Alpha,
+                    BlendMode = BaseMaterial3D.BlendModeEnum.Add,
+                    BillboardMode = BaseMaterial3D.BillboardModeEnum.Enabled,
+                    AlbedoTexture = coronaTexture,
+                    DisableReceiveShadows = true,
+                    RenderPriority = 1,
+                };
                 var corona = new MeshInstance3D
                 {
-                    Mesh = new SphereMesh
-                    {
-                        Radius = VisualRadius * 1.8f,
-                        Height = VisualRadius * 3.6f,
-                        RadialSegments = 24,
-                        Rings = 14,
-                    },
-                    MaterialOverride = new StandardMaterial3D
-                    {
-                        ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
-                        Transparency = BaseMaterial3D.TransparencyEnum.Alpha,
-                        BlendMode = BaseMaterial3D.BlendModeEnum.Add,
-                        AlbedoColor = new Color(1.0f, 0.82f, 0.5f, 0.10f),
-                    },
+                    Mesh = new QuadMesh { Size = new Vector2(VisualRadius * 6f, VisualRadius * 6f) },
+                    MaterialOverride = coronaMaterial,
+                    CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
                 };
                 AddChild(corona);
             }

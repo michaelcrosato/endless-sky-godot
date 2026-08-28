@@ -75,8 +75,11 @@ namespace EndlessSky.Game
                 }
             }
 
-            _ship.Position = planetPos + new Point(0.0, 170.0);
+            // Off the planet's shoulder, not on its horizontal — keeps the
+            // planet out of the ship's line and off the HUD corner.
+            _ship.Position = planetPos + new Point(-120.0, 210.0);
             _ship.Facing = new Angle(0.0);
+            BuildLighting(planetPos);
 
             _shipView = new ShipView { Name = "PlayerShip" };
             AddChild(_shipView);
@@ -112,16 +115,17 @@ namespace EndlessSky.Game
             }
             else
             {
-                command = new Command
-                {
-                    Forward = Input.IsPhysicalKeyPressed(Key.W) || Input.IsPhysicalKeyPressed(Key.Up),
-                    Back = Input.IsPhysicalKeyPressed(Key.S) || Input.IsPhysicalKeyPressed(Key.Down),
-                    Stop = Input.IsPhysicalKeyPressed(Key.Space),
-                };
+                // The BACK key goes through the upstream AI::MovePlayer
+                // translation (FlightControls): on a ship with no reverse
+                // thruster — the Shuttle — it turns retrograde. Space is
+                // deliberately unbound: upstream ships Stop unbound, and the
+                // raw Stop flag without its autopilot is worse than nothing.
+                bool forward = Input.IsPhysicalKeyPressed(Key.W) || Input.IsPhysicalKeyPressed(Key.Up);
+                bool back = Input.IsPhysicalKeyPressed(Key.S) || Input.IsPhysicalKeyPressed(Key.Down);
                 double turn = 0.0;
                 if (Input.IsPhysicalKeyPressed(Key.A) || Input.IsPhysicalKeyPressed(Key.Left)) turn -= 1.0;
                 if (Input.IsPhysicalKeyPressed(Key.D) || Input.IsPhysicalKeyPressed(Key.Right)) turn += 1.0;
-                command.Turn = turn;
+                command = FlightControls.BuildPlayerCommand(_ship, forward, back, turn);
             }
 
             _ship.Step(command);
@@ -152,13 +156,79 @@ namespace EndlessSky.Game
                 BackgroundColor = new Color(0.010f, 0.012f, 0.020f),
                 AmbientLightSource = Godot.Environment.AmbientSource.Color,
                 AmbientLightColor = new Color(0.5f, 0.55f, 0.65f),
-                AmbientLightEnergy = 0.22f,
+                // Low: ambient is fill-of-last-resort, not the key. At 0.22 it
+                // flattened every terminator.
+                AmbientLightEnergy = 0.08f,
                 GlowEnabled = true,
-                GlowIntensity = 0.6f,
-                GlowBloom = 0.05f,
+                GlowBlendMode = Godot.Environment.GlowBlendModeEnum.Additive,
+                GlowIntensity = 1.0f,
+                GlowStrength = 1.2f,
+                GlowHdrThreshold = 0.85f,
+                GlowBloom = 0.15f,
                 TonemapMode = Godot.Environment.ToneMapper.Aces,
+                // Emission above 1.0 renders as a gradient instead of clipping
+                // to a white hole.
+                TonemapWhite = 6.0f,
             };
+            for (int level = 1; level <= 5; level++)
+            {
+                environment.SetGlowLevel(level, new[] { 1.0f, 0.8f, 0.6f, 0.4f, 0.3f }[level - 1]);
+            }
+
             AddChild(new WorldEnvironment { Environment = environment });
+        }
+
+        /// <summary>
+        /// Key + fill lighting. The key is a shadowed directional aimed from
+        /// the star toward the play area (an omni at the star cannot shadow
+        /// consistently at system scale); the cool fill from the opposite
+        /// quadrant rims the dark limbs so bodies never dissolve into space.
+        /// </summary>
+        private void BuildLighting(Point playAreaSim)
+        {
+            Vector3 toPlayArea = WorldSpace.ToWorld(playAreaSim);
+            if (toPlayArea.LengthSquared() < 1e-4f)
+            {
+                toPlayArea = new Vector3(0f, 0f, 1f);
+            }
+
+            var key = new DirectionalLight3D
+            {
+                Name = "StarKeyLight",
+                LightColor = new Color(1.0f, 0.94f, 0.85f),
+                LightEnergy = 2.2f,
+                ShadowEnabled = true,
+                DirectionalShadowMode = DirectionalLight3D.ShadowMode.Orthogonal,
+                DirectionalShadowMaxDistance = 400f,
+                ShadowBias = 0.03f,
+            };
+            AddChild(key);
+            key.LookAtFromPosition(Vector3.Zero, toPlayArea, Vector3.Up);
+
+            var fill = new DirectionalLight3D
+            {
+                Name = "CoolFill",
+                LightColor = new Color(0.42f, 0.58f, 1.0f),
+                LightEnergy = 0.30f,
+                ShadowEnabled = false,
+            };
+            AddChild(fill);
+            fill.LookAtFromPosition(Vector3.Zero, -toPlayArea + new Vector3(0f, -0.35f, 0f) * toPlayArea.Length(), Vector3.Up);
+        }
+
+        private static StyleBoxFlat HudPanelStyle()
+        {
+            var style = new StyleBoxFlat
+            {
+                BgColor = new Color(0.05f, 0.07f, 0.11f, 0.55f),
+                BorderColor = new Color(0.35f, 0.55f, 0.75f, 0.5f),
+                CornerRadiusTopLeft = 6, CornerRadiusTopRight = 6,
+                CornerRadiusBottomLeft = 6, CornerRadiusBottomRight = 6,
+                ContentMarginLeft = 12, ContentMarginRight = 12,
+                ContentMarginTop = 8, ContentMarginBottom = 8,
+            };
+            style.SetBorderWidthAll(1);
+            return style;
         }
 
         private void BuildHud(string? errorMessage)
@@ -166,26 +236,45 @@ namespace EndlessSky.Game
             var hud = new CanvasLayer { Name = "Hud" };
             AddChild(hud);
 
+            // Top-left: identity + telemetry, three type tiers.
             var panel = new PanelContainer();
             panel.SetAnchorsPreset(Control.LayoutPreset.TopLeft);
             panel.Position = new Vector2(14, 14);
-            var style = new StyleBoxFlat
-            {
-                BgColor = new Color(0.05f, 0.07f, 0.11f, 0.72f),
-                CornerRadiusTopLeft = 6, CornerRadiusTopRight = 6,
-                CornerRadiusBottomLeft = 6, CornerRadiusBottomRight = 6,
-                ContentMarginLeft = 12, ContentMarginRight = 12,
-                ContentMarginTop = 8, ContentMarginBottom = 8,
-            };
-            panel.AddThemeStyleboxOverride("panel", style);
+            panel.AddThemeStyleboxOverride("panel", HudPanelStyle());
             hud.AddChild(panel);
+
+            var column = new VBoxContainer();
+            column.AddThemeConstantOverride("separation", 2);
+            panel.AddChild(column);
+
+            var title = new Label { Text = errorMessage ?? $"{StartSystem.ToUpperInvariant()}  ·  {StartShip.ToUpperInvariant()}" };
+            title.AddThemeFontSizeOverride("font_size", 20);
+            title.AddThemeColorOverride("font_color", new Color(0.88f, 0.93f, 1.0f));
+            column.AddChild(title);
 
             _statusLabel = new Label();
             _statusLabel.AddThemeFontSizeOverride("font_size", 15);
-            panel.AddChild(_statusLabel);
+            _statusLabel.AddThemeColorOverride("font_color", new Color(0.65f, 0.75f, 0.85f));
+            // Outline keeps the digits readable over the star and masks
+            // proportional-font reflow.
+            _statusLabel.AddThemeConstantOverride("outline_size", 3);
+            _statusLabel.AddThemeColorOverride("font_outline_color", new Color(0f, 0f, 0f, 0.9f));
+            column.AddChild(_statusLabel);
+            if (errorMessage != null)
+            {
+                _statusLabel.Text = " ";
+            }
 
-            _statusLabel.Text = errorMessage ??
-                $"{StartSystem} — {StartShip}\nW/↑ thrust · A/D or ←/→ turn · S/↓ reverse · wheel zoom";
+            // Bottom-left, out of the hero corner: the keybinds.
+            var keysPanel = new PanelContainer();
+            keysPanel.SetAnchorsPreset(Control.LayoutPreset.BottomLeft);
+            keysPanel.AddThemeStyleboxOverride("panel", HudPanelStyle());
+            hud.AddChild(keysPanel);
+            var keys = new Label { Text = "↑ thrust · ←/→ turn · ↓ turn retrograde (brake) · wheel zoom · WASD also works" };
+            keys.AddThemeFontSizeOverride("font_size", 12);
+            keys.AddThemeColorOverride("font_color", new Color(0.40f, 0.48f, 0.56f));
+            keysPanel.AddChild(keys);
+            keysPanel.Position = new Vector2(14, -14 - 34);
         }
 
         private void UpdateHud()
@@ -195,12 +284,9 @@ namespace EndlessSky.Game
                 return;
             }
 
-            double speed = _ship.Velocity.Length;
-            double heading = _ship.Facing.AbsDegrees;
-            _statusLabel.Text =
-                $"{StartSystem} — {StartShip}\n" +
-                $"speed {speed * Ship.FramesPerSecond:0} px/s ({speed / Math.Max(_ship.MaxVelocity, 1e-9) * 100:0}% of max) · heading {heading:000}°\n" +
-                "W/↑ thrust · A/D or ←/→ turn · S/↓ reverse · wheel zoom";
+            double speed = _ship.Velocity.Length * Ship.FramesPerSecond;
+            double pct = _ship.Velocity.Length / Math.Max(_ship.MaxVelocity, 1e-9) * 100.0;
+            _statusLabel.Text = $"{speed:0} KM/S · {pct:0}%   HDG {_ship.Facing.AbsDegrees:000}°";
         }
 
         public override void _ExitTree()
