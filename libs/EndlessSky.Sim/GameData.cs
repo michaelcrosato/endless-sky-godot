@@ -35,6 +35,13 @@ namespace EndlessSky.Sim
         private readonly Dictionary<string, Sale> _outfitters =
             new Dictionary<string, Sale>(StringComparer.Ordinal);
 
+        private readonly Dictionary<string, Fleet> _fleets =
+            new Dictionary<string, Fleet>(StringComparer.Ordinal);
+
+        /// <summary>Ship name to the government that flies or sells it.</summary>
+        private readonly Dictionary<string, string> _shipGovernment =
+            new Dictionary<string, string>(StringComparer.Ordinal);
+
         private readonly Dictionary<string, double> _spriteMass =
             new Dictionary<string, double>(StringComparer.Ordinal);
 
@@ -52,6 +59,8 @@ namespace EndlessSky.Sim
         public IReadOnlyDictionary<string, Sale> Shipyards => _shipyards;
 
         public IReadOnlyDictionary<string, Sale> Outfitters => _outfitters;
+
+        public IReadOnlyDictionary<string, Fleet> Fleets => _fleets;
 
         /// <summary>Commodity definitions plus per-system prices.</summary>
         public TradeData Trade { get; } = new TradeData();
@@ -106,7 +115,125 @@ namespace EndlessSky.Sim
 
             ResolveOrbits();
             ResolvePlanets();
+            ResolveShipGovernments();
             ResolveWeapons();
+        }
+
+        /// <summary>
+        /// The government that flies or sells a ship, or null when nothing does.
+        /// </summary>
+        /// <remarks>
+        /// Ship definitions never name a government. Upstream associates a hull with a
+        /// faction only indirectly, through the fleets that fly it and the shipyards
+        /// that stock it, so this index is the only route from a hull to the faction
+        /// whose design language it should wear.
+        /// </remarks>
+        public string? GovernmentOf(string shipName) =>
+            shipName != null && _shipGovernment.TryGetValue(shipName, out string? government)
+                ? government
+                : null;
+
+        /// <summary>
+        /// Builds the ship-to-government index from fleets first, then shipyards.
+        /// </summary>
+        /// <remarks>
+        /// Fleets win over shipyards because flying a hull is a stronger claim on it
+        /// than selling one: shipyards on independent worlds stock other factions'
+        /// ships, so a shipyard-first index labels half the galaxy Independent.
+        ///
+        /// Within fleets a hull goes to the government that flies it MOST, scored by
+        /// summed variant weight - the same weight that decides how often the variant
+        /// actually spawns. Taking the first claimant instead is both arbitrary and
+        /// order-dependent: it made the Star Barge, the most common human freighter in
+        /// the game, come out as "Hai Merchant (Human)", because one Hai fleet flies
+        /// human hulls and happened to load first. Ties break on the government name so
+        /// the result never depends on file iteration order.
+        ///
+        /// Variants are folded onto their base hull: "Star Barge (Armed)" is a
+        /// Merchant ship because "Star Barge" is, and most variants are never named by
+        /// a fleet directly.
+        /// </remarks>
+        private void ResolveShipGovernments()
+        {
+            _shipGovernment.Clear();
+
+            var flownBy = new Dictionary<string, Dictionary<string, long>>(StringComparer.Ordinal);
+            foreach (Fleet fleet in _fleets.Values)
+            {
+                if (string.IsNullOrEmpty(fleet.Government))
+                    continue;
+
+                foreach (FleetVariant variant in fleet.Variants)
+                    foreach (string ship in variant.Ships)
+                        Score(flownBy, ship, fleet.Government!, variant.Weight);
+            }
+
+            foreach (KeyValuePair<string, Dictionary<string, long>> entry in flownBy)
+                _shipGovernment[entry.Key] = Winner(entry.Value);
+
+            // Shipyards fill the gaps: a hull nobody flies but somebody sells.
+            var soldBy = new Dictionary<string, Dictionary<string, long>>(StringComparer.Ordinal);
+            foreach (Planet planet in _planets.Values)
+            {
+                if (string.IsNullOrEmpty(planet.Government))
+                    continue;
+
+                foreach (string shipyardName in planet.Shipyards)
+                {
+                    if (!_shipyards.TryGetValue(shipyardName, out Sale? shipyard))
+                        continue;
+
+                    foreach (string ship in shipyard.Items)
+                        if (!_shipGovernment.ContainsKey(ship))
+                            Score(soldBy, ship, planet.Government!, 1);
+                }
+            }
+
+            foreach (KeyValuePair<string, Dictionary<string, long>> entry in soldBy)
+                _shipGovernment[entry.Key] = Winner(entry.Value);
+
+            // Finally let variants inherit from the hull they are based on. A variant is
+            // keyed by its own display name, while Name still holds the base model.
+            foreach (ShipDefinition ship in _ships.Values)
+            {
+                if (ship.VariantName is null || _shipGovernment.ContainsKey(ship.DisplayName))
+                    continue;
+
+                if (_shipGovernment.TryGetValue(ship.Name, out string? government))
+                    _shipGovernment[ship.DisplayName] = government;
+            }
+        }
+
+        private static void Score(Dictionary<string, Dictionary<string, long>> tally,
+                                  string ship, string government, long weight)
+        {
+            if (!tally.TryGetValue(ship, out Dictionary<string, long>? byGovernment))
+            {
+                byGovernment = new Dictionary<string, long>(StringComparer.Ordinal);
+                tally[ship] = byGovernment;
+            }
+
+            byGovernment.TryGetValue(government, out long running);
+            byGovernment[government] = running + weight;
+        }
+
+        /// <summary>Highest score wins; ties break on name so the result is stable.</summary>
+        private static string Winner(Dictionary<string, long> byGovernment)
+        {
+            string best = string.Empty;
+            long bestScore = long.MinValue;
+
+            foreach (KeyValuePair<string, long> entry in byGovernment)
+            {
+                if (entry.Value > bestScore ||
+                    (entry.Value == bestScore && string.CompareOrdinal(entry.Key, best) < 0))
+                {
+                    best = entry.Key;
+                    bestScore = entry.Value;
+                }
+            }
+
+            return best;
         }
 
         /// <summary>
@@ -229,6 +356,10 @@ namespace EndlessSky.Sim
 
                     case "trade":
                         Trade.LoadTradeDefinition(node);
+                        break;
+
+                    case "fleet" when node.Size >= 2:
+                        GetOrCreate(_fleets, node.Token(1), n => new Fleet(n)).Load(node);
                         break;
 
                     case "shipyard" when node.Size >= 2:

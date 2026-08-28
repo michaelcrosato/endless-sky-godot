@@ -26,7 +26,7 @@ namespace EndlessSky.Game
         /// <summary>Hulls to line up, chosen to span the size classes.</summary>
         private static readonly string[] Subjects =
         {
-            "Shuttle", "Sparrow", "Berserker", "Falcon", "Bactrian",
+            "Shuttle", "Marauder Raven", "Falcon", "Lance", "Bactrian",
         };
 
         private string? _capturePath;
@@ -129,7 +129,10 @@ namespace EndlessSky.Game
                     continue;
                 }
 
-                var appearance = new ShipAppearance(definition);
+                var appearance = new ShipAppearance(definition)
+                {
+                    Faction = data.GovernmentOf(definition.DisplayName),
+                };
                 Node3D mesh = ShipMeshBuilder.Build(appearance, _damageState);
 
                 // Normalise each hull to a common on-screen size. Real relative scale
@@ -143,7 +146,7 @@ namespace EndlessSky.Game
                 slot.AddChild(holder);
                 AddChild(slot);
 
-                hulls.Add((name, slot, 4.2f));
+                hulls.Add(($"{name} · {appearance.Faction ?? "(no faction)"}", slot, 4.2f));
                 totalWidth += 4.2f;
             }
 

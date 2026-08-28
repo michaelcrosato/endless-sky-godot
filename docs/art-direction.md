@@ -175,10 +175,36 @@ defect is invisible to every simulation test: face normals must point away from 
 hull centre, and the dorsal surface must sit above the ventral in value. The
 simulation suite passed 373/373 throughout the entire episode.
 
+## Faction plating
+
+A ship definition never names a government, so the association is built from the
+two places upstream keeps it: the fleets that fly a hull and the shipyards that
+stock it. Fleets win, because independent worlds stock other factions' ships and a
+shipyard-first index labels most of the galaxy Independent.
+
+Within fleets a hull goes to the government that flies it *most*, scored by summed
+variant weight — the same weight that decides how often the variant actually
+spawns. Taking the first claimant is arbitrary and order-dependent: it made the
+Star Barge, the commonest human freighter in the game, come out as
+`Hai Merchant (Human)`, because one Hai fleet flies human hulls and happened to
+load first. By weight it is Merchant 181 to 2. Ties break on the government name,
+so a hull never changes colour between runs.
+
+This resolves **738 of 902 ships (82%) across 58 governments**. The remainder is
+mostly correct: the Kestrel, for instance, is deliberately unavailable at the start
+— no fleet flies it and its shipyard is defined empty, stocked only by later
+events — so it genuinely has no faction, and inventing one would paint a ship the
+player cannot see in someone's colours.
+
+Plate lookup matches by substring, because governments are families rather than
+flat names (`Hai Merchant (Human)`, `Avgi (Twilight Guard)`). Most specific first,
+or human-built hulls in Hai service get painted as human merchants. Anything
+unmatched takes a stable hue derived from its name at the same restrained value and
+saturation as the curated plates, so unfamiliar factions stay distinct without
+anyone enumerating all 58.
+
 ## Open items
 
-- Faction design language needs a ship → government association the data does not
-  provide directly; fleets and shipyards are the route.
 - Hull *beam* is still inferred, not measured: mounts cluster near the centreline
   and so understate true width. The 0.34 floor is a fleet median, not a per-ship
   fact.

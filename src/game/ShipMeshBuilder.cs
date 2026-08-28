@@ -428,15 +428,64 @@ namespace EndlessSky.Game
         /// One plate hue per faction. Null reads as unaffiliated neutral, which is
         /// what the whole fleet uses until ship-to-government association lands.
         /// </summary>
-        private static Color FactionPlate(string? faction) => faction switch
+        /// <summary>
+        /// Plate colour for a government.
+        /// </summary>
+        /// <remarks>
+        /// Matching is by SUBSTRING, because governments in the data are families
+        /// rather than flat names: the index resolves hulls to "Hai Merchant (Human)",
+        /// "Avgi (Twilight Guard)" and "Coalition" as readily as to "Hai". Exact-match
+        /// switching dropped 58 real governments down to the handful spelled exactly
+        /// right and painted everything else neutral grey.
+        ///
+        /// Anything still unmatched takes a stable colour derived from the name, so
+        /// unfamiliar factions stay visually distinct from each other and from the
+        /// human powers without anyone having to enumerate them. The hash is over the
+        /// name, so a faction keeps its colour between runs.
+        /// </remarks>
+        private static Color FactionPlate(string? faction)
         {
-            "Republic" or "Syndicate" or "Merchant" => new Color(0.50f, 0.52f, 0.56f),
-            "Pirate" => new Color(0.30f, 0.26f, 0.28f),
-            "Hai" => new Color(0.40f, 0.50f, 0.47f),
-            "Korath" => new Color(0.44f, 0.39f, 0.28f),
-            "Pug" => new Color(0.36f, 0.30f, 0.46f),
-            "Quarg" => new Color(0.33f, 0.40f, 0.49f),
-            _ => new Color(0.47f, 0.48f, 0.51f),
+            if (string.IsNullOrEmpty(faction))
+                return new Color(0.47f, 0.48f, 0.51f);
+
+            foreach ((string family, Color plate) in FactionPlates)
+            {
+                if (faction!.Contains(family, StringComparison.OrdinalIgnoreCase))
+                    return plate;
+            }
+
+            // Deterministic fallback: hue from the name, held to the same restrained
+            // value and saturation as the curated plates so nothing screams.
+            int hash = 0;
+            foreach (char c in faction!)
+                hash = (hash * 31 + c) & 0x7fffffff;
+
+            return Color.FromHsv((hash % 360) / 360f, 0.18f, 0.48f);
+        }
+
+        /// <summary>
+        /// Curated plates, most specific family first: "Hai Merchant (Human)" has to
+        /// meet "Hai Merchant" before it meets "Merchant", or human-built hulls in Hai
+        /// service would be painted as human merchants.
+        /// </summary>
+        private static readonly (string Family, Color Plate)[] FactionPlates =
+        {
+            ("Hai Merchant", new Color(0.44f, 0.52f, 0.52f)),
+            ("Hai", new Color(0.40f, 0.50f, 0.47f)),
+            ("Republic", new Color(0.50f, 0.53f, 0.58f)),
+            ("Free Worlds", new Color(0.46f, 0.44f, 0.40f)),
+            ("Syndicate", new Color(0.52f, 0.50f, 0.46f)),
+            ("Merchant", new Color(0.50f, 0.52f, 0.56f)),
+            ("Pirate", new Color(0.30f, 0.26f, 0.28f)),
+            ("Korath", new Color(0.44f, 0.39f, 0.28f)),
+            ("Heliarch", new Color(0.52f, 0.47f, 0.32f)),
+            ("Coalition", new Color(0.48f, 0.44f, 0.34f)),
+            ("Quarg", new Color(0.33f, 0.40f, 0.49f)),
+            ("Remnant", new Color(0.34f, 0.44f, 0.42f)),
+            ("Wanderer", new Color(0.38f, 0.46f, 0.34f)),
+            ("Pug", new Color(0.36f, 0.30f, 0.46f)),
+            ("Avgi", new Color(0.34f, 0.36f, 0.48f)),
+            ("Drak", new Color(0.26f, 0.26f, 0.30f)),
         };
 
         private static StandardMaterial3D EmissiveMaterial(Color colour, double strength,

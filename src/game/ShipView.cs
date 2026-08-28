@@ -61,7 +61,12 @@ namespace EndlessSky.Game
         /// </summary>
         private void Rebuild(Ship ship)
         {
-            var appearance = new ShipAppearance(ship.Definition);
+            // The government comes from the fleets that fly the hull and the shipyards
+            // that stock it; a ship definition never names one.
+            var appearance = new ShipAppearance(ship.Definition)
+            {
+                Faction = EsData.Universe?.GovernmentOf(ship.Definition.DisplayName),
+            };
             int damageState = ShipAppearance.DamageState(ship.Hull, ship.MaxHull);
 
             if (ReferenceEquals(_builtFor, ship.Definition) && _builtDamageState == damageState)
