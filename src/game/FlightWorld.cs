@@ -73,6 +73,9 @@ namespace EndlessSky.Game
         /// <summary>Most ships to keep in flight at once, so a busy system stays playable.</summary>
         private const int TrafficLimit = 12;
         private AsteroidFieldView? _asteroidField;
+
+        // The interface around the game: menu, pause, status, map, controls, options.
+        private GameUi _ui = null!;   // built in _Ready
         private LandedOverlay? _landedOverlay;
         private StarSystem? _lastSystem;
         private DirectionalLight3D _keyLight = null!;  // set by BuildLighting
@@ -81,6 +84,10 @@ namespace EndlessSky.Game
         public override void _Ready()
         {
             ParseUserArgs();
+
+            // Saved graphics preferences, before anything is drawn.
+            GameSettings.Apply();
+
             BuildEnvironment();
             AddChild(new Starfield { Name = "Starfield" });
 
@@ -171,6 +178,12 @@ namespace EndlessSky.Game
             _missions = new MissionLog(_player);
             _spawner = new FleetSpawner(universe);
 
+            _ui = new GameUi { Name = "Ui" };
+            _ui.Bind(_player, _missions, universe, () => _ship);
+            _ui.DestinationChosen += OnDestinationChosen;
+            _ui.QuitRequested += () => GetTree().Quit();
+            AddChild(_ui);
+
             _shipView.SyncWith(_ship);
 
             _camera = new CameraRig { Name = "CameraRig" };
@@ -200,9 +213,31 @@ namespace EndlessSky.Game
             // the rate every upstream per-frame quantity assumes.
             _simFrames++;
 
-            // Landed: the sim is frozen and the overlay owns input.
+            // Landed: the sim is frozen and the overlay owns input, including the keys
+            // the shell would otherwise claim.
+            if (_ui != null)
+            {
+                _ui.Suspended = _isLanded;
+            }
+
             if (_isLanded)
             {
+                return;
+            }
+
+            // A UI screen holds the simulation the same way landing does. Without this
+            // the galaxy carries on while the player reads the map, and they come back
+            // to a fight they never saw start.
+            if (_ui != null && _ui.IsModal)
+            {
+                return;
+            }
+
+            // The game opens on its menu. Captures and the landed-at-start path skip
+            // it: a screenshot of the menu is not a screenshot of the game.
+            if (_simFrames == 1 && _capturePath == null && !_landAtStart)
+            {
+                _ui?.Show(UiScreen.MainMenu);
                 return;
             }
 
@@ -492,6 +527,22 @@ namespace EndlessSky.Game
 
                 view.SyncWith(npc);
             }
+        }
+
+        /// <summary>
+        /// Course set from the galaxy map. The J key still performs the jump, so the
+        /// map decides WHERE and the player decides WHEN.
+        /// </summary>
+        private void OnDestinationChosen(StarSystem system)
+        {
+            if (_ship == null)
+            {
+                return;
+            }
+
+            _ship.TargetSystem = system;
+            _jumpAutopilot = true;
+            GD.Print($"[flight] course set for {system.Name}");
         }
 
         private void TryLand()
@@ -795,7 +846,14 @@ namespace EndlessSky.Game
             keysPanel.SetAnchorsPreset(Control.LayoutPreset.BottomLeft);
             keysPanel.AddThemeStyleboxOverride("panel", HudPanelStyle());
             hud.AddChild(keysPanel);
-            var keys = new Label { Text = "↑ thrust · ←/→ turn · ↓ retrograde brake · J jump · L land · wheel zoom · WASD too" };
+            // The discoverability line. A player who never opens a menu still has to
+            // find out that a map and a status screen exist, so the keys that open them
+            // are named here rather than only inside the screens they open.
+            var keys = new Label
+            {
+                Text = "↑ thrust · ←/→ turn · ↓ brake · L land · J jump · " +
+                       "M map · I status · F1 controls · ESC menu",
+            };
             keys.AddThemeFontSizeOverride("font_size", 12);
             keys.AddThemeColorOverride("font_color", new Color(0.40f, 0.48f, 0.56f));
             keysPanel.AddChild(keys);
@@ -859,6 +917,14 @@ namespace EndlessSky.Game
                 else if (arg == "--land-at-start")
                 {
                     _landAtStart = true;
+                }
+                else if (arg.StartsWith("--ui-screen=", StringComparison.Ordinal) &&
+                         Enum.TryParse(arg["--ui-screen=".Length..], ignoreCase: true,
+                                       out UiScreen screen))
+                {
+                    // Capture aid: every screen needs a keypress to reach, and a
+                    // headless capture has no keyboard.
+                    GameUi.OpenAtStart = screen;
                 }
                 else if (arg.StartsWith("--landed-tab=", StringComparison.Ordinal) &&
                          int.TryParse(arg["--landed-tab=".Length..], out int tab))

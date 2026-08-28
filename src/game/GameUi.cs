@@ -1,0 +1,203 @@
+using System;
+using System.Collections.Generic;
+using EndlessSky.Sim;
+using Godot;
+
+namespace EndlessSky.Game
+{
+    /// <summary>Which screen the shell is showing, if any.</summary>
+    public enum UiScreen
+    {
+        None,
+        MainMenu,
+        Pause,
+        Status,
+        Map,
+        Controls,
+        Options,
+        Tutorial,
+    }
+
+    /// <summary>
+    /// The interface around the game: menu, pause, status, map, controls, options and
+    /// the first-run tutorial.
+    /// </summary>
+    /// <remarks>
+    /// One owner for every modal screen, rather than each panel managing itself. That
+    /// matters for two reasons. Only one screen may be up at a time, and something has
+    /// to know which - two overlays both reading the arrow keys is a game that appears
+    /// to have broken input. And the simulation must not tick while a screen is up, so
+    /// there has to be a single answer to "are we paused", which is
+    /// <see cref="IsModal"/>.
+    ///
+    /// Keys are read here rather than in the individual screens so the bindings live in
+    /// one list and cannot disagree with the reference screen that documents them.
+    ///
+    /// Edge-triggered throughout: <c>Input.IsPhysicalKeyPressed</c> is level, so a key
+    /// held for three frames would otherwise open and close a panel three times.
+    /// </remarks>
+    public partial class GameUi : CanvasLayer
+    {
+        private readonly Dictionary<Key, bool> _was = new Dictionary<Key, bool>();
+        private Control? _current;
+
+        private PlayerState _player = null!;
+        private MissionLog _missions = null!;
+        private GameData _universe = null!;
+        private Func<Ship?> _ship = () => null;
+
+        /// <summary>The screen on top, or None.</summary>
+        public UiScreen Screen { get; private set; } = UiScreen.None;
+
+        /// <summary>
+        /// Whether a screen is up, and therefore whether the simulation should hold.
+        /// </summary>
+        public bool IsModal => Screen != UiScreen.None;
+
+        /// <summary>Raised when the player picks a jump destination on the map.</summary>
+        public event Action<StarSystem>? DestinationChosen;
+
+        /// <summary>Raised when the player asks to quit.</summary>
+        public event Action? QuitRequested;
+
+        /// <summary>Screen to open on the first frame; only used for captures.</summary>
+        public static UiScreen OpenAtStart { get; set; } = UiScreen.None;
+
+        /// <summary>Whether the tutorial has been shown this run.</summary>
+        private bool _tutorialSeen;
+
+        public void Bind(PlayerState player, MissionLog missions, GameData universe, Func<Ship?> ship)
+        {
+            _player = player;
+            _missions = missions;
+            _universe = universe;
+            _ship = ship;
+        }
+
+        public override void _Ready()
+        {
+            // Draw above the flight HUD, which sits on the default layer.
+            Layer = 10;
+
+            if (OpenAtStart != UiScreen.None)
+            {
+                Show(OpenAtStart);
+                _tutorialSeen = true;
+            }
+        }
+
+        /// <summary>
+        /// Set while another screen owns input — the landed overlay, which is not one
+        /// of these screens and reads its own keys.
+        /// </summary>
+        /// <remarks>
+        /// Without this the two read the keyboard at once: landing and pressing Tab
+        /// switched the shop counter AND opened the status screen, and the arrow keys
+        /// moved both selections. Two overlays reading one keyboard is a game that
+        /// looks like it has broken input.
+        /// </remarks>
+        public bool Suspended { get; set; }
+
+        public override void _Process(double delta)
+        {
+            if (Suspended)
+            {
+                // Keep the edge detector current, or the first key after resuming reads
+                // as a fresh press of whatever was held.
+                foreach (Key key in new[] { Key.Escape, Key.M, Key.I, Key.F1, Key.F2 })
+                    Pressed(key);
+
+                return;
+            }
+
+            // Esc closes whatever is up, or opens the pause menu from flight.
+            if (Pressed(Key.Escape))
+            {
+                Show(Screen == UiScreen.None ? UiScreen.Pause : UiScreen.None);
+            }
+
+            // The direct keys work from flight and from any other screen, so a player
+            // can go straight from the map to the status screen without backing out.
+            if (Pressed(Key.M)) Toggle(UiScreen.Map);
+
+            // I, not Tab: Tab already switches counters on the landed screen, and one
+            // key with two meanings is worse than one key.
+            if (Pressed(Key.I)) Toggle(UiScreen.Status);
+            if (Pressed(Key.F1)) Toggle(UiScreen.Controls);
+            if (Pressed(Key.F2)) Toggle(UiScreen.Options);
+
+            if (_current is IUiScreen screen)
+                screen.Step(this);
+        }
+
+        /// <summary>Opens a screen, or closes it if it is already the one showing.</summary>
+        public void Toggle(UiScreen screen) => Show(Screen == screen ? UiScreen.None : screen);
+
+        public void Show(UiScreen screen)
+        {
+            if (_current != null)
+            {
+                _current.QueueFree();
+                _current = null;
+            }
+
+            Screen = screen;
+            if (screen == UiScreen.None)
+                return;
+
+            Control panel = Build(screen);
+            AddChild(panel);
+            _current = panel;
+        }
+
+        /// <summary>
+        /// Leaves the menu for the game: the tutorial on a first run, flight after.
+        /// </summary>
+        public void BeginPlay()
+        {
+            if (_tutorialSeen)
+            {
+                Show(UiScreen.None);
+                return;
+            }
+
+            _tutorialSeen = true;
+            Show(UiScreen.Tutorial);
+        }
+
+        private Control Build(UiScreen screen) => screen switch
+        {
+            UiScreen.MainMenu => new MainMenuScreen(),
+            UiScreen.Pause => new PauseScreen(),
+            UiScreen.Status => new StatusScreen(_player, _missions, _universe, _ship()),
+            UiScreen.Map => new MapScreen(_player, _universe, _ship(), OnDestinationChosen),
+            UiScreen.Controls => new ControlsScreen(),
+            UiScreen.Options => new OptionsScreen(),
+            UiScreen.Tutorial => new TutorialScreen(),
+            _ => new Control(),
+        };
+
+        private void OnDestinationChosen(StarSystem system)
+        {
+            DestinationChosen?.Invoke(system);
+            Show(UiScreen.None);
+        }
+
+        internal void RequestQuit() => QuitRequested?.Invoke();
+
+        /// <summary>Edge-triggered key read: true only on the frame a key goes down.</summary>
+        public bool Pressed(Key key)
+        {
+            bool down = Input.IsPhysicalKeyPressed(key);
+            _was.TryGetValue(key, out bool was);
+            _was[key] = down;
+            return down && !was;
+        }
+    }
+
+    /// <summary>A screen that wants a frame tick, for selection and input of its own.</summary>
+    public interface IUiScreen
+    {
+        void Step(GameUi ui);
+    }
+}
