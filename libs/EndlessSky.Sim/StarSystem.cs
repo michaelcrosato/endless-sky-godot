@@ -251,9 +251,22 @@ namespace EndlessSky.Sim
         /// rule: a lone star takes 10 days to rotate, and everything else follows
         /// <c>period = sqrt(distance^3 / mass)</c> against the mass it orbits.
         /// </summary>
+        /// <summary>
+        /// Derives the orbital period of every object that does not state one, port of
+        /// the tail of upstream <c>System::UpdateSystem</c> (System.cpp:576).
+        /// </summary>
+        /// <remarks>
+        /// The star case is easy to miss because a single star genuinely has a fixed
+        /// period of 10: it sits at the centre and the number is arbitrary. In a
+        /// BINARY the stars orbit their common centre of mass, and upstream derives
+        /// that period from the summed separation and summed mass of every star in the
+        /// system. Leaving them on the default spins both stars of every binary at the
+        /// same rate no matter how far apart they are.
+        /// </remarks>
         public void ResolveOrbits(Func<string, double> spriteMass)
         {
             double starMass = 0.0;
+            double starDistance = 0.0;
             int starCount = 0;
             foreach (StellarObject o in AllObjects())
             {
@@ -261,12 +274,17 @@ namespace EndlessSky.Sim
                 {
                     starCount++;
                     starMass += spriteMass(o.Sprite);
+                    starDistance += o.Distance;
                 }
             }
 
-            // If nothing is a star, upstream treats the first object as the centre of mass.
+            // If nothing is a star, upstream treats the first object as the centre of
+            // mass AND as a star for period purposes.
+            bool treatNextObjectAsStar = false;
             if (starCount == 0 && _objects.Count > 0)
             {
+                treatNextObjectAsStar = true;
+                starCount = 1;
                 starMass = spriteMass(_objects[0].Sprite);
             }
 
@@ -280,13 +298,31 @@ namespace EndlessSky.Sim
                 double period = 10.0;
                 if (o.Parent != null)
                 {
+                    // Moons are governed by the mass of the planet they orbit.
                     double mass = spriteMass(o.Parent.Sprite);
                     if (mass > 0.0)
                     {
                         period = Math.Sqrt(Math.Pow(o.Distance, 3) / mass);
                     }
                 }
-                else if (!o.IsStar && starMass > 0.0)
+                else if (starMass <= 0.0)
+                {
+                    // No star, or stars with no defined mass: upstream warns and
+                    // leaves the default rather than dividing by zero.
+                }
+                else if (o.IsStar || treatNextObjectAsStar)
+                {
+                    treatNextObjectAsStar = false;
+
+                    // A lone star keeps the arbitrary default; it is at the centre and
+                    // nothing orbits it but everything else. Two or more orbit each
+                    // other, on their combined separation and mass.
+                    if (starCount > 1)
+                    {
+                        period = Math.Sqrt(Math.Pow(starDistance, 3) / starMass);
+                    }
+                }
+                else
                 {
                     period = Math.Sqrt(Math.Pow(o.Distance, 3) / starMass);
                 }

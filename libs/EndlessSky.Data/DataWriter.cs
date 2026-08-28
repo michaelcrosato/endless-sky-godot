@@ -44,6 +44,21 @@ namespace EndlessSky.Data
             return value;
         }
 
+        /// <summary>
+        /// Formats a number the way upstream's DataWriter does.
+        /// </summary>
+        /// <remarks>
+        /// Upstream calls <c>out.precision(8)</c> on its stream, so every number is
+        /// written with eight significant digits in C's <c>%g</c> style: trailing
+        /// zeros stripped, scientific notation only at the extremes.
+        ///
+        /// Round-tripping ("R") instead writes up to seventeen digits, which turns
+        /// every value that is not exactly representable in binary into noise -
+        /// 0.30000000000000004 where upstream writes 0.3, and 0.099999999999999998
+        /// where it writes 0.1. Those files still parse, but they no longer match
+        /// upstream's byte for byte, and the noise compounds every time a file is
+        /// loaded and written back.
+        /// </remarks>
         public static string Number(double value)
         {
             // Integers are written without a decimal point, matching upstream output.
@@ -52,7 +67,12 @@ namespace EndlessSky.Data
                 return ((long)value).ToString(CultureInfo.InvariantCulture);
             }
 
-            return value.ToString("R", CultureInfo.InvariantCulture);
+            string text = value.ToString("G8", CultureInfo.InvariantCulture);
+
+            // .NET spells the exponent "E+09"; C's %g spells it "e+09".
+            return text.IndexOf('E') >= 0
+                ? text.Replace("E", "e")
+                : text;
         }
 
         public DataWriter Write(params object[] tokens)
