@@ -99,11 +99,10 @@ namespace EndlessSky.Sim
     /// next ones. The parts modelled here are the ones that decide whether a mission
     /// appears and what it does to the player's state.
     ///
-    /// INCOMPLETE, tracked rather than dropped: LocationFilter (source/destination
-    /// matching by government, category and attributes - only a literal destination
-    /// planet name is read), NPC blocks and their fleets, waypoints and stopovers,
-    /// substitutions and phrases in text, deadline arithmetic against the calendar,
-    /// and the job-board payment formula.
+    /// INCOMPLETE, tracked rather than dropped: waypoints and stopovers, phrases in
+    /// text, and the job-board payment formula. A source filter carrying terms this
+    /// port does not model yet is treated as no restriction rather than as a rejection
+    /// - see IsOfferedAt.
     /// </remarks>
     public class Mission
     {
@@ -148,6 +147,104 @@ namespace EndlessSky.Sim
 
         /// <summary>Literal destination planet, when the mission names one.</summary>
         public string? Destination { get; private set; }
+
+        /// <summary>Literal source planet, when the mission names one.</summary>
+        public string? Source { get; private set; }
+
+        /// <summary>
+        /// Where this mission may be offered, when it states a filter rather than a
+        /// planet.
+        /// </summary>
+        public LocationFilter? SourceFilter { get; private set; }
+
+        /// <summary>Where it may send the player, when stated as a filter.</summary>
+        public LocationFilter? DestinationFilter { get; private set; }
+
+        /// <summary>
+        /// A concrete destination for this mission: the planet it names, or one drawn
+        /// from its destination filter. Port of upstream <c>LocationFilter::PickPlanet</c>
+        /// as called from <c>Mission::Instantiate</c>.
+        /// </summary>
+        /// <remarks>
+        /// Most missions do not name where they send you. They describe it - a
+        /// Republic world with a spaceport, somewhere in the Dirt Belt - and upstream
+        /// picks a real planet when the mission is offered. Without that step the
+        /// mission has no destination at all, and its text still reads
+        /// "Researchers to &lt;planet&gt;" because there is nothing to substitute in.
+        ///
+        /// Candidates are ordered by name so the same mission on the same world always
+        /// picks the same destination: a job that changed where it was going between
+        /// two glances at the board would be unplayable.
+        /// </remarks>
+        public string? ResolveDestination(GameData? data, string? originSystem = null)
+        {
+            if (Destination != null)
+                return Destination;
+
+            if (data is null || DestinationFilter is null || DestinationFilter.IsEmpty)
+                return null;
+
+            // An unmodelled filter would match nothing, which would silently strand the
+            // mission; leave it unresolved instead so the gap stays visible.
+            if (DestinationFilter.HasUnmodelledTerms)
+                return null;
+
+            string? best = null;
+            foreach (Planet planet in data.Planets.Values)
+            {
+                if (!planet.IsInhabited)
+                    continue;
+
+                // A planet's own system is what distance terms measure against.
+                string? system = SystemOf(data, planet.Name);
+                if (!DestinationFilter.Matches(planet, system, data, originSystem))
+                    continue;
+
+                if (best is null || string.CompareOrdinal(planet.Name, best) < 0)
+                    best = planet.Name;
+            }
+
+            return best;
+        }
+
+        /// <summary>The system a planet sits in, or null if nothing lists it.</summary>
+        private static string? SystemOf(GameData data, string planetName)
+        {
+            foreach (StarSystem system in data.Systems.Values)
+                foreach (StellarObject obj in system.AllObjects())
+                    if (obj.PlanetName == planetName)
+                        return system.Name;
+
+            return null;
+        }
+
+        /// <summary>
+        /// Whether this mission can be offered on a particular world.
+        /// </summary>
+        /// <remarks>
+        /// Content targets the galaxy by DESCRIPTION far more often than by name - a
+        /// job for Republic farming worlds is written once and offered on all of them.
+        /// Ignoring that and treating every mission as offerable anywhere is not a
+        /// small inaccuracy: it put 424 jobs on one planet's board, most of which
+        /// belong to other governments, other species and other regions entirely.
+        /// </remarks>
+        public bool IsOfferedAt(Planet? planet, string? systemName = null)
+        {
+            if (planet is null)
+                return false;
+
+            if (Source != null)
+                return planet.Name == Source;
+
+            // A filter with terms this port does not model yet would silently reject
+            // everything, so an unmodelled filter is treated as "no restriction"
+            // rather than as "nowhere". Being too permissive is recoverable; making
+            // content unreachable is not.
+            if (SourceFilter is null || SourceFilter.IsEmpty || SourceFilter.HasUnmodelledTerms)
+                return true;
+
+            return SourceFilter.Matches(planet, systemName, null, systemName);
+        }
 
         // --- Offer style ----------------------------------------------------------
 
@@ -224,10 +321,22 @@ namespace EndlessSky.Sim
                         Description = child.Token(1);
                         break;
 
+                    case "source" when child.Size >= 2:
+                        // "source <planet>": offered on exactly that world.
+                        Source = child.Token(1);
+                        break;
+
+                    case "source":
+                        // "source" with children is a filter over places.
+                        SourceFilter = LocationFilter.Load(child);
+                        break;
+
                     case "destination" when child.Size >= 2:
-                        // A destination can also be a filter block; only the literal
-                        // planet form is read for now.
                         Destination = child.Token(1);
+                        break;
+
+                    case "destination":
+                        DestinationFilter = LocationFilter.Load(child);
                         break;
 
                     case "npc":

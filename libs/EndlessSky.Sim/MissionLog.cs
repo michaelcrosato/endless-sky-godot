@@ -95,6 +95,7 @@ namespace EndlessSky.Sim
                 return Enumerable.Empty<Mission>();
 
             return data.Missions.Values.Where(m =>
+                m.IsOfferedAt(_player.CurrentPlanet, _player.CurrentSystem?.Name) &&
                 m.CanOffer(_player.Conditions) &&
                 !_active.Any(a => ReferenceEquals(a.Mission, m)) &&
                 (m.IsRepeating || !_finished.Any(f => ReferenceEquals(f.Mission, m))));

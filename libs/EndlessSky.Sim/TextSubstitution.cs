@@ -41,7 +41,9 @@ namespace EndlessSky.Sim
             // Where the player is standing when it is offered.
             subs["<origin>"] = player?.CurrentPlanet?.Name ?? player?.CurrentSystem?.Name ?? "";
 
-            string destination = mission.Destination ?? "";
+            // A mission that describes its destination rather than naming one has to
+            // have a real planet chosen before its text can be filled in.
+            string destination = mission.ResolveDestination(data, player?.CurrentSystem?.Name) ?? "";
             subs["<planet>"] = destination;
             subs["<system>"] = SystemOf(destination, data);
             subs["<destination>"] = destination.Length == 0
