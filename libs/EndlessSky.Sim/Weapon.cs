@@ -41,6 +41,16 @@ namespace EndlessSky.Sim
         /// </summary>
         public DeathType SpawnOn { get; internal set; } = DeathType.Natural;
 
+        /// <summary>
+        /// Heading offset applied to each spawned projectile, in degrees. This is what
+        /// makes a cluster FAN OUT: with every child inheriting the parent's heading
+        /// they all fly as one shot and the weapon behaves like a single round.
+        /// </summary>
+        public double Facing { get; internal set; }
+
+        /// <summary>Spawn position offset from the parent, in hull-local units.</summary>
+        public Point Offset { get; internal set; }
+
         /// <summary>Resolved by <see cref="Weapon.ResolveSubmunitions"/> once all outfits are loaded.</summary>
         public Weapon? Weapon { get; internal set; }
 
@@ -147,6 +157,18 @@ namespace EndlessSky.Sim
         {
             foreach (DataNode grand in node.Children)
             {
+                if (grand.Token(0) == "facing" && grand.Size >= 2)
+                {
+                    submunition.Facing = grand.Value(1);
+                    continue;
+                }
+
+                if (grand.Token(0) == "offset" && grand.Size >= 3)
+                {
+                    submunition.Offset = new Point(grand.Value(1), grand.Value(2));
+                    continue;
+                }
+
                 if (grand.Token(0) != "spawn on" || grand.Size < 2)
                     continue;
 

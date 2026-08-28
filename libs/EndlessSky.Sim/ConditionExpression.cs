@@ -39,12 +39,31 @@ namespace EndlessSky.Sim
 
             foreach (string token in tokens)
             {
-                if (Precedence.TryGetValue(token, out int precedence))
+                if (token == "(")
+                {
+                    // A marker, not an operator: nothing reduces past it until the
+                    // matching close. Without this, upstream's bracketed expressions
+                    // are read as CONDITION NAMES literally called "(" and ")", each
+                    // worth zero, which silently reshapes the expression.
+                    operators.Push(token);
+                }
+                else if (token == ")")
+                {
+                    while (operators.Count > 0 && operators.Peek() != "(")
+                        Reduce(values, operators);
+
+                    if (operators.Count > 0)
+                        operators.Pop();
+                }
+                else if (Precedence.TryGetValue(token, out int precedence))
                 {
                     // Left-associative: reduce anything of equal or higher precedence
-                    // before pushing.
-                    while (operators.Count > 0 && Precedence[operators.Peek()] >= precedence)
+                    // before pushing, but never past an open bracket.
+                    while (operators.Count > 0 && operators.Peek() != "("
+                           && Precedence[operators.Peek()] >= precedence)
+                    {
                         Reduce(values, operators);
+                    }
 
                     operators.Push(token);
                 }
@@ -55,7 +74,15 @@ namespace EndlessSky.Sim
             }
 
             while (operators.Count > 0)
+            {
+                if (operators.Peek() == "(")
+                {
+                    operators.Pop();
+                    continue;
+                }
+
                 Reduce(values, operators);
+            }
 
             return values.Count > 0 ? values.Peek() : 0L;
         }

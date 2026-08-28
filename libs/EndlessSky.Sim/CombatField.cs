@@ -168,11 +168,14 @@ namespace EndlessSky.Sim
 
                 for (int i = 0; i < submunition.Count; i++)
                 {
-                    // Upstream fans submunitions out with the child weapon's own
-                    // inaccuracy; without a random source here they inherit the
-                    // parent's heading and are spread by the caller if desired.
-                    into.Add(new Projectile(weapon, parent.Position, parent.Velocity,
-                                            parent.Angle, parent.Target, parent.Government));
+                    // The declared facing offset is what makes a cluster FAN OUT.
+                    // Without it every child inherits the parent's exact heading and
+                    // the whole cluster flies as a single shot.
+                    Angle heading = parent.Angle + new Angle(submunition.Facing);
+                    Point spawn = parent.Position + parent.Angle.Rotate(submunition.Offset);
+
+                    into.Add(new Projectile(weapon, spawn, parent.Velocity,
+                                            heading, parent.Target, parent.Government));
                 }
             }
         }

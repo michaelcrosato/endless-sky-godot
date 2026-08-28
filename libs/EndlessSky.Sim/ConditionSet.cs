@@ -36,10 +36,9 @@ namespace EndlessSky.Sim
         private readonly List<ConditionSet> _children = new List<ConditionSet>();
         private readonly List<string> _tokens = new List<string>();
         private Combine _combine = Combine.And;
-        private bool _isNever;
 
         /// <summary>An empty set passes: content with no conditions is always available.</summary>
-        public bool IsEmpty => _tokens.Count == 0 && _children.Count == 0 && !_isNever;
+        public bool IsEmpty => _tokens.Count == 0 && _children.Count == 0;
 
         /// <summary>Diagnostics from parsing, for surfacing bad content rather than failing silently.</summary>
         public List<string> Diagnostics { get; } = new List<string>();
@@ -68,7 +67,11 @@ namespace EndlessSky.Sim
 
                 if (key == "never")
                 {
-                    _isNever = true;
+                    // A literal-false CHILD, not a flag on the enclosing set. Upstream
+                    // turns it into a LIT-0 term, so under an "or" it is simply one
+                    // false alternative among others. Short-circuiting the whole set
+                    // would silently disable the live alternatives beside it.
+                    _children.Add(new ConditionSet { _tokens = { "0" } });
                     continue;
                 }
 
@@ -106,9 +109,6 @@ namespace EndlessSky.Sim
         public bool Test(Conditions conditions)
         {
             if (conditions is null) throw new ArgumentNullException(nameof(conditions));
-
-            if (_isNever)
-                return false;
 
             if (_tokens.Count > 0)
                 return ConditionExpression.Evaluate(_tokens, conditions) != 0L;

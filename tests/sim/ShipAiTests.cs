@@ -171,8 +171,12 @@ namespace EndlessSky.Tests
         }
 
         [Test]
-        public void ProvocationMakesAPreviouslyNeutralShipHostile()
+        public void ProvocationIsScopedToThePlayerAndDoesNotStartFactionWars()
         {
+            // Politics::IsEnemy consults the provoked set only inside its player
+            // branch; between two ordinary governments the question depends ONLY on
+            // the attitude matrix. Letting provocation leak makes NPC fleets that
+            // upstream keeps neutral open fire on each other after any incident.
             var navy = new Government("Republic");
             var trader = new Government("Merchant");
 
@@ -183,7 +187,35 @@ namespace EndlessSky.Tests
 
             navy.Provoke(trader);
 
-            Assert.AreSame(other, ShipAi.FindTarget(self, new[] { other }));
+            Assert.IsNull(ShipAi.FindTarget(self, new[] { other }),
+                "two NPC governments stay neutral however provoked");
+        }
+
+        [Test]
+        public void ProvokingThePlayerDoesMakeThemAnEnemy()
+        {
+            var player = new Government("Player") { IsPlayer = true };
+            var trader = new Government("Merchant");
+
+            Assert.IsFalse(player.IsEnemy(trader), "neutral at good standing");
+
+            player.Provoke(trader);
+
+            Assert.IsTrue(player.IsEnemy(trader), "but a provoked government turns on the player");
+        }
+
+        [Test]
+        public void AFactionWarStillNeedsAHostileAttitude()
+        {
+            var navy = new Government("Republic");
+            var pirate = new Government("Pirate");
+            pirate.Enemies.Add("Republic");
+
+            Ship self = MakeShip("Self", Point.Zero, navy);
+            Ship raider = MakeShip("Raider", new Point(100.0, 0.0), pirate);
+
+            Assert.AreSame(raider, ShipAi.FindTarget(self, new[] { raider }),
+                "declared hostility is what starts a fight, and it is mutual");
         }
 
         // --- Pursuit --------------------------------------------------------------

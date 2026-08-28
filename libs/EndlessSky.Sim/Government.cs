@@ -170,10 +170,10 @@ namespace EndlessSky.Sim
                 return second.Reputation < 0.0;
             }
 
-            // Between non-player governments, EITHER side's dislike suffices.
-            if (first._provoked.Contains(second.Name) || second._provoked.Contains(first.Name))
-                return true;
-
+            // Between non-player governments the question depends ONLY on the
+            // attitude matrix. Provocation is scoped to the player upstream; letting
+            // it leak here makes NPC fleets that should stay neutral open fire on each
+            // other after any unrelated incident.
             return first.AttitudeToward(second) < 0.0 || second.AttitudeToward(first) < 0.0;
         }
 

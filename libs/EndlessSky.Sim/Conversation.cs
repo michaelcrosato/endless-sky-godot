@@ -16,6 +16,13 @@ namespace EndlessSky.Sim
         Launch,
         Flee,
         Depart,
+
+        /// <summary>
+        /// The player dies AND the flagship is destroyed. A distinct endpoint upstream
+        /// (Endpoint::EXPLODE = -8); omitting it makes a death node fall through into
+        /// whatever text follows.
+        /// </summary>
+        Explode,
     }
 
     /// <summary>
@@ -153,6 +160,7 @@ namespace EndlessSky.Sim
                     case "launch": AddEnd(ConversationOutcome.Launch); break;
                     case "flee": AddEnd(ConversationOutcome.Flee); break;
                     case "depart": AddEnd(ConversationOutcome.Depart); break;
+                    case "explode": AddEnd(ConversationOutcome.Explode); break;
 
                     // "scene" and "apply" are recognised but not yet modelled.
                     case "scene":
@@ -203,6 +211,7 @@ namespace EndlessSky.Sim
             "launch" => ConversationOutcome.Launch,
             "flee" => ConversationOutcome.Flee,
             "depart" => ConversationOutcome.Depart,
+            "explode" => ConversationOutcome.Explode,
             _ => ConversationOutcome.None,
         };
 
@@ -220,6 +229,7 @@ namespace EndlessSky.Sim
                     case "launch": return ConversationOutcome.Launch;
                     case "flee": return ConversationOutcome.Flee;
                     case "depart": return ConversationOutcome.Depart;
+                    case "explode": return ConversationOutcome.Explode;
                 }
             }
 

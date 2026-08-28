@@ -24,6 +24,12 @@ namespace EndlessSky.Sim
         public const double DefaultEngagementRange = 4000.0;
 
         /// <summary>
+        /// Ceiling on the standoff distance, matching upstream's ShipAICache seed.
+        /// A missile boat still closes to 4000 rather than sniping from its full reach.
+        /// </summary>
+        public const double MaxEngagementStandoff = 4000.0;
+
+        /// <summary>
         /// Picks a target the way upstream does by default: the closest hostile ship
         /// within engagement range that is still worth attacking.
         /// </summary>
@@ -113,18 +119,24 @@ namespace EndlessSky.Sim
             if (ship is null)
                 return 0.0;
 
-            double shortest = double.PositiveInfinity;
+            // Upstream's ShipAICache seeds this at 4000 and only ever mins into it,
+            // so a long-range loadout still engages at 4000 rather than standing off
+            // at its full reach.
+            double shortest = MaxEngagementStandoff;
+
+            bool armed = false;
             foreach (WeaponMount mount in ship.Mounts)
             {
                 if (mount.IsEmpty)
                     continue;
 
+                armed = true;
                 double range = mount.Weapon!.Range;
                 if (range > 0.0 && range < shortest)
                     shortest = range;
             }
 
-            return double.IsPositiveInfinity(shortest) ? 0.0 : shortest;
+            return armed ? shortest : 0.0;
         }
 
         /// <summary>

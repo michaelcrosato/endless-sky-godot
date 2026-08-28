@@ -113,7 +113,23 @@ namespace EndlessSky.Data
                    && IsNumber(_tokens[index]);
         }
 
-        public bool BoolValue(int index) => Value(index) != 0.0;
+        /// <summary>
+        /// A boolean token. Upstream accepts exactly "true", "false", "1" and "0" -
+        /// it is a TEXTUAL check, not a numeric one, so "true" reads as true and "7"
+        /// is rejected rather than silently counting as true.
+        /// </summary>
+        public bool BoolValue(int index)
+        {
+            string token = Token(index);
+            return token == "true" || token == "1";
+        }
+
+        /// <summary>Whether a token is one of the four values upstream accepts.</summary>
+        public bool IsBool(int index)
+        {
+            string token = Token(index);
+            return token == "true" || token == "false" || token == "1" || token == "0";
+        }
 
         /// <summary>
         /// Parses the upstream-permitted format "[+-]?[0-9]*[.]?[0-9]*([eE][+-]?[0-9]*)?"
