@@ -65,6 +65,13 @@ namespace EndlessSky.Sim
         /// <summary>True once the projectile has expired and should be removed.</summary>
         public bool IsDead { get; private set; }
 
+        /// <summary>Ends this projectile, as a hit does. Idempotent.</summary>
+        public void Kill()
+        {
+            IsDead = true;
+            Lifetime = 0;
+        }
+
         /// <summary>
         /// Advances one frame. Returns the submunitions to spawn when the shot expires,
         /// or an empty list otherwise.

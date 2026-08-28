@@ -59,6 +59,36 @@ namespace EndlessSky.Sim
         /// <summary>Heat starts at zero and rises; it is the one level that is not a reserve.</summary>
         public double Heat { get; private set; }
 
+        /// <summary>The faction this ship belongs to. Shots pass through their own side.</summary>
+        public Government Government { get; set; }
+
+        private double? _collisionRadius;
+
+        /// <summary>
+        /// Radius used for projectile impacts, in simulation units.
+        /// </summary>
+        /// <remarks>
+        /// INCOMPLETE: upstream collides against the ship's sprite mask, which we do
+        /// not have in an engine-free layer. Until sprite dimensions are plumbed
+        /// through, this falls back to a mass-derived estimate so that bigger ships
+        /// are meaningfully easier to hit. Set it explicitly to override.
+        /// </remarks>
+        public double CollisionRadius
+        {
+            get => _collisionRadius ??= EstimateCollisionRadius();
+            set => _collisionRadius = value;
+        }
+
+        /// <summary>
+        /// Rough stand-in for a sprite mask: hull mass scales roughly with area, so
+        /// radius scales with its square root.
+        /// </summary>
+        private double EstimateCollisionRadius()
+        {
+            double mass = Math.Max(1.0, Attributes.Get("mass"));
+            return Math.Max(6.0, 2.2 * Math.Sqrt(mass));
+        }
+
         public double MaxShields => Attributes.Get("shields");
         public double MaxHull => Attributes.Get("hull");
         public double MaxEnergy => Attributes.Get("energy capacity");

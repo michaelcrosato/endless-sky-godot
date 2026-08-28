@@ -64,6 +64,11 @@ namespace EndlessSky.Sim
                 {
                     Attributes.Add(key, child.Value(1));
                 }
+                else if (key == "ammo" && child.Size >= 2)
+                {
+                    // "ammo <outfit name>": the weapon consumes that outfit per shot.
+                    AmmoName = child.Token(1);
+                }
                 else if (key == "submunition" && child.Size >= 2)
                 {
                     // "submunition" <weapon name> [count]; count defaults to 1.
@@ -131,7 +136,13 @@ namespace EndlessSky.Sim
 
         public double FiringHeat => Attributes.Get("firing heat");
 
-        /// <summary>Ammunition consumed per shot; 0 for weapons that need none.</summary>
+        /// <summary>
+        /// Outfit consumed per shot, or null for weapons that need no ammunition.
+        /// Upstream names it as a string: <c>ammo "Sidewinder Missile"</c>.
+        /// </summary>
+        public string AmmoName { get; private set; }
+
+        /// <summary>Rounds consumed per shot. Only meaningful when <see cref="AmmoName"/> is set.</summary>
         public double AmmoUsage => Attributes.Has("ammo usage") ? Attributes.Get("ammo usage") : 1.0;
 
         // --- Projectile behaviour -------------------------------------------------
