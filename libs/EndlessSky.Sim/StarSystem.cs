@@ -14,6 +14,13 @@ namespace EndlessSky.Sim
 
         public string? PlanetName { get; internal set; }
 
+        /// <summary>
+        /// The planet this object is, once <c>GameData.FinishLoading</c> has linked it.
+        /// Upstream's StellarObject holds a Planet pointer for the same reason: a name
+        /// alone cannot answer whether somewhere has a spaceport.
+        /// </summary>
+        public Planet? Planet { get; internal set; }
+
         public string Sprite { get; internal set; } = string.Empty;
 
         public double Distance { get; internal set; }
@@ -92,6 +99,32 @@ namespace EndlessSky.Sim
 
         public double Habitable { get; private set; }
 
+        /// <summary>
+        /// Extra distance from the arrival target for ships entering by hyperdrive,
+        /// from the system's <c>arrival</c> node. Zero when unset.
+        /// </summary>
+        /// <remarks>
+        /// This is not just a distance: upstream switches the arrival TARGET on it.
+        /// A system with any extra arrival distance is entered aimed at the system
+        /// centre, and only a system without one is entered aimed at a planet. Systems
+        /// set it precisely so that arrivals cannot drop straight onto the inhabited
+        /// worlds, so treating it as zero puts ships on top of what it exists to keep
+        /// them away from.
+        ///
+        /// INCOMPLETE, tracked rather than dropped: upstream can also derive this from
+        /// the habitable zone under the <c>habitable based arrival distance</c>
+        /// gamerule, and clamp it to gamerule minima. We have no Gamerules type, so
+        /// only the per-system value is honoured - which matches default gamerules.
+        /// </remarks>
+        public double ExtraHyperArrivalDistance { get; private set; }
+
+        /// <summary>
+        /// Extra arrival distance for jump drives. Always non-negative: upstream takes
+        /// the absolute value, since a negative hyper arrival distance is meaningful
+        /// (it arrives past the target) but a negative jump radius is not.
+        /// </summary>
+        public double ExtraJumpArrivalDistance { get; private set; }
+
         /// <summary>Every object in the system, parents before children.</summary>
         public IEnumerable<StellarObject> AllObjects()
         {
@@ -133,6 +166,25 @@ namespace EndlessSky.Sim
 
                     case "habitable" when child.Size >= 2:
                         Habitable = child.Value(1);
+                        break;
+
+                    case "arrival":
+                        if (child.Size >= 2)
+                        {
+                            ExtraHyperArrivalDistance = child.Value(1);
+                            ExtraJumpArrivalDistance = Math.Abs(child.Value(1));
+                        }
+
+                        // The children override the bare value per drive type.
+                        foreach (DataNode grand in child.Children)
+                        {
+                            if (grand.Size < 2)
+                                continue;
+                            if (grand.Token(0) == "link")
+                                ExtraHyperArrivalDistance = grand.Value(1);
+                            else if (grand.Token(0) == "jump")
+                                ExtraJumpArrivalDistance = Math.Abs(grand.Value(1));
+                        }
                         break;
 
                     case "link" when child.Size >= 2:

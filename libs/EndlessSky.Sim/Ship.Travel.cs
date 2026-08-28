@@ -167,26 +167,39 @@ namespace EndlessSky.Sim
 
             if (HyperspaceCount == HyperspaceFrames)
             {
-                // Arrival: switch system, teleport 11,000 px short of the
-                // target along the preserved facing, snap velocity onto it.
-                // Classic arrival (extraArrivalDistance == 0): aim at the
-                // first named planet, else the system center.
+                // Arrival: switch system, teleport short of the target along the
+                // preserved facing, snap velocity onto it.
                 CurrentSystem = HyperspaceSystem;
                 HyperspaceSystem = null;
                 TargetSystem = null;
 
+                // The arrival target is the system centre by DEFAULT. Upstream aims at
+                // a planet only when the system sets no extra arrival distance - a
+                // system that sets one does so precisely to keep arrivals away from its
+                // inhabited worlds, and aiming at a planet anyway drops ships on top of
+                // what the setting exists to prevent.
+                double extraArrivalDistance = CurrentSystem!.ExtraHyperArrivalDistance;
+
                 Point target = Point.Zero;
-                foreach (StellarObject obj in CurrentSystem!.AllObjects())
+                if (extraArrivalDistance == 0.0)
                 {
-                    if (obj.PlanetName != null)
+                    foreach (StellarObject obj in CurrentSystem.AllObjects())
                     {
-                        target = obj.Position;
-                        break;
+                        // Upstream requires a planet with SERVICES, not merely a named
+                        // one. Uninhabited rocks and moons carry names too, and aiming
+                        // at the first of those drops arrivals nowhere near the port
+                        // the player is heading for.
+                        if (obj.Planet is { HasServices: true })
+                        {
+                            target = obj.Position;
+                            break;
+                        }
                     }
                 }
 
                 double distance = HyperspaceFrames * HyperspaceFrames * 0.5 * HyperspaceAcceleration
-                                  + HyperspaceExitDistance;
+                                  + HyperspaceExitDistance
+                                  + extraArrivalDistance;
                 Position = target - Facing.Unit() * distance;
                 Velocity = Facing.Unit() * Velocity.Length;
                 direction = -1;

@@ -105,7 +105,21 @@ namespace EndlessSky.Sim
             }
 
             ResolveOrbits();
+            ResolvePlanets();
             ResolveWeapons();
+        }
+
+        /// <summary>
+        /// Attaches each stellar object to the planet it names. Systems and planets
+        /// live in separate files and load in whatever order the directory yields, so
+        /// the link can only be made once both are in.
+        /// </summary>
+        private void ResolvePlanets()
+        {
+            foreach (StarSystem system in _systems.Values)
+                foreach (StellarObject obj in system.AllObjects())
+                    if (obj.PlanetName != null && _planets.TryGetValue(obj.PlanetName, out Planet? planet))
+                        obj.Planet = planet;
         }
 
         /// <summary>

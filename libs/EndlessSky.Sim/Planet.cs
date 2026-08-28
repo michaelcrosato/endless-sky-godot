@@ -74,6 +74,14 @@ namespace EndlessSky.Sim
         public bool IsInhabited =>
             (HasSpaceport || HasShipyard || HasOutfitter) && !_attributes.Contains("uninhabited");
 
+        /// <summary>
+        /// Whether this world offers any port services, upstream's
+        /// <c>Port::HasServices</c>. Used to pick a hyperspace arrival target: ships
+        /// arrive aimed at somewhere they could actually dock, not at the first named
+        /// rock in the system.
+        /// </summary>
+        public bool HasServices => HasSpaceport || HasShipyard || HasOutfitter;
+
         public void Load(DataNode node)
         {
             foreach (DataNode child in node.Children)
