@@ -76,9 +76,20 @@ namespace EndlessSky.Sim
             OriginMaxJumps.HasValue || CenterMaxJumps.HasValue || CenterSystem != null;
 
         /// <summary>An empty filter matches everything, as upstream's does.</summary>
+        /// <summary>
+        /// Whether this filter says nothing at all, and so restricts nothing.
+        /// </summary>
+        /// <remarks>
+        /// Distance counts. A filter reading only "within three jumps" is a real
+        /// restriction, and reporting it empty made every distance-only destination
+        /// resolve to nothing — which is most of them, in both the generated universe
+        /// and upstream content. The symptom is a job board reading "Deliver grain to"
+        /// with the destination simply missing.
+        /// </remarks>
         public bool IsEmpty =>
             _planets.Count == 0 && _systems.Count == 0 && _governments.Count == 0 &&
-            _attributeSets.Count == 0 && _notFilters.Count == 0 && _unmodelled.Count == 0;
+            _attributeSets.Count == 0 && _notFilters.Count == 0 && _unmodelled.Count == 0 &&
+            !HasDistanceTerms;
 
         public static LocationFilter Load(DataNode node)
         {

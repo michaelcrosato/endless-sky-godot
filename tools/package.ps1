@@ -57,15 +57,23 @@ if (-not $match.Success) {
 $exePath = Join-Path $script:ProjectRoot $match.Groups[1].Value
 $outDir = Split-Path -Parent $exePath
 
-# The dataset, beside the exe. EsData resolves external/endless-sky/data relative
-# to res://, which in an exported build globalizes to the executable's directory.
-$source = Join-Path $script:ProjectRoot 'external/endless-sky/data'
+# The dataset, beside the exe. EsData resolves its data directories relative to
+# res://, which in an exported build globalizes to the executable's directory, so
+# the game's own universe has to be laid down there under the same name.
+$source = Join-Path $script:ProjectRoot 'universe'
+$relative = 'universe'
+if (-not (Test-Path (Join-Path $source 'systems.txt'))) {
+    # Fall back to the upstream reference clone, for a build of the parity content.
+    $source = Join-Path $script:ProjectRoot 'external/endless-sky/data'
+    $relative = 'external/endless-sky/data'
+}
+
 if (-not (Test-Path $source)) {
-    Write-Error "[package] no dataset at $source — run tools/get-data.ps1 first"
+    Write-Error "[package] no dataset — run python tools/worldgen/worldgen.py"
     exit 1
 }
 
-$dest = Join-Path $outDir 'external/endless-sky/data'
+$dest = Join-Path $outDir $relative
 New-Item -ItemType Directory -Force -Path $dest | Out-Null
 Copy-Item -Recurse -Force -Path (Join-Path $source '*') -Destination $dest
 

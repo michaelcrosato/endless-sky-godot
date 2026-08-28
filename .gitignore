@@ -43,3 +43,7 @@ obj/
 Thumbs.db
 desktop.ini
 .DS_Store
+
+# Python bytecode from the world generator.
+__pycache__/
+*.pyc

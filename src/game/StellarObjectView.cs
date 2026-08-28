@@ -146,17 +146,53 @@ namespace EndlessSky.Game
                 return 2.4f;
             }
 
-            if (sprite.Contains("cloud", StringComparison.Ordinal))
+            if (sprite.Contains("cloud", StringComparison.Ordinal) ||
+                sprite.Contains("storm", StringComparison.Ordinal))
             {
                 return 6.5f;
+            }
+
+            // Small, dense or broken bodies read smaller; settled worlds read larger.
+            if (sprite.Contains("shard", StringComparison.Ordinal) ||
+                sprite.Contains("derelict", StringComparison.Ordinal) ||
+                sprite.Contains("void", StringComparison.Ordinal))
+            {
+                return 3.1f;
+            }
+
+            if (sprite.Contains("dense", StringComparison.Ordinal))
+            {
+                return 3.6f;
+            }
+
+            if (sprite.Contains("earthlike", StringComparison.Ordinal) ||
+                sprite.Contains("ocean", StringComparison.Ordinal) ||
+                sprite.Contains("industrial", StringComparison.Ordinal))
+            {
+                return 4.8f;
             }
 
             return 4.2f;
         }
 
+        /// <summary>
+        /// Spectral tinting by sprite name (star/g5, star/k0, star/b2, …).
+        /// </summary>
+        /// <remarks>
+        /// The two exotic classes are checked FIRST. "star/neutron" and "star/brown"
+        /// both contain a letter that the spectral tests match — the "n" of neutron is
+        /// harmless, but "brown" contains no class letter while "neutron" contains
+        /// none either; the real trap is that a substring test on a single letter will
+        /// happily match anywhere in the path. Ordering the specific names ahead of
+        /// the one-letter tests is what keeps a neutron star from coming out yellow.
+        /// </remarks>
         private static Color StarColor(string sprite)
         {
-            // Rough spectral tinting by sprite name (star/g5, star/k0, star/b…).
+            if (sprite.Contains("neutron", StringComparison.Ordinal))
+                return new Color(0.86f, 0.90f, 1.0f);
+            if (sprite.Contains("brown", StringComparison.Ordinal))
+                return new Color(0.62f, 0.36f, 0.30f);
+
             if (sprite.Contains("/b", StringComparison.Ordinal)) return new Color(0.72f, 0.82f, 1.0f);
             if (sprite.Contains("/a", StringComparison.Ordinal)) return new Color(0.88f, 0.92f, 1.0f);
             if (sprite.Contains("/f", StringComparison.Ordinal)) return new Color(1.0f, 0.98f, 0.92f);
@@ -166,19 +202,57 @@ namespace EndlessSky.Game
             return new Color(1.0f, 0.95f, 0.85f);
         }
 
+        /// <summary>
+        /// A world's colour, from its type.
+        /// </summary>
+        /// <remarks>
+        /// A thousand systems only feel like a thousand places if their worlds do not
+        /// all look the same, so the palette covers every type the generator emits
+        /// rather than the handful upstream's sprites happened to need. Longer names
+        /// are matched before shorter ones they contain — "shard" before "ash",
+        /// "cathedral" before "dral" — because a substring test does not care where in
+        /// the word it matched.
+        /// </remarks>
+        private static readonly (string Key, Color Colour)[] WorldPalette =
+        {
+            ("earthlike", new Color(0.34f, 0.56f, 0.38f)),
+            ("industrial", new Color(0.46f, 0.42f, 0.38f)),
+            ("cathedral", new Color(0.80f, 0.74f, 0.56f)),
+            ("derelict", new Color(0.34f, 0.33f, 0.36f)),
+            ("fortress", new Color(0.40f, 0.42f, 0.46f)),
+            ("crystal", new Color(0.62f, 0.78f, 0.86f)),
+            ("machine", new Color(0.44f, 0.48f, 0.54f)),
+            ("fungal", new Color(0.56f, 0.50f, 0.28f)),
+            ("forest", new Color(0.28f, 0.50f, 0.32f)),
+            ("desert", new Color(0.78f, 0.64f, 0.42f)),
+            ("shard", new Color(0.70f, 0.72f, 0.80f)),
+            ("relic", new Color(0.66f, 0.58f, 0.44f)),
+            ("storm", new Color(0.58f, 0.52f, 0.66f)),
+            ("swamp", new Color(0.36f, 0.42f, 0.28f)),
+            ("dense", new Color(0.38f, 0.34f, 0.34f)),
+            ("cloud", new Color(0.56f, 0.66f, 0.78f)),
+            ("ocean", new Color(0.24f, 0.46f, 0.70f)),
+            ("hive", new Color(0.60f, 0.46f, 0.26f)),
+            ("void", new Color(0.16f, 0.16f, 0.22f)),
+            ("lava", new Color(0.60f, 0.28f, 0.20f)),
+            ("rock", new Color(0.50f, 0.45f, 0.42f)),
+            ("gas", new Color(0.82f, 0.62f, 0.42f)),
+            ("ice", new Color(0.74f, 0.84f, 0.90f)),
+            ("ash", new Color(0.32f, 0.30f, 0.30f)),
+        };
+
         private static Color PlanetColor(string sprite)
         {
-            if (sprite.Contains("cloud", StringComparison.Ordinal)) return new Color(0.55f, 0.66f, 0.78f);
-            if (sprite.Contains("ice", StringComparison.Ordinal)) return new Color(0.72f, 0.82f, 0.88f);
-            if (sprite.Contains("gas", StringComparison.Ordinal)) return new Color(0.82f, 0.62f, 0.42f);
-            if (sprite.Contains("ganymede", StringComparison.Ordinal)) return new Color(0.62f, 0.55f, 0.46f);
-            if (sprite.Contains("rock", StringComparison.Ordinal)) return new Color(0.52f, 0.46f, 0.42f);
-            if (sprite.Contains("ocean", StringComparison.Ordinal)) return new Color(0.30f, 0.48f, 0.68f);
-            if (sprite.Contains("desert", StringComparison.Ordinal)) return new Color(0.76f, 0.62f, 0.40f);
-            if (sprite.Contains("forest", StringComparison.Ordinal) ||
-                sprite.Contains("earth", StringComparison.Ordinal)) return new Color(0.36f, 0.55f, 0.40f);
-            if (sprite.Contains("lava", StringComparison.Ordinal)) return new Color(0.58f, 0.30f, 0.22f);
+            foreach ((string key, Color colour) in WorldPalette)
+            {
+                if (sprite.Contains(key, StringComparison.Ordinal))
+                {
+                    return colour;
+                }
+            }
+
             return new Color(0.55f, 0.52f, 0.50f);
         }
+
     }
 }

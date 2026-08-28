@@ -26,8 +26,10 @@ namespace EndlessSky.Game
 
         // A start does not name a ship: upstream's opening conversation sells the
         // player their first hull on credit, which is why the classic start begins in
-        // debt. Until conversations can grant ships, this is still chosen here.
-        private const string StartShip = "Shuttle";
+        // debt. Until conversations can grant ships, the flight scene picks one — but
+        // from the DATA rather than by name, because a hardcoded hull is a hull that
+        // does not exist in somebody else's universe.
+        private string _startShip = "Shuttle";
 
         private string _startSystem = FallbackSystem;
         private string _startPlanet = FallbackPlanet;
@@ -126,10 +128,11 @@ namespace EndlessSky.Game
             _asteroidField = AsteroidFieldView.Create(system);
             AddChild(_asteroidField);
 
-            _ship = universe.BuildShip(StartShip, out List<string> missingOutfits);
+            _startShip = ChooseStartingShip(universe, _startPlanet);
+            _ship = universe.BuildShip(_startShip, out List<string> missingOutfits);
             if (missingOutfits.Count > 0)
             {
-                GD.Print($"[flight] warning: missing outfits on {StartShip}: {string.Join(", ", missingOutfits)}");
+                GD.Print($"[flight] warning: missing outfits on {_startShip}: {string.Join(", ", missingOutfits)}");
             }
 
             // Depart from just off New Boston, facing system north.
@@ -197,7 +200,7 @@ namespace EndlessSky.Game
 
             BuildHud(null);
             GD.Print($"[flight] data={EsData.DataPath} system={system.Name} " +
-                     $"objects={_stellarViews.Count} ship={StartShip} " +
+                     $"objects={_stellarViews.Count} ship={_startShip} " +
                      $"mass={_ship.Mass:0.#} vmax={_ship.MaxVelocity:0.###}px/f " +
                      $"turn={_ship.TurnRate:0.###}deg/f accel={_ship.Acceleration:0.####}px/f2");
         }
@@ -530,6 +533,47 @@ namespace EndlessSky.Game
         }
 
         /// <summary>
+        /// The hull a new pilot starts in: the cheapest thing the starting world's
+        /// shipyard will sell them.
+        /// </summary>
+        /// <remarks>
+        /// Chosen from the data rather than named, so the scene works in any universe.
+        /// "The cheapest hull on the board where you are standing" is also the right
+        /// answer in fiction — it is what someone taking out their first loan could
+        /// actually afford — and it degrades sensibly: if that world sells nothing, the
+        /// cheapest hull anywhere will do.
+        /// </remarks>
+        private static string ChooseStartingShip(GameData universe, string startPlanet)
+        {
+            IEnumerable<string> candidates = Array.Empty<string>();
+
+            if (universe.Planets.TryGetValue(startPlanet, out Planet? home))
+            {
+                candidates = Trading.ShipsFor(universe, home)
+                    .Where(universe.Ships.ContainsKey);
+            }
+
+            var stocked = candidates.ToList();
+            if (stocked.Count == 0)
+            {
+                stocked = universe.Ships.Values
+                    .Where(d => d.Attributes.Get("cost") > 0)
+                    .Select(d => d.DisplayName)
+                    .ToList();
+            }
+
+            if (stocked.Count == 0)
+            {
+                return universe.Ships.Keys.FirstOrDefault() ?? "Shuttle";
+            }
+
+            return stocked
+                .OrderBy(name => universe.Ships[name].Attributes.Get("cost"))
+                .ThenBy(name => name, StringComparer.Ordinal)
+                .First();
+        }
+
+        /// <summary>
         /// Course set from the galaxy map. The J key still performs the jump, so the
         /// map decides WHERE and the player decides WHEN.
         /// </summary>
@@ -696,7 +740,7 @@ namespace EndlessSky.Game
 
             if (_titleLabel != null)
             {
-                _titleLabel.Text = $"{system.Name.ToUpperInvariant()}  ·  {StartShip.ToUpperInvariant()}";
+                _titleLabel.Text = $"{system.Name.ToUpperInvariant()}  ·  {_startShip.ToUpperInvariant()}";
             }
 
             GD.Print($"[flight] entered {system.Name} on day {_currentDay:0} " +
@@ -726,7 +770,7 @@ namespace EndlessSky.Game
             raider.Enemies.Add("Merchant");
             _ship!.Government = merchant;
 
-            string droneType = universe.Ships.ContainsKey("Sparrow") ? "Sparrow" : StartShip;
+            string droneType = universe.Ships.ContainsKey("Sparrow") ? "Sparrow" : _startShip;
             _drone = universe.BuildShip(droneType);
             _drone.Government = raider;
             _drone.BuildMounts();
@@ -823,7 +867,7 @@ namespace EndlessSky.Game
             column.AddThemeConstantOverride("separation", 2);
             panel.AddChild(column);
 
-            _titleLabel = new Label { Text = errorMessage ?? $"{_startSystem.ToUpperInvariant()}  ·  {StartShip.ToUpperInvariant()}" };
+            _titleLabel = new Label { Text = errorMessage ?? $"{_startSystem.ToUpperInvariant()}  ·  {_startShip.ToUpperInvariant()}" };
             _titleLabel.AddThemeFontSizeOverride("font_size", 20);
             _titleLabel.AddThemeColorOverride("font_color", new Color(0.88f, 0.93f, 1.0f));
             column.AddChild(_titleLabel);
