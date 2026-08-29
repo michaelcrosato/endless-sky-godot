@@ -150,16 +150,19 @@ namespace EndlessSky.Sim
             if (mission is null || _active.Any(a => ReferenceEquals(a.Mission, mission)))
                 return null;
 
-            DateTime? deadline = mission.DeadlineDays > 0
-                ? _player.Date.AddDays(mission.DeadlineDays)
-                : null;
+            // Fix the destination first: a mission's deadline is base plus a
+            // per-jump multiplier over the distance it is actually going
+            // (Mission.cpp:165-172), so there is no deadline to compute until the
+            // "there" is known.
+            string? destination = mission.ResolveDestination(_player.Data, _player.CurrentSystem?.Name);
+            DateTime? deadline = mission.DeadlineAfter(_player.Date, JumpsTo(destination));
 
             var taken = new ActiveMission(mission, _player.Date, deadline)
             {
                 // Fixed now, not looked up later: a job that names its destination in
                 // prose has to be going to ONE place, and that place has to be the same
                 // one the text quoted, the NPCs are placed at, and the hand-in checks.
-                Destination = mission.ResolveDestination(_player.Data, _player.CurrentSystem?.Name),
+                Destination = destination,
             };
 
             if (mission.CargoTons > 0 && mission.CargoType != null)
@@ -171,11 +174,11 @@ namespace EndlessSky.Sim
             // same, and it is why a bounty left half-finished stays half-finished.
             if (_npcs != null && mission.Npcs.Count > 0)
             {
-                StarSystem? destination = taken.Destination is null
+                StarSystem? goingTo = taken.Destination is null
                     ? null
                     : FindSystemOf(taken.Destination);
 
-                taken.Npcs.AddRange(_npcs.Place(mission, _player.CurrentSystem, destination));
+                taken.Npcs.AddRange(_npcs.Place(mission, _player.CurrentSystem, goingTo));
             }
 
             _player.AddCredits(mission.Fire(MissionTrigger.Accept, _player.Conditions));
@@ -195,6 +198,22 @@ namespace EndlessSky.Sim
             _player.AddCredits(mission.Fire(MissionTrigger.Decline, _player.Conditions));
             RecordProgress(mission, "offered", 1);
             RecordProgress(mission, "declined", 1);
+        }
+
+        /// <summary>How many jumps from where the player is to a named world.</summary>
+        private int JumpsTo(string? planet)
+        {
+            if (planet is null || _player.Data is null || _player.CurrentSystem is null)
+                return 0;
+
+            StarSystem? there = FindSystemOf(planet);
+            if (there is null)
+                return 0;
+
+            int jumps = LocationFilter.JumpDistance(
+                _player.Data, _player.CurrentSystem.Name, there.Name);
+
+            return jumps < 0 ? 0 : jumps;
         }
 
         /// <summary>

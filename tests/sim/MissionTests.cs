@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using EndlessSky.Data;
 using EndlessSky.Sim;
@@ -230,6 +231,57 @@ namespace EndlessSky.Tests
 
             TestContext.WriteLine(
                 $"parsed {missions.Count} human missions, {gated} gated, {withCompletion} with completion actions");
+        }
+
+        // --- Deadlines have four shapes -------------------------------------------
+
+        private static Mission Parse(params string[] lines)
+        {
+            var data = new GameData();
+            data.LoadText(string.Join("\n", lines) + "\n");
+            return data.Missions.Values.First();
+        }
+
+        [Test]
+        public void ABareDeadlineIsPerJumpNotNoDeadlineAtAll()
+        {
+            // Mission.cpp:165-172 splits deadline into a base and a per-jump
+            // multiplier: bare `deadline` adds 2 to the multiplier. Reading only a
+            // numeric token 1 meant 162 upstream missions parsed to no deadline
+            // whatever, so the clock the content is built around never ran.
+            Mission job = Parse("mission \"Bare\"", "\tdeadline");
+
+            Assert.AreEqual(0, job.DeadlineBase);
+            Assert.AreEqual(2, job.DeadlineMultiplier, "two days per jump");
+        }
+
+        [Test]
+        public void ANumericDeadlineIsABase()
+        {
+            Mission job = Parse("mission \"Fixed\"", "\tdeadline 30");
+
+            Assert.AreEqual(30, job.DeadlineBase);
+            Assert.AreEqual(0, job.DeadlineMultiplier);
+        }
+
+        [Test]
+        public void ATwoNumberDeadlineSetsBothHalves()
+        {
+            Mission job = Parse("mission \"Both\"", "\tdeadline 10 3");
+
+            Assert.AreEqual(10, job.DeadlineBase);
+            Assert.AreEqual(3, job.DeadlineMultiplier);
+        }
+
+        [Test]
+        public void AThreeNumberDeadlineIsAnAbsoluteDate()
+        {
+            // `deadline 16 11 3013` is a DATE, not "sixteen days". Reading token 1 as
+            // a day count turned every dated deadline into a sixteen-day one.
+            Mission job = Parse("mission \"Dated\"", "\tdeadline 16 11 3013");
+
+            Assert.AreEqual(new DateTime(3013, 11, 16), job.AbsoluteDeadline);
+            Assert.AreEqual(0, job.DeadlineBase);
         }
     }
 }

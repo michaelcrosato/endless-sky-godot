@@ -281,7 +281,41 @@ namespace EndlessSky.Sim
         public int Passengers { get; private set; }
 
         /// <summary>Days allowed, or 0 for no deadline.</summary>
-        public int DeadlineDays { get; private set; }
+        /// <remarks>
+        /// Kept as the flat "days from acceptance" view of
+        /// <see cref="DeadlineBase"/>; callers that know how far the job is going
+        /// should use <see cref="DeadlineAfter"/> instead.
+        /// </remarks>
+        public int DeadlineDays => DeadlineBase;
+
+        /// <summary>Days allowed regardless of distance.</summary>
+        public int DeadlineBase { get; private set; }
+
+        /// <summary>
+        /// Extra days allowed per jump between where the job is taken and where it is
+        /// going. Upstream computes the real deadline as
+        /// <c>base + multiplier * jumps</c> (<c>Mission.cpp:165-172</c>), and a bare
+        /// <c>deadline</c> means two days a jump and nothing else — so reading only a
+        /// numeric token left 162 upstream missions with no deadline whatever, and the
+        /// clock their content is built around never ran.
+        /// </summary>
+        public int DeadlineMultiplier { get; private set; }
+
+        /// <summary>A fixed calendar deadline, where the mission names one outright.</summary>
+        public DateTime? AbsoluteDeadline { get; private set; }
+
+        /// <summary>
+        /// When this mission is due, given where it was taken and how far it is going.
+        /// Null when it has no deadline at all.
+        /// </summary>
+        public DateTime? DeadlineAfter(DateTime accepted, int jumps)
+        {
+            if (AbsoluteDeadline.HasValue)
+                return AbsoluteDeadline;
+
+            int days = DeadlineBase + DeadlineMultiplier * Math.Max(0, jumps);
+            return days > 0 ? accepted.AddDays(days) : null;
+        }
 
         // --- Gates ----------------------------------------------------------------
 
@@ -372,8 +406,23 @@ namespace EndlessSky.Sim
                         Passengers = (int)child.Value(1);
                         break;
 
+                    // Four shapes, all of them in use (Mission.cpp:163-173):
+                    //   deadline                -> two days per jump
+                    //   deadline <n>            -> n days flat
+                    //   deadline <base> <mult>  -> both
+                    //   deadline <d> <m> <y>    -> a fixed date
+                    case "deadline" when child.Size >= 4 && child.IsNumber(1)
+                                         && child.IsNumber(2) && child.IsNumber(3):
+                        AbsoluteDeadline = SafeDate(child);
+                        break;
+
                     case "deadline":
-                        DeadlineDays = child.Size >= 2 && child.IsNumber(1) ? (int)child.Value(1) : 0;
+                        if (child.Size == 1)
+                            DeadlineMultiplier += 2;
+                        if (child.Size >= 2 && child.IsNumber(1))
+                            DeadlineBase += (int)child.Value(1);
+                        if (child.Size >= 3 && child.IsNumber(2))
+                            DeadlineMultiplier += (int)child.Value(2);
                         break;
 
                     case "to" when child.Size >= 2:
@@ -440,6 +489,21 @@ namespace EndlessSky.Sim
 
             action.Apply(conditions);
             return action.Payment;
+        }
+
+        /// <summary>
+        /// A date from three tokens, or null when the content names an impossible one.
+        /// </summary>
+        private static DateTime? SafeDate(DataNode node)
+        {
+            try
+            {
+                return new DateTime((int)node.Value(3), (int)node.Value(2), (int)node.Value(1));
+            }
+            catch (ArgumentOutOfRangeException)
+            {
+                return null;
+            }
         }
 
         public override string ToString() => Name;

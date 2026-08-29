@@ -289,7 +289,12 @@ namespace EndlessSky.Sim
         private static readonly Dictionary<(GameData, string), Dictionary<string, int>> DistanceCache =
             new Dictionary<(GameData, string), Dictionary<string, int>>();
 
-        private static int JumpDistance(GameData data, string from, string to)
+        /// <summary>
+        /// Jumps over the hyperspace link graph between two systems, or -1 when there
+        /// is no route. Shared because a mission's per-jump deadline needs the same
+        /// number a distance filter does.
+        /// </summary>
+        public static int JumpDistance(GameData data, string from, string to)
         {
             if (from == to)
                 return 0;
