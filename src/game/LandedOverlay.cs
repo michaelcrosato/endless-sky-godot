@@ -177,7 +177,11 @@ namespace EndlessSky.Game
                 .OrderBy(o => o, StringComparer.Ordinal)
                 .ToList();
 
-            _jobs = _missions.Available(_universe).OrderBy(m => m.DisplayName, StringComparer.Ordinal)
+            // The JOB board shows jobs. Missions declare which counter offers them, and
+            // asking for everything put boarding missions, shipyard missions and the
+            // ones that fire on entering a system on the same list as the work.
+            _jobs = _missions.Available(_universe, MissionLocation.Job)
+                .OrderBy(m => m.DisplayName, StringComparer.Ordinal)
                 .ToList();
         }
 

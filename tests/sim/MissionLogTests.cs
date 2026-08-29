@@ -51,6 +51,71 @@ namespace EndlessSky.Tests
             return new MissionLog(player);
         }
 
+        // --- The `fail` action ----------------------------------------------------
+
+        [Test]
+        public void ABareFailActionFailsTheMissionItBelongsTo()
+        {
+            // GameAction.cpp:239-242 gives `fail` two meanings, and a bare one fails the
+            // mission the action is part of. Parsed as nothing, a mission that says
+            // "if this happens, you have blown it" quietly kept running. The dataset
+            // uses the bare form 197 times.
+            var data = new GameData();
+            data.LoadText(Universe + string.Join("\n",
+                "mission \"Fragile\"",
+                "\tname `Fragile`",
+                "\tdestination \"Away\"",
+                "\tto offer",
+                "\t\thas \"flagship landed\"",
+                "\ton accept",
+                "\t\tfail") + "\n");
+
+            var player = new PlayerState(data);
+            Ship hauler = data.BuildShip("Hauler");
+            player.Fleet.Add(hauler);
+            player.Fleet.SetFlagship(hauler);
+            player.EnterSystem(data.Systems["Sol"]);
+            player.Land(data.Planets["Home"]);
+
+            var log = new MissionLog(player);
+            ActiveMission taken = log.Accept(data.Missions["Fragile"])!;
+
+            Assert.AreEqual(MissionOutcome.Failed, taken.Outcome,
+                "a bare `fail` fails the mission it belongs to");
+            Assert.IsEmpty(log.Active);
+        }
+
+        [Test]
+        public void ANamedFailActionFailsThatOtherMission()
+        {
+            // `fail "<name>"` fails a DIFFERENT mission, which is how content ends a
+            // storyline when the player takes an incompatible job. 63 uses upstream.
+            var data = new GameData();
+            data.LoadText(Universe + string.Join("\n",
+                "mission \"Rival\"",
+                "\tname `Rival`",
+                "\tdestination \"Away\"",
+                "\tto offer",
+                "\t\thas \"flagship landed\"",
+                "\ton accept",
+                "\t\tfail \"Deliver Grain\"") + "\n");
+
+            var player = new PlayerState(data);
+            Ship hauler = data.BuildShip("Hauler");
+            player.Fleet.Add(hauler);
+            player.Fleet.SetFlagship(hauler);
+            player.SetCredits(10_000);
+            player.EnterSystem(data.Systems["Sol"]);
+            player.Land(data.Planets["Home"]);
+
+            var log = new MissionLog(player);
+            ActiveMission grain = log.Accept(data.Missions["Deliver Grain"])!;
+            log.Accept(data.Missions["Rival"]);
+
+            Assert.AreEqual(MissionOutcome.Failed, grain.Outcome,
+                "taking the rival job ended the delivery");
+        }
+
         // --- Abort is its own trigger ---------------------------------------------
 
         [Test]

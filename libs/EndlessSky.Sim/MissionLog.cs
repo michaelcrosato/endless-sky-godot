@@ -120,15 +120,23 @@ namespace EndlessSky.Sim
         public IReadOnlyList<ActiveMission> Finished => _finished;
 
         /// <summary>
-        /// Missions this world will offer right now: the gate passes, the player is
-        /// standing somewhere, and it is not already running or done.
+        /// Missions a given counter will offer right now: the gate passes, the player
+        /// is standing somewhere, and it is not already running or done.
         /// </summary>
-        public IEnumerable<Mission> Available(GameData data)
+        /// <param name="from">
+        /// Which counter is asking, or null for everything this world offers. Missions
+        /// declare where they are offered (Mission.h:108) and reading only "job" left
+        /// every other kind at the default, so a job board listed boarding missions,
+        /// shipyard missions and the ones that fire on entering a system alongside the
+        /// actual work.
+        /// </param>
+        public IEnumerable<Mission> Available(GameData data, MissionLocation? from = null)
         {
             if (data is null || _player.CurrentPlanet is null)
                 return Enumerable.Empty<Mission>();
 
             return data.Missions.Values.Where(m =>
+                (from is null || m.IsOfferedFrom(from.Value)) &&
                 m.IsOfferedAt(_player.CurrentPlanet, _player.CurrentSystem?.Name) &&
                 m.CanOffer(_player.Conditions) &&
                 !_active.Any(a => ReferenceEquals(a.Mission, m)) &&
@@ -186,6 +194,8 @@ namespace EndlessSky.Sim
 
             RecordProgress(mission, "offered", 1);
             RecordProgress(mission, "active", 1);
+
+            ApplyFailures(mission.Action(MissionTrigger.Accept), taken);
             return taken;
         }
 
@@ -198,6 +208,41 @@ namespace EndlessSky.Sim
             _player.AddCredits(mission.Fire(MissionTrigger.Decline, _player.Conditions));
             RecordProgress(mission, "offered", 1);
             RecordProgress(mission, "declined", 1);
+        }
+
+        /// <summary>
+        /// Carries out an action's <c>fail</c> clauses.
+        /// </summary>
+        /// <remarks>
+        /// <c>GameAction.cpp:239-242</c>: a bare <c>fail</c> fails the mission the
+        /// action belongs to, and <c>fail "&lt;name&gt;"</c> fails a different one —
+        /// which is how content ends a storyline when the player takes an incompatible
+        /// job. Both were parsed as nothing, so a mission that said "you have blown it"
+        /// quietly kept running.
+        /// </remarks>
+        private void ApplyFailures(MissionAction? action, ActiveMission? caller)
+        {
+            if (action is null)
+                return;
+
+            foreach (string name in action.FailsMissions)
+            {
+                ActiveMission? other = _active.FirstOrDefault(
+                    a => string.Equals(a.Mission.Name, name, StringComparison.Ordinal));
+
+                if (other != null)
+                {
+                    _player.AddCredits(other.Mission.Fire(MissionTrigger.Fail, _player.Conditions));
+                    Finish(other, MissionOutcome.Failed);
+                }
+            }
+
+            // Last, so a mission that fails itself has already done everything else the
+            // action asked for.
+            if (action.FailsCaller && caller != null && caller.Outcome == MissionOutcome.Active)
+            {
+                Finish(caller, MissionOutcome.Failed);
+            }
         }
 
         /// <summary>How many jumps from where the player is to a named world.</summary>

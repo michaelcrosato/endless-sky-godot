@@ -5,6 +5,29 @@ using EndlessSky.Data;
 namespace EndlessSky.Sim
 {
     /// <summary>When a mission's actions run.</summary>
+    /// <summary>
+    /// Where a mission is offered from. Upstream's <c>Mission::Location</c>
+    /// (<c>Mission.h:108</c>).
+    /// </summary>
+    /// <remarks>
+    /// Reading only <c>job</c> left every other mission at the default, so a job board
+    /// showed boarding missions, shipyard missions and the ones that fire on entering a
+    /// system all mixed in with the work.
+    /// </remarks>
+    public enum MissionLocation
+    {
+        /// <summary>The default: offered when the player walks into a spaceport.</summary>
+        Spaceport,
+        Landing,
+        Job,
+        Assisting,
+        Boarding,
+        Shipyard,
+        Outfitter,
+        JobBoard,
+        Entering,
+    }
+
     public enum MissionTrigger
     {
         Offer,
@@ -56,6 +79,12 @@ namespace EndlessSky.Sim
         /// <summary>Plain message shown to the player, or null.</summary>
         public string? Dialog { get; private set; }
 
+        /// <summary>Whether firing this action fails the mission it belongs to.</summary>
+        public bool FailsCaller { get; private set; }
+
+        /// <summary>Other missions this action fails by name.</summary>
+        public List<string> FailsMissions { get; } = new List<string>();
+
         public static MissionAction Load(DataNode node)
         {
             var action = new MissionAction
@@ -86,6 +115,20 @@ namespace EndlessSky.Sim
 
                     case "dialog" when child.Size >= 2:
                         action.Dialog = child.Token(1);
+                        break;
+
+                    // GameAction.cpp:239-242: bare `fail` fails the mission this action
+                    // belongs to; `fail "<name>"` fails a DIFFERENT one, which is how
+                    // content ends a storyline when the player takes an incompatible
+                    // job. Neither was parsed, so 197 bare uses and 63 named ones did
+                    // nothing at all and a mission that said "you have blown it" quietly
+                    // kept running.
+                    case "fail" when child.Size >= 2:
+                        action.FailsMissions.Add(child.Token(1));
+                        break;
+
+                    case "fail":
+                        action.FailsCaller = true;
                         break;
                 }
             }
@@ -259,6 +302,12 @@ namespace EndlessSky.Sim
         /// <summary>Appears on a planet's job board rather than being offered in the spaceport.</summary>
         public bool IsJob { get; private set; }
 
+        /// <summary>Which counter offers this mission.</summary>
+        public MissionLocation Offered { get; private set; } = MissionLocation.Spaceport;
+
+        /// <summary>Whether this mission is offered from a given counter.</summary>
+        public bool IsOfferedFrom(MissionLocation location) => Offered == location;
+
         /// <summary>Offered when boarding a disabled ship.</summary>
         public bool IsBoarding { get; private set; }
 
@@ -390,9 +439,16 @@ namespace EndlessSky.Sim
                         _npcs.Add(npc);
                         break;
 
-                    case "job": IsJob = true; break;
-                    case "boarding": IsBoarding = true; break;
-                    case "assisting": IsAssisting = true; break;
+                    // Nine keywords, one enum (Mission.cpp:223-244). `job` keeps its
+                    // own flag as well because the rest of this class already reads it.
+                    case "job": IsJob = true; Offered = MissionLocation.Job; break;
+                    case "landing": Offered = MissionLocation.Landing; break;
+                    case "shipyard": Offered = MissionLocation.Shipyard; break;
+                    case "outfitter": Offered = MissionLocation.Outfitter; break;
+                    case "job board": Offered = MissionLocation.JobBoard; break;
+                    case "entering": Offered = MissionLocation.Entering; break;
+                    case "boarding": IsBoarding = true; Offered = MissionLocation.Boarding; break;
+                    case "assisting": IsAssisting = true; Offered = MissionLocation.Assisting; break;
                     case "repeat": IsRepeating = true; break;
                     case "minor": IsMinor = true; break;
                     case "invisible": IsInvisible = true; break;

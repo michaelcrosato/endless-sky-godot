@@ -283,5 +283,55 @@ namespace EndlessSky.Tests
             Assert.AreEqual(new DateTime(3013, 11, 16), job.AbsoluteDeadline);
             Assert.AreEqual(0, job.DeadlineBase);
         }
+
+        // --- Where a mission is offered from --------------------------------------
+
+        [Test]
+        public void AMissionKnowsWhichCounterOffersIt()
+        {
+            // Mission.h:108 lists ten offer locations and Mission.cpp:223-244 parses
+            // nine keywords for them. Reading only "job" left every other mission at the
+            // default, so a job board showed boarding missions, shipyard missions and
+            // the ones that fire on entering a system all mixed together.
+            Assert.AreEqual(MissionLocation.Job,
+                Parse("mission \"A\"", "\tjob").Offered);
+            Assert.AreEqual(MissionLocation.Landing,
+                Parse("mission \"B\"", "\tlanding").Offered);
+            Assert.AreEqual(MissionLocation.Shipyard,
+                Parse("mission \"C\"", "\tshipyard").Offered);
+            Assert.AreEqual(MissionLocation.Outfitter,
+                Parse("mission \"D\"", "\toutfitter").Offered);
+            Assert.AreEqual(MissionLocation.JobBoard,
+                // Quoted, because "job board" is one key with a space in it — written
+                // bare it tokenises as "job" plus "board" and matches the job case.
+                Parse("mission \"E\"", "\t\"job board\"").Offered);
+            Assert.AreEqual(MissionLocation.Entering,
+                Parse("mission \"F\"", "\tentering").Offered);
+            Assert.AreEqual(MissionLocation.Boarding,
+                Parse("mission \"G\"", "\tboarding").Offered);
+            Assert.AreEqual(MissionLocation.Assisting,
+                Parse("mission \"H\"", "\tassisting").Offered);
+        }
+
+        [Test]
+        public void AMissionThatSaysNothingIsOfferedInTheSpaceport()
+        {
+            // SPACEPORT is upstream's default, and the reason a plain mission shows up
+            // when the player walks into a port rather than never at all.
+            Assert.AreEqual(MissionLocation.Spaceport, Parse("mission \"Plain\"").Offered);
+        }
+
+        [Test]
+        public void TheJobBoardShowsJobsAndNotBoardingMissions()
+        {
+            // The player-visible consequence: a board full of missions that cannot be
+            // taken from a board.
+            Mission job = Parse("mission \"Work\"", "\tjob");
+            Mission boarding = Parse("mission \"Salvage\"", "\tboarding");
+
+            Assert.IsTrue(job.IsOfferedFrom(MissionLocation.Job));
+            Assert.IsFalse(boarding.IsOfferedFrom(MissionLocation.Job));
+            Assert.IsTrue(boarding.IsOfferedFrom(MissionLocation.Boarding));
+        }
     }
 }
