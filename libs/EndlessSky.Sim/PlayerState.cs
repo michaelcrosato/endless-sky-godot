@@ -51,6 +51,12 @@ namespace EndlessSky.Sim
         /// <summary>The galaxy this player is playing in, where one was given.</summary>
         public GameData? Data => _data;
 
+        /// <summary>
+        /// When the player bought what they own, so selling it back is priced on how
+        /// long they kept it rather than on the no-record default.
+        /// </summary>
+        public PurchaseLog Purchases { get; } = new PurchaseLog();
+
         public Conditions Conditions { get; }
 
         public PlayerFleet Fleet { get; }

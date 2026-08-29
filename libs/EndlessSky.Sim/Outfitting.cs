@@ -200,10 +200,13 @@ namespace EndlessSky.Sim
                 double current = ship.Attributes.Get(attribute.Key);
                 if (current + attribute.Value * count < minimum.Value)
                 {
-                    // Fit as many as the shortfall allows, rounding toward zero so a
-                    // partial fit never overshoots.
-                    int fits = (int)((current - minimum.Value) / -attribute.Value);
-                    count = count > 0 ? Math.Min(count, fits) : Math.Max(count, -fits);
+                    // Assigned, not clamped, exactly as upstream does
+                    // (Outfit.cpp:665-666). The quotient already carries the right sign
+                    // for both directions, and truncating toward zero is what keeps a
+                    // partial fit from overshooting. Clamping it with Math.Max flipped
+                    // the sign of a removal query -- asked how many of three could come
+                    // off, it answered +2, which a caller reads as "two fit".
+                    count = (int)((current - minimum.Value) / -attribute.Value);
                 }
             }
 

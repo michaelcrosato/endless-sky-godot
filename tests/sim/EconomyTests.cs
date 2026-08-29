@@ -190,6 +190,61 @@ namespace EndlessSky.Tests
         }
 
         [Test]
+        public void AskingHowManyMayBeRemovedAnswersWithANegativeCount()
+        {
+            // Outfit.cpp:648-668 uses one function for both directions and ASSIGNS
+            // count = (value - minimum) / -otherValue, truncating toward zero. Clamping
+            // that with Math.Max flipped the sign: asked how many of three could come
+            // off, the answer came back +2 — a positive number from a removal query,
+            // which a caller reads as "two fit" and installs more.
+            Ship ship = MakeHull(("outfit space", 12.0));
+            Outfit expansion = MakeOutfit("Expansion", ("outfit space", 5.0));
+
+            Assert.AreEqual(-2, Outfitting.CanInstall(ship, expansion, -3),
+                "two may come off; a third would take outfit space below zero");
+        }
+
+        [Test]
+        public void AnOutfitOtherOutfitsDependOnCannotBeSold()
+        {
+            // OutfitterPanel.cpp:1102 gates every uninstall on CanAdd(outfit, -1).
+            // Selling went straight to RemoveOutfit, which checks nothing, so the
+            // expansion holding the rest of a loadout could always be sold — leaving
+            // the ship with negative capacity and outfits it had no room for.
+            var data = new GameData();
+            data.LoadText(string.Join("\n",
+                "ship \"Freighter\"",
+                "\tattributes",
+                "\t\t\"mass\" 100",
+                "\t\t\"hull\" 500",
+                "\t\t\"outfit space\" 20",
+                "\t\t\"cost\" 100000",
+                "outfit \"Expansion\"",
+                "\t\"outfit space\" 30",
+                "\t\"cost\" 5000",
+                "outfit \"Bulky Thing\"",
+                "\t\"outfit space\" -45",
+                "\t\"cost\" 5000") + "\n");
+
+            Ship ship = data.BuildShip("Freighter");
+            Assert.AreEqual(1, Outfitting.Install(ship, data.Outfits["Expansion"]));
+            Assert.AreEqual(1, Outfitting.Install(ship, data.Outfits["Bulky Thing"]));
+            Assert.AreEqual(5.0, ship.Attributes.Get("outfit space"), 1e-9);
+
+            var player = new PlayerState(data);
+            player.Fleet.Add(ship);
+            player.Fleet.SetFlagship(ship);
+            player.SetCredits(1000);
+
+            TradeResult sold = Trading.SellOutfit(player, ship, data.Outfits["Expansion"]);
+
+            Assert.AreNotEqual(TradeResult.Ok, sold,
+                "the expansion is holding the bulky outfit; it cannot come off");
+            Assert.AreEqual(1, ship.Outfits.Count(o => o.Name == "Expansion"),
+                "and it is still installed");
+        }
+
+        [Test]
         public void CapacityIsJustAnAttributeGoingNegative()
         {
             // There is no bespoke "does a gun fit" rule upstream: the outfit carries

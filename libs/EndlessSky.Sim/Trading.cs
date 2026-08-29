@@ -81,10 +81,11 @@ namespace EndlessSky.Sim
     /// stocks, an outfit must physically fit before it can be paid for, and the last
     /// flyable ship cannot be sold out from under its pilot.
     ///
-    /// INCOMPLETE, tracked rather than dropped: per-ship purchase records (so age is
-    /// passed in rather than remembered), licences, outfits placed into cargo or
+    /// INCOMPLETE, tracked rather than dropped: licences, outfits placed into cargo or
     /// planetary storage rather than installed, and trade-in when buying a
-    /// replacement.
+    /// replacement. Purchase ages ARE remembered now, per ship model and outfit rather
+    /// than per individual hull, so two of the same model bought years apart are told
+    /// apart by which is newer but not by which is which.
     /// </remarks>
     public static class Trading
     {
@@ -143,6 +144,7 @@ namespace EndlessSky.Sim
             ship.SetLevels(shields: ship.MaxShields, hull: ship.MaxHull,
                            energy: ship.MaxEnergy, fuel: ship.MaxFuel);
             player.Fleet.Add(ship);
+            player.Purchases.Record(PurchaseLog.ShipKey(model), player.Date);
             bought = ship;
             return TradeResult.Ok;
         }
@@ -165,7 +167,11 @@ namespace EndlessSky.Sim
                 return TradeResult.LastShip;
 
             player.Fleet.Remove(ship);
-            player.AddCredits(Depreciation.SaleValue(ship.Cost, ageInDays));
+
+            int age = player.Purchases.TakeAge(
+                PurchaseLog.ShipKey(ship.Definition.DisplayName), player.Date) ?? ageInDays;
+
+            player.AddCredits(Depreciation.SaleValue(ship.Cost, age));
             return TradeResult.Ok;
         }
 
@@ -197,6 +203,12 @@ namespace EndlessSky.Sim
 
             player.AddCredits(-outfit.Cost);
             ship.AddOutfit(outfit);
+
+            // Note when it was bought, so selling it back is priced on how long the
+            // player kept it. Without this every sale falls through to the no-record
+            // default -- the 0.25 floor -- and buying anything by mistake costs three
+            // quarters of its price.
+            player.Purchases.Record(PurchaseLog.OutfitKey(outfit.Name), player.Date);
             return TradeResult.Ok;
         }
 
@@ -207,10 +219,31 @@ namespace EndlessSky.Sim
             if (player is null || ship is null || outfit is null)
                 return TradeResult.NoSuchThing;
 
+            if (!ship.Outfits.Any(o => ReferenceEquals(o, outfit) ||
+                                       string.Equals(o.Name, outfit.Name, StringComparison.Ordinal)))
+            {
+                return TradeResult.NotOwned;
+            }
+
+            // Taking an outfit off can break the ship as surely as putting one on:
+            // upstream gates every uninstall on CanAdd(outfit, -1)
+            // (OutfitterPanel.cpp:1102), which is what stops you selling the expansion
+            // that is holding the rest of your loadout. Selling went straight to
+            // RemoveOutfit, which checks nothing, so any outfit could always come off
+            // and leave the ship with negative capacity.
+            if (Outfitting.CanInstall(ship, outfit, -1) != -1)
+                return TradeResult.DoesNotFit;
+
             if (ship.RemoveOutfit(outfit) == 0)
                 return TradeResult.NotOwned;
 
-            player.AddCredits(Depreciation.SaleValue(outfit.Cost, ageInDays));
+            // The player's own record when there is one; the caller's age otherwise,
+            // which defaults to fully depreciated exactly as upstream treats an item it
+            // has no record of -- a hull's stock loadout, say, which was never bought.
+            int age = player.Purchases.TakeAge(PurchaseLog.OutfitKey(outfit.Name), player.Date)
+                      ?? ageInDays;
+
+            player.AddCredits(Depreciation.SaleValue(outfit.Cost, age));
             return TradeResult.Ok;
         }
     }

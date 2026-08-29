@@ -103,6 +103,23 @@ namespace EndlessSky.Sim
                 }
             }
 
+            // When the player bought what they own. Without it a load re-values the
+            // whole fleet at the no-record default -- the depreciation floor -- so
+            // saving and loading quietly took three quarters off everything.
+            var purchases = player.Purchases.Records
+                .OrderBy(entry => entry.Key, StringComparer.Ordinal)
+                .ToList();
+
+            if (purchases.Count > 0)
+            {
+                writer.Write("purchases");
+                writer.BeginChild();
+                foreach (KeyValuePair<string, List<DateTime>> entry in purchases)
+                    foreach (DateTime day in entry.Value)
+                        writer.Write(entry.Key, day.Day, day.Month, day.Year);
+                writer.EndChild();
+            }
+
             // Cargo in the hold, by commodity.
             var cargo = player.Fleet.Ships
                 .SelectMany(s => s.Cargo.Commodities)
@@ -215,6 +232,18 @@ namespace EndlessSky.Sim
                         foreach (DataNode child in node.Children)
                             if (child.Token(0) == "commodity" && child.Size >= 3)
                                 player.Fleet.LoadCargo(child.Token(1), (int)child.Value(2));
+                        break;
+
+                    case "purchases":
+                        foreach (DataNode child in node.Children)
+                        {
+                            if (child.Size < 4)
+                                continue;
+
+                            DateTime? bought = SafeDate(child);
+                            if (bought.HasValue)
+                                player.Purchases.Record(child.Token(0), bought.Value);
+                        }
                         break;
 
                     case "conditions":

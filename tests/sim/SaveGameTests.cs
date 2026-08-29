@@ -64,6 +64,23 @@ namespace EndlessSky.Tests
             return player;
         }
 
+        [Test]
+        public void PurchaseAgesSurviveASave()
+        {
+            // Without this, loading a game re-values everything the player owns at the
+            // no-record default -- the 0.25 floor -- so saving and loading silently
+            // wiped three quarters off the resale value of their whole fleet.
+            GameData data = Load();
+            PlayerState original = Populated(data);
+            original.Purchases.Record(PurchaseLog.OutfitKey("Blaster"), original.Date);
+
+            PlayerState restored = SaveGame.Read(SaveGame.Write(original), data);
+
+            Assert.AreEqual(0, restored.Purchases.TakeAge(PurchaseLog.OutfitKey("Blaster"),
+                                                          restored.Date),
+                "bought on the day the save was taken, so still brand new");
+        }
+
         // --- Restoring the mission log --------------------------------------------
 
         [Test]

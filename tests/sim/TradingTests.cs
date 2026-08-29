@@ -148,11 +148,28 @@ namespace EndlessSky.Tests
             long before = player.Credits;
             Assert.AreEqual(TradeResult.Ok, Trading.SellShip(player, second!));
 
-            long paid = player.Credits - before;
-            Assert.Greater(paid, 0);
-            Assert.Less(paid, 180_000, "a used ship is worth less than a new one");
+            long sameDay = player.Credits - before;
+            Assert.AreEqual(180_000, sameDay,
+                "bought today and sold today is break-even; it is not a used ship yet");
+
             CollectionAssert.DoesNotContain(player.Fleet.Ships, second);
             CollectionAssert.Contains(player.Fleet.Ships, first);
+
+            // Held for years, it is. Depreciation is a function of how long the player
+            // kept the thing, which is why it needs a purchase record at all. A second
+            // ship first, so selling the old one is not blocked as the last flyable
+            // hull — and bought BEFORE the years pass, because the player sells their
+            // newest copy first and a fresh purchase would be the one consumed.
+            Trading.BuyShip(player, data, "Shuttle", out Ship? spare);
+            Assert.IsNotNull(spare);
+
+            player.AdvanceDays(Depreciation.MaxAge);
+            before = player.Credits;
+            Assert.AreEqual(TradeResult.Ok, Trading.SellShip(player, first!));
+
+            long aged = player.Credits - before;
+            Assert.AreEqual(Depreciation.SaleValue(180_000, Depreciation.MaxAge), aged,
+                "a ship kept a thousand days is worth the depreciation floor");
         }
 
         [Test]
@@ -269,5 +286,72 @@ namespace EndlessSky.Tests
                 Assert.Greater(ship.Cost, 0, $"{model} should have a price");
             }
         }
+
+        // --- Depreciation records -------------------------------------------------
+
+        [Test]
+        public void BuyingAndSellingBackTheSameDayIsBreakEven()
+        {
+            // Upstream records the day of purchase in the player's own depreciation
+            // (Depreciation.cpp:167-202), so an item sold straight back is worth what
+            // it cost. Without a record every sale fell through to the no-record
+            // default, which is the 0.25 floor: buying anything and changing your mind
+            // cost three quarters of its price.
+            PlayerState player = Landed(out GameData data);
+            Ship flagship = data.BuildShip("Shuttle");
+            player.Fleet.Add(flagship);
+            player.Fleet.SetFlagship(flagship);
+            long before = player.Credits;
+            Ship ship = player.Fleet.Flagship!;
+
+            Assert.AreEqual(TradeResult.Ok,
+                Trading.BuyOutfit(player, data, ship, "Blaster"));
+            Assert.Less(player.Credits, before, "buying costs money");
+
+            Assert.AreEqual(TradeResult.Ok,
+                Trading.SellOutfit(player, ship, data.Outfits["Blaster"]));
+            Assert.AreEqual(before, player.Credits, "and selling it straight back returns it");
+        }
+
+        [Test]
+        public void AnOutfitHeldForYearsSellsForLessThanItCost()
+        {
+            // The same record, read later: depreciation is a function of how long the
+            // player kept it, not a flat penalty for selling anything at all.
+            PlayerState player = Landed(out GameData data);
+            Ship flagship = data.BuildShip("Shuttle");
+            player.Fleet.Add(flagship);
+            player.Fleet.SetFlagship(flagship);
+            Ship ship = player.Fleet.Flagship!;
+            Trading.BuyOutfit(player, data, ship, "Blaster");
+
+            long afterBuying = player.Credits;
+            player.AdvanceDays(Depreciation.MaxAge);
+            Trading.SellOutfit(player, ship, data.Outfits["Blaster"]);
+
+            long paid = player.Credits - afterBuying;
+            Assert.AreEqual(Depreciation.SaleValue(data.Outfits["Blaster"].Cost, Depreciation.MaxAge),
+                paid, "a thousand days old is the depreciation floor");
+        }
+
+        [Test]
+        public void AnOutfitWithNoPurchaseRecordStillSellsAtTheFloor()
+        {
+            // A hull's stock loadout was never bought by the player, so there is no
+            // record for it and upstream treats it as fully depreciated.
+            PlayerState player = Landed(out GameData data);
+            Ship flagship = data.BuildShip("Shuttle");
+            player.Fleet.Add(flagship);
+            player.Fleet.SetFlagship(flagship);
+            Ship ship = player.Fleet.Flagship!;
+            ship.AddOutfit(data.Outfits["Blaster"]);
+
+            long before = player.Credits;
+            Trading.SellOutfit(player, ship, data.Outfits["Blaster"]);
+
+            Assert.AreEqual(Depreciation.SaleValue(data.Outfits["Blaster"].Cost, Depreciation.MaxAge),
+                player.Credits - before);
+        }
+
     }
 }
