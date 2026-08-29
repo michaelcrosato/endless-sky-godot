@@ -287,6 +287,36 @@ namespace EndlessSky.Data
             Diagnostics?.Add($"{message} \"{this}\" ({SourceFile ?? "<memory>"}:{LineNumber})");
         }
 
+        /// <summary>
+        /// This node with its first <paramref name="count"/> tokens dropped, sharing the
+        /// same children.
+        /// </summary>
+        /// <remarks>
+        /// For reading a line that carries a prefix the body should not see — upstream's
+        /// loaders handle `add <key> ...` by shifting the value index along, and this is
+        /// the same shift expressed as a node so the body needs no second code path.
+        /// </remarks>
+        public DataNode Slice(int count)
+        {
+            if (count <= 0)
+                return this;
+
+            var sliced = new DataNode
+            {
+                Parent = Parent,
+                LineNumber = LineNumber,
+                Diagnostics = Diagnostics,
+            };
+
+            for (int i = count; i < _tokens.Count; i++)
+                sliced._tokens.Add(_tokens[i]);
+
+            foreach (DataNode child in _children)
+                sliced._children.Add(child);
+
+            return sliced;
+        }
+
         public override string ToString() => string.Join(" ", _tokens);
 
         /// <summary>Reconstructs this node and its subtree in data-file syntax.</summary>

@@ -206,9 +206,93 @@ namespace EndlessSky.Sim
 
         public void Load(DataNode node)
         {
+            // Merge semantics, ported from System.cpp:110-139. A later definition of the
+            // same system REPLACES these keys rather than adding to them — but only on
+            // the first line for each key, so two `link` lines in one definition are
+            // both kept. `add <key>` opts out of the replacement; `remove <key>` clears
+            // it, and `remove <key> <value>` takes out one entry.
+            //
+            // Without this a content pack that redefines a system to disconnect it
+            // leaves the old links in place, which is the difference between rerouting
+            // a lane and adding one.
+            // Upstream's set also holds "attributes", "belt" and "hazard"; none of the
+            // three is modelled on a system here yet, so listing them would promise a
+            // replacement of something that does not exist.
+            var replaceable = new HashSet<string>(StringComparer.Ordinal)
+            {
+                "asteroids", "fleet", "link", "object",
+            };
+
             foreach (DataNode child in node.Children)
             {
-                string key = child.Token(0);
+                bool add = child.Token(0) == "add";
+                bool remove = child.Token(0) == "remove";
+                if ((add || remove) && child.Size < 2)
+                    continue;
+
+                string key = child.Token(add || remove ? 1 : 0);
+                int valueIndex = add || remove ? 2 : 1;
+                bool hasValue = child.Size > valueIndex;
+
+                // "remove object" with children names one object to drop, not all of them.
+                bool removeAll = remove && !hasValue
+                                 && !(key == "object" && child.Children.Count > 0);
+
+                bool overwriteAll = !add && !remove
+                                    && (replaceable.Contains(key)
+                                        || (key == "minables" && replaceable.Contains("asteroids")));
+
+                if (removeAll || overwriteAll)
+                {
+                    Clear(key);
+                    replaceable.Remove(key == "minables" ? "asteroids" : key);
+
+                    // A bare "remove <key>" has done its whole job.
+                    if (removeAll)
+                        continue;
+                }
+                else if (remove)
+                {
+                    RemoveValue(key, child.Token(valueIndex));
+                    continue;
+                }
+
+                // Past the preamble the body reads the line as it always did, so an
+                // "add" line is shifted along by one token.
+                DataNode line = add ? child.Slice(1) : child;
+                LoadChild(line, key);
+            }
+        }
+
+        /// <summary>Empties whatever collection a key owns, for `remove` and for the
+        /// first line of a replaceable key in a later definition.</summary>
+        private void Clear(string key)
+        {
+            switch (key)
+            {
+                case "link": _links.Clear(); break;
+                case "fleet": _fleets.Clear(); break;
+                case "object": _objects.Clear(); break;
+                case "asteroids":
+                case "minables": _asteroids.Clear(); break;
+            }
+        }
+
+        /// <summary>Takes one named entry out of a key, for `remove &lt;key&gt; &lt;value&gt;`.</summary>
+        private void RemoveValue(string key, string value)
+        {
+            switch (key)
+            {
+                case "link": _links.Remove(value); break;
+                case "fleet": _fleets.RemoveAll(f => f.Name == value); break;
+                case "object": _objects.RemoveAll(o => o.PlanetName == value); break;
+            }
+        }
+
+        /// <summary>Reads one already-classified child line.</summary>
+        private void LoadChild(DataNode child, string key)
+        {
+            {
                 switch (key)
                 {
                     case "pos" when child.Size >= 3:

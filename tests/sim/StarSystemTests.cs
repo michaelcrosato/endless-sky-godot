@@ -145,5 +145,71 @@ namespace EndlessSky.Tests
             Assert.AreEqual(first, star.Position);
             Assert.AreEqual(0.0, star.Position.Length, 1e-12);
         }
+
+        // --- Merging a second definition ------------------------------------------
+
+        private static StarSystem Merge(params string[] lines)
+        {
+            var data = new GameData();
+            data.LoadText(string.Join("\n", lines) + "\n");
+            return data.Systems["Sol"];
+        }
+
+        [Test]
+        public void ASecondDefinitionReplacesTheLinksRatherThanAppending()
+        {
+            // System.cpp:110-139. For a set of keys — links, attributes, fleets,
+            // objects, asteroids, hazards, belts — the FIRST occurrence in a later
+            // definition clears what was there. Appending instead leaves a system
+            // linked to places a content pack meant to disconnect it from.
+            StarSystem sol = Merge(
+                "system \"Sol\"", "\tlink Alpha", "\tlink Beta",
+                "system \"Sol\"", "\tlink Gamma");
+
+            CollectionAssert.AreEquivalent(new[] { "Gamma" }, sol.Links);
+        }
+
+        [Test]
+        public void AddKeepsWhatWasAlreadyThere()
+        {
+            StarSystem sol = Merge(
+                "system \"Sol\"", "\tlink Alpha", "\tlink Beta",
+                "system \"Sol\"", "\tadd link Gamma");
+
+            CollectionAssert.AreEquivalent(new[] { "Alpha", "Beta", "Gamma" }, sol.Links);
+        }
+
+        [Test]
+        public void RemoveWithAValueTakesOutJustThatOne()
+        {
+            StarSystem sol = Merge(
+                "system \"Sol\"", "\tlink Alpha", "\tlink Beta",
+                "system \"Sol\"", "\tremove link Alpha");
+
+            CollectionAssert.AreEquivalent(new[] { "Beta" }, sol.Links);
+        }
+
+        [Test]
+        public void RemoveWithNoValueClearsTheWholeKey()
+        {
+            StarSystem sol = Merge(
+                "system \"Sol\"", "\tlink Alpha", "\tlink Beta",
+                "system \"Sol\"", "\tremove link");
+
+            CollectionAssert.IsEmpty(sol.Links);
+        }
+
+        [Test]
+        public void OnlyTheFirstOccurrenceInADefinitionOverwrites()
+        {
+            // "If this is the FIRST entry for the given key" (System.cpp:136-138): two
+            // link lines in the same definition are both kept, or a system could only
+            // ever have one of anything.
+            StarSystem sol = Merge(
+                "system \"Sol\"", "\tlink Alpha",
+                "system \"Sol\"", "\tlink Beta", "\tlink Gamma");
+
+            CollectionAssert.AreEquivalent(new[] { "Beta", "Gamma" }, sol.Links);
+        }
     }
 }
