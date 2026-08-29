@@ -130,6 +130,30 @@ namespace EndlessSky.Sim
                 RemoveOutfit(round, count);
         }
 
+        /// <summary>
+        /// A deflection from this weapon's firing cone. Port of upstream
+        /// <c>Distribution::GenerateInaccuracy</c> (<c>Distribution.cpp:61-79</c>).
+        /// </summary>
+        /// <remarks>
+        /// Triangular by default — <c>(random - random) * value</c> — which peaks at
+        /// zero deflection, so most shots land near the aim point and the spread tails
+        /// off. A flat draw is upstream's explicitly-opted-in <c>uniform</c> mode, and
+        /// using it for everything makes every weapon feel like a shotgun: a shot at
+        /// the edge of the cone is exactly as likely as one down the middle.
+        ///
+        /// INCOMPLETE, tracked rather than dropped: the <c>narrow</c>/<c>medium</c>/
+        /// <c>wide</c> normal distributions and the <c>inverted</c> flag, none of which
+        /// are parsed off the weapon yet.
+        /// </remarks>
+        private Angle Inaccuracy(Weapon weapon)
+        {
+            double spread = weapon.Inaccuracy;
+            if (spread <= 0.0)
+                return default;
+
+            return new Angle((RandomUnit() - RandomUnit()) * spread);
+        }
+
         /// <summary>The ammunition outfit this ship carries under that name, if any.</summary>
         private Outfit? FindCarriedOutfit(string outfitName)
         {
@@ -224,9 +248,7 @@ namespace EndlessSky.Sim
             // Weapon inaccuracy is a firing cone, applied to the aim at the moment of
             // the shot. Parsing it and never using it makes every weapon perfectly
             // accurate, which removes the reason streams of fire spread at all.
-            double inaccuracy = weapon.Inaccuracy;
-            if (inaccuracy > 0.0)
-                aim += new Angle((RandomUnit() * 2.0 - 1.0) * inaccuracy);
+            aim += Inaccuracy(weapon);
 
             // Upstream spawns the projectile back by half the ship's velocity so it
             // renders in the right place relative to the moving hull.

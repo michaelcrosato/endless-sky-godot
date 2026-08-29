@@ -108,11 +108,17 @@ namespace EndlessSky.Tests
 
             ship.Facing = new Angle(90.0);
 
-            ship.RandomSource = () => 1.0;                  // full deflection one way
+            // The distribution is triangular (Distribution.cpp:75), so each shot draws
+            // TWICE and the deflection is the difference. A constant source therefore
+            // means dead centre; reaching the ends of the cone needs both extremes.
+            var draws = new System.Collections.Generic.Queue<double>();
+            ship.RandomSource = () => draws.Dequeue();
+
+            draws.Enqueue(1.0); draws.Enqueue(0.0);         // full deflection one way
             Projectile high = ship.Fire(ship.Mounts[0]);
             ship.StepArmament();
 
-            ship.RandomSource = () => 0.0;                  // and the other
+            draws.Enqueue(0.0); draws.Enqueue(1.0);         // and the other
             Projectile low = ship.Fire(ship.Mounts[0]);
 
             Assert.IsNotNull(high);

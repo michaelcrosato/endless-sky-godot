@@ -437,7 +437,19 @@ namespace EndlessSky.Sim
         /// only in the frame where a shot exceeds the remaining shields, and then only
         /// for the excess. Weapons with piercing are the exception.
         /// </remarks>
-        public ShipEvent TakeDamage(Weapon weapon)
+        /// <param name="attacker">
+        /// The government that fired, when it is known. Upstream returns PROVOKE
+        /// whenever the shooter is not already an enemy of the target's government
+        /// (<c>Ship.cpp:3275-3285</c>) — that is what turns a stray shot into a fight.
+        /// MissionNpc accepts a `provoke` objective and sets the bit as a completion
+        /// requirement, so without this the objective could be written, parsed, and
+        /// never satisfied by anything.
+        ///
+        /// INCOMPLETE, tracked rather than dropped: upstream also gates provocation on
+        /// the pacifist and forbearing personalities and on how badly the hit landed;
+        /// neither is modelled here, so any non-enemy hit provokes.
+        /// </param>
+        public ShipEvent TakeDamage(Weapon weapon, Government? attacker = null)
         {
             if (weapon is null) throw new ArgumentNullException(nameof(weapon));
 
@@ -491,6 +503,12 @@ namespace EndlessSky.Sim
             ShipEvent events = ShipEvent.None;
             if (!wasDisabled && IsDisabled) events |= ShipEvent.Disable;
             if (!wasDestroyed && IsDestroyed) events |= ShipEvent.Destroy;
+
+            // Shot at by somebody who was not already an enemy: that is a provocation,
+            // and it is how a stray round starts a fight.
+            if (attacker != null && !attacker.IsEnemy(Government))
+                events |= ShipEvent.Provoke;
+
             return events;
         }
     }

@@ -109,7 +109,7 @@ namespace EndlessSky.Sim
                     continue;
                 }
 
-                ShipEvent events = struck.TakeDamage(projectile.Weapon);
+                ShipEvent events = struck.TakeDamage(projectile.Weapon, projectile.Government);
                 hits.Add(new HitReport(struck, projectile, events));
 
                 projectile.Kill();

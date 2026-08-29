@@ -290,5 +290,38 @@ namespace EndlessSky.Tests
             Assert.AreEqual(loadedMass - roundMass, raven.Mass, 1e-9,
                 "firing a missile makes the ship lighter by exactly one round");
         }
+
+        [Test]
+        public void FiringInaccuracyIsTriangularByDefaultNotUniform()
+        {
+            // Distribution.cpp:75. The default is (Random - Random) * value, which
+            // peaks at zero deflection: most shots land near the aim point and the
+            // spread tails off. A flat draw is upstream's explicitly-opted-in `uniform`
+            // mode, and it makes every weapon feel like a shotgun -- a shot at the edge
+            // of the cone is exactly as likely as one down the middle.
+            Outfit gun = MakeGun("Spray Gun",
+                "\"reload\" 1", "\"inaccuracy\" 10", "\"velocity\" 10", "\"lifetime\" 100");
+
+            Ship ship = MakeArmedShip(energy: 100000.0);
+            WeaponMount mount = ship.InstallWeapon(gun);
+
+            // Two draws per shot under a triangular distribution; feeding a repeating
+            // sequence lets both ends be checked exactly.
+            var draws = new Queue<double>();
+            ship.RandomSource = () => draws.Dequeue();
+
+            // Both draws equal: dead centre, whatever the value.
+            draws.Enqueue(0.9); draws.Enqueue(0.9);
+            Assert.AreEqual(ship.Facing.Degrees, ship.Fire(mount)!.Angle.Degrees, 0.01,
+                "equal draws cancel, so the shot goes exactly where it was aimed");
+
+            ship.StepArmament();
+
+            // Maximum deflection needs BOTH extremes, which is why the middle is common.
+            draws.Enqueue(1.0); draws.Enqueue(0.0);
+            double full = ship.Fire(mount)!.Angle.Degrees - ship.Facing.Degrees;
+            // Angles quantise to 65536 steps, so the tolerance is one step (0.0055 deg).
+            Assert.AreEqual(10.0, full, 0.01, "the extremes give the full cone");
+        }
     }
 }

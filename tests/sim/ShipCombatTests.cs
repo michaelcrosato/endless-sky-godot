@@ -316,5 +316,50 @@ namespace EndlessSky.Tests
             Assert.AreEqual(100.0, ship.Shields, 1e-9);
             Assert.AreEqual(100.0, ship.Hull, 1e-9);
         }
+
+        [Test]
+        public void BeingShotByANonEnemyProvokesTheTarget()
+        {
+            // Ship.cpp:3275-3285 returns PROVOKE whenever the shooter is not already an
+            // enemy of the target's government -- which is what turns a stray shot into
+            // a fight. MissionNpc.ApplyObjective accepts the `provoke` token and sets
+            // the bit as a completion requirement, so a `provoke` objective could be
+            // written, parsed, and never satisfied by anything.
+            var data = new GameData();
+            data.LoadText(string.Join("\n",
+                "government \"Neutral\"",
+                "government \"Stranger\"") + "\n");
+
+            Ship target = MakeShip();
+            target.Government = data.Governments["Neutral"];
+
+            ShipEvent events = target.TakeDamage(
+                MakeWeapon(("hull damage", 1.0)), data.Governments["Stranger"]);
+
+            Assert.IsTrue(events.HasFlag(ShipEvent.Provoke),
+                "somebody who was not an enemy just shot at it");
+        }
+
+        [Test]
+        public void BeingShotByAnExistingEnemyProvokesNothingNew()
+        {
+            // Already at war: there is nothing to provoke.
+            var data = new GameData();
+            data.LoadText(string.Join("\n",
+                "government \"Navy\"",
+                "\t\"attitude toward\"",
+                "\t\t\"Raiders\" -1",
+                "government \"Raiders\"",
+                "\t\"attitude toward\"",
+                "\t\t\"Navy\" -1") + "\n");
+
+            Ship target = MakeShip();
+            target.Government = data.Governments["Navy"];
+
+            ShipEvent events = target.TakeDamage(
+                MakeWeapon(("hull damage", 1.0)), data.Governments["Raiders"]);
+
+            Assert.IsFalse(events.HasFlag(ShipEvent.Provoke));
+        }
     }
 }
