@@ -4594,7 +4594,7 @@ mission "voth bounty Sarn Marches 74709"
 		government "Sarn Marches"
 		personality heroic vindictive
 		system destination
-		ship "Vow I"
+		ship "Legion III"
 	on complete
 		payment 95316
 
@@ -4614,7 +4614,7 @@ mission "ixil bounty Choir Apostate 73067"
 		government "Choir Apostate"
 		personality heroic vindictive
 		system destination
-		ship "Reliquary IX"
+		ship "Antiphon VII"
 	on complete
 		payment 111180
 
@@ -4634,8 +4634,8 @@ mission "ceph bounty Hollow Choir 39523"
 		government "Hollow Choir"
 		personality heroic vindictive
 		system destination
-		ship "Censer X"
-		ship "Censer X"
+		ship "Vesphol Antiphon"
+		ship "Vesphol Antiphon"
 	on complete
 		payment 240559
 
@@ -4675,7 +4675,7 @@ mission "ythera bounty Karn Broken Lances 57595"
 		government "Karn Broken Lances"
 		personality heroic vindictive
 		system destination
-		ship "Wager I"
+		ship "Retainer I"
 	on complete
 		payment 111199
 
@@ -4695,9 +4695,9 @@ mission "voth bounty Hollow Choir 95379"
 		government "Hollow Choir"
 		personality heroic vindictive
 		system destination
-		ship "Reliquary IX"
-		ship "Reliquary IX"
-		ship "Reliquary IX"
+		ship "Vespmatin Censer"
+		ship "Vespmatin Censer"
+		ship "Vespmatin Censer"
 	on complete
 		payment 250550
 
@@ -4717,9 +4717,9 @@ mission "drell bounty Nyx Quietus 94604"
 		government "Nyx Quietus"
 		personality heroic vindictive
 		system destination
-		ship "Nyxquiet Pall"
-		ship "Nyxquiet Pall"
-		ship "Nyxquiet Pall"
+		ship "Nocturne X"
+		ship "Nocturne X"
+		ship "Nocturne X"
 	on complete
 		payment 342798
 
@@ -4739,7 +4739,7 @@ mission "aurei bounty Kel'Toth Drift 42487"
 		government "Kel'Toth Drift"
 		personality heroic vindictive
 		system destination
-		ship "Vektoth Swarm"
+		ship "Murtoth Swarm"
 	on complete
 		payment 83626
 
@@ -4759,7 +4759,7 @@ mission "lumen bounty Nyx Quietus 94086"
 		government "Nyx Quietus"
 		personality heroic vindictive
 		system destination
-		ship "Quietvane Pall"
+		ship "Nyxquiet Pall"
 	on complete
 		payment 119611
 
@@ -4801,7 +4801,7 @@ mission "orokh bounty Choir Apostate 28853"
 		government "Choir Apostate"
 		personality heroic vindictive
 		system destination
-		ship "Vespmatin Censer"
+		ship "Antiphon VII"
 	on complete
 		payment 117971
 
@@ -4821,9 +4821,9 @@ mission "ceph bounty Choir Apostate 31187"
 		government "Choir Apostate"
 		personality heroic vindictive
 		system destination
-		ship "Censer X"
-		ship "Censer X"
-		ship "Censer X"
+		ship "Vesphol Antiphon"
+		ship "Vesphol Antiphon"
+		ship "Vesphol Antiphon"
 	on complete
 		payment 317361
 
@@ -4843,7 +4843,7 @@ mission "tessarai bounty Kel'Toth Drift 24610"
 		government "Kel'Toth Drift"
 		personality heroic vindictive
 		system destination
-		ship "Brood VII"
+		ship "Brood IX"
 	on complete
 		payment 120519
 
@@ -4863,8 +4863,8 @@ mission "nyx bounty Karn Broken Lances 19068"
 		government "Karn Broken Lances"
 		personality heroic vindictive
 		system destination
-		ship "Retainer I"
-		ship "Retainer I"
+		ship "Wager I"
+		ship "Wager I"
 	on complete
 		payment 232404
 
@@ -4884,8 +4884,8 @@ mission "aurei bounty Sarn Marches 58148"
 		government "Sarn Marches"
 		personality heroic vindictive
 		system destination
-		ship "Legion X"
-		ship "Legion X"
+		ship "Legion IX"
+		ship "Legion IX"
 	on complete
 		payment 214801
 
@@ -4927,7 +4927,7 @@ mission "ixil bounty Karn Broken Lances 26794"
 		government "Karn Broken Lances"
 		personality heroic vindictive
 		system destination
-		ship "Retainer IX"
+		ship "Fee III"
 	on complete
 		payment 112661
 
@@ -4947,7 +4947,7 @@ mission "voth bounty Kel'Toth Drift 74740"
 		government "Kel'Toth Drift"
 		personality heroic vindictive
 		system destination
-		ship "Nymph IV"
+		ship "Vektoth Swarm"
 	on complete
 		payment 132787
 
@@ -4967,7 +4967,7 @@ mission "sarn bounty Choir Apostate 71653"
 		government "Choir Apostate"
 		personality heroic vindictive
 		system destination
-		ship "Vesphol Antiphon"
+		ship "Antiphon VII"
 	on complete
 		payment 103593
 
@@ -4987,7 +4987,7 @@ mission "keltoth bounty Nyx Quietus 97658"
 		government "Nyx Quietus"
 		personality heroic vindictive
 		system destination
-		ship "Veil X"
+		ship "Quietvane Pall"
 	on complete
 		payment 99740
 
@@ -5007,7 +5007,7 @@ mission "ceph bounty Choir Apostate 12784"
 		government "Choir Apostate"
 		personality heroic vindictive
 		system destination
-		ship "Censer X"
+		ship "Antiphon VII"
 	on complete
 		payment 115334
 
@@ -5027,8 +5027,8 @@ mission "morrow bounty Sarn Marches 30562"
 		government "Sarn Marches"
 		personality heroic vindictive
 		system destination
-		ship "Grimgrim Rampart"
-		ship "Grimgrim Rampart"
+		ship "Legion III"
+		ship "Legion III"
 	on complete
 		payment 187350
 
@@ -5048,7 +5048,7 @@ mission "vashari bounty Grask Wreckers 28236"
 		government "Grask Wreckers"
 		personality heroic vindictive
 		system destination
-		ship "Hulk X"
+		ship "Claghulk Hulk"
 	on complete
 		payment 126675
 
@@ -5068,9 +5068,9 @@ mission "drell bounty Nyx Quietus 79156"
 		government "Nyx Quietus"
 		personality heroic vindictive
 		system destination
-		ship "Quietvane Pall"
-		ship "Quietvane Pall"
-		ship "Quietvane Pall"
+		ship "Vanequiet Nocturne"
+		ship "Vanequiet Nocturne"
+		ship "Vanequiet Nocturne"
 	on complete
 		payment 305923
 
@@ -5090,8 +5090,8 @@ mission "terran bounty Nyx Quietus 52382"
 		government "Nyx Quietus"
 		personality heroic vindictive
 		system destination
-		ship "Veil X"
-		ship "Veil X"
+		ship "Nocturne X"
+		ship "Nocturne X"
 	on complete
 		payment 233431
 
@@ -5111,7 +5111,7 @@ mission "vashari bounty Hollow Choir 22624"
 		government "Hollow Choir"
 		personality heroic vindictive
 		system destination
-		ship "Antiphon VII"
+		ship "Vesphol Antiphon"
 	on complete
 		payment 85341
 
@@ -5131,8 +5131,8 @@ mission "ixil bounty Karn Broken Lances 17067"
 		government "Karn Broken Lances"
 		personality heroic vindictive
 		system destination
-		ship "Retainer IX"
-		ship "Retainer IX"
+		ship "Tegghald Contract"
+		ship "Tegghald Contract"
 	on complete
 		payment 162819
 
@@ -5173,8 +5173,8 @@ mission "morrow bounty Choir Apostate 99246"
 		government "Choir Apostate"
 		personality heroic vindictive
 		system destination
-		ship "Vespmatin Censer"
-		ship "Vespmatin Censer"
+		ship "Antiphon VII"
+		ship "Antiphon VII"
 	on complete
 		payment 202227
 
@@ -5194,7 +5194,7 @@ mission "lumen bounty Sarn Exiles 12291"
 		government "Sarn Exiles"
 		personality heroic vindictive
 		system destination
-		ship "Grimgrim Rampart"
+		ship "Legion X"
 	on complete
 		payment 111476
 
@@ -5214,7 +5214,7 @@ mission "ceph bounty Sarn Marches 12496"
 		government "Sarn Marches"
 		personality heroic vindictive
 		system destination
-		ship "Grimgrim Rampart"
+		ship "Legion IX"
 	on complete
 		payment 98748
 
@@ -5234,7 +5234,7 @@ mission "lumen bounty Nyx Quietus 83974"
 		government "Nyx Quietus"
 		personality heroic vindictive
 		system destination
-		ship "Quietvane Pall"
+		ship "Nyxquiet Pall"
 	on complete
 		payment 98239
 
@@ -5254,7 +5254,7 @@ mission "voth bounty Choir Apostate 31215"
 		government "Choir Apostate"
 		personality heroic vindictive
 		system destination
-		ship "Censer X"
+		ship "Vespmatin Censer"
 	on complete
 		payment 95131
 
@@ -5274,8 +5274,8 @@ mission "ixil bounty Sarn Marches 97596"
 		government "Sarn Marches"
 		personality heroic vindictive
 		system destination
-		ship "Legion IX"
-		ship "Legion IX"
+		ship "Legion X"
+		ship "Legion X"
 	on complete
 		payment 236576
 
@@ -5295,7 +5295,7 @@ mission "sarn bounty Kel'Toth Drift 64854"
 		government "Kel'Toth Drift"
 		personality heroic vindictive
 		system destination
-		ship "Vektoth Swarm"
+		ship "Brood VII"
 	on complete
 		payment 91489
 
@@ -5315,7 +5315,7 @@ mission "bracken bounty Karn Broken Lances 60122"
 		government "Karn Broken Lances"
 		personality heroic vindictive
 		system destination
-		ship "Tegghald Contract"
+		ship "Wager I"
 	on complete
 		payment 83203
 
@@ -5355,7 +5355,7 @@ mission "keltoth bounty Sarn Marches 29079"
 		government "Sarn Marches"
 		personality heroic vindictive
 		system destination
-		ship "Vow I"
+		ship "Legion X"
 	on complete
 		payment 82147
 
@@ -5375,7 +5375,7 @@ mission "keltoth bounty Sarn Exiles 25343"
 		government "Sarn Exiles"
 		personality heroic vindictive
 		system destination
-		ship "Grimgrim Rampart"
+		ship "Vow I"
 	on complete
 		payment 123489
 
@@ -5415,9 +5415,9 @@ mission "choir bounty Grask Wreckers 37807"
 		government "Grask Wreckers"
 		personality heroic vindictive
 		system destination
-		ship "Sifter VII"
-		ship "Sifter VII"
-		ship "Sifter VII"
+		ship "Hulk X"
+		ship "Hulk X"
+		ship "Hulk X"
 	on complete
 		payment 314214
 
@@ -5437,8 +5437,8 @@ mission "ceph bounty Nyx Quietus 79854"
 		government "Nyx Quietus"
 		personality heroic vindictive
 		system destination
-		ship "Nocturne X"
-		ship "Nocturne X"
+		ship "Veil X"
+		ship "Veil X"
 	on complete
 		payment 257650
 
@@ -5458,9 +5458,9 @@ mission "vashari bounty Sarn Marches 81157"
 		government "Sarn Marches"
 		personality heroic vindictive
 		system destination
-		ship "Legion III"
-		ship "Legion III"
-		ship "Legion III"
+		ship "Grimgrim Rampart"
+		ship "Grimgrim Rampart"
+		ship "Grimgrim Rampart"
 	on complete
 		payment 342683
 
@@ -5480,8 +5480,8 @@ mission "aurei bounty Choir Apostate 45924"
 		government "Choir Apostate"
 		personality heroic vindictive
 		system destination
-		ship "Vespmatin Censer"
-		ship "Vespmatin Censer"
+		ship "Censer X"
+		ship "Censer X"
 	on complete
 		payment 212542
 
@@ -5501,7 +5501,7 @@ mission "silane bounty Sarn Marches 55617"
 		government "Sarn Marches"
 		personality heroic vindictive
 		system destination
-		ship "Legion X"
+		ship "Grimgrim Rampart"
 	on complete
 		payment 132781
 
@@ -5541,7 +5541,7 @@ mission "vashari bounty Choir Apostate 34380"
 		government "Choir Apostate"
 		personality heroic vindictive
 		system destination
-		ship "Censer X"
+		ship "Vesphol Antiphon"
 	on complete
 		payment 84204
 
@@ -5561,8 +5561,8 @@ mission "drell bounty Grask Wreckers 29121"
 		government "Grask Wreckers"
 		personality heroic vindictive
 		system destination
-		ship "Rudgrask Sifter"
-		ship "Rudgrask Sifter"
+		ship "Claghulk Hulk"
+		ship "Claghulk Hulk"
 	on complete
 		payment 228413
 
@@ -5582,9 +5582,9 @@ mission "morrow bounty Kel'Toth Drift 99675"
 		government "Kel'Toth Drift"
 		personality heroic vindictive
 		system destination
-		ship "Murtoth Swarm"
-		ship "Murtoth Swarm"
-		ship "Murtoth Swarm"
+		ship "Nymph IV"
+		ship "Nymph IV"
+		ship "Nymph IV"
 	on complete
 		payment 341610
 
@@ -5604,7 +5604,7 @@ mission "terran bounty Kel'Toth Drift 5345"
 		government "Kel'Toth Drift"
 		personality heroic vindictive
 		system destination
-		ship "Vektoth Swarm"
+		ship "Nymph IV"
 	on complete
 		payment 87491
 
@@ -5624,8 +5624,8 @@ mission "aurei bounty Choir Apostate 32890"
 		government "Choir Apostate"
 		personality heroic vindictive
 		system destination
-		ship "Vesphol Antiphon"
-		ship "Vesphol Antiphon"
+		ship "Vespmatin Censer"
+		ship "Vespmatin Censer"
 	on complete
 		payment 161805
 
@@ -5645,7 +5645,7 @@ mission "ceph bounty Choir Apostate 56337"
 		government "Choir Apostate"
 		personality heroic vindictive
 		system destination
-		ship "Antiphon VII"
+		ship "Vesphol Antiphon"
 	on complete
 		payment 129163
 
@@ -5665,7 +5665,7 @@ mission "nyx bounty Grask Wreckers 55700"
 		government "Grask Wreckers"
 		personality heroic vindictive
 		system destination
-		ship "Sifter IX"
+		ship "Rudgrask Sifter"
 	on complete
 		payment 96008
 
@@ -5685,7 +5685,7 @@ mission "ceph bounty Choir Apostate 93027"
 		government "Choir Apostate"
 		personality heroic vindictive
 		system destination
-		ship "Antiphon VII"
+		ship "Vesphol Antiphon"
 	on complete
 		payment 115573
 
@@ -5705,7 +5705,7 @@ mission "lumen bounty Choir Apostate 11755"
 		government "Choir Apostate"
 		personality heroic vindictive
 		system destination
-		ship "Reliquary IX"
+		ship "Antiphon VII"
 	on complete
 		payment 119758
 
@@ -5725,7 +5725,7 @@ mission "drell bounty Hollow Choir 12670"
 		government "Hollow Choir"
 		personality heroic vindictive
 		system destination
-		ship "Reliquary IX"
+		ship "Antiphon VII"
 	on complete
 		payment 120161
 
@@ -5745,7 +5745,7 @@ mission "choir bounty Sarn Marches 58508"
 		government "Sarn Marches"
 		personality heroic vindictive
 		system destination
-		ship "Legion IX"
+		ship "Vow I"
 	on complete
 		payment 83879
 
@@ -5765,7 +5765,7 @@ mission "sarn bounty Hollow Choir 37429"
 		government "Hollow Choir"
 		personality heroic vindictive
 		system destination
-		ship "Censer X"
+		ship "Antiphon VII"
 	on complete
 		payment 94231
 
@@ -5825,7 +5825,7 @@ mission "terran bounty Grask Wreckers 81906"
 		government "Grask Wreckers"
 		personality heroic vindictive
 		system destination
-		ship "Sifter IX"
+		ship "Rudgrask Sifter"
 	on complete
 		payment 106403
 
@@ -5845,9 +5845,9 @@ mission "grask bounty Kel'Toth Drift 68395"
 		government "Kel'Toth Drift"
 		personality heroic vindictive
 		system destination
-		ship "Nymph IV"
-		ship "Nymph IV"
-		ship "Nymph IV"
+		ship "Brood IX"
+		ship "Brood IX"
+		ship "Brood IX"
 	on complete
 		payment 341489
 
@@ -5908,7 +5908,7 @@ mission "keltoth bounty Choir Apostate 4214"
 		government "Choir Apostate"
 		personality heroic vindictive
 		system destination
-		ship "Reliquary IX"
+		ship "Censer X"
 	on complete
 		payment 82314
 
@@ -5948,8 +5948,8 @@ mission "lumen bounty Choir Apostate 32459"
 		government "Choir Apostate"
 		personality heroic vindictive
 		system destination
-		ship "Censer X"
-		ship "Censer X"
+		ship "Vespmatin Censer"
+		ship "Vespmatin Censer"
 	on complete
 		payment 210012
 
@@ -5969,8 +5969,8 @@ mission "lumen bounty Sarn Marches 59099"
 		government "Sarn Marches"
 		personality heroic vindictive
 		system destination
-		ship "Legion III"
-		ship "Legion III"
+		ship "Legion X"
+		ship "Legion X"
 	on complete
 		payment 209898
 
@@ -5990,7 +5990,7 @@ mission "lumen bounty Sarn Exiles 21110"
 		government "Sarn Exiles"
 		personality heroic vindictive
 		system destination
-		ship "Legion IX"
+		ship "Vow I"
 	on complete
 		payment 86590
 
@@ -6010,7 +6010,7 @@ mission "ceph bounty Sarn Marches 72684"
 		government "Sarn Marches"
 		personality heroic vindictive
 		system destination
-		ship "Grimgrim Rampart"
+		ship "Legion III"
 	on complete
 		payment 134527
 
@@ -6030,7 +6030,7 @@ mission "orokh bounty Kel'Toth Drift 84871"
 		government "Kel'Toth Drift"
 		personality heroic vindictive
 		system destination
-		ship "Brood VII"
+		ship "Vektoth Swarm"
 	on complete
 		payment 99603
 
@@ -6050,7 +6050,7 @@ mission "drell bounty Sarn Marches 75539"
 		government "Sarn Marches"
 		personality heroic vindictive
 		system destination
-		ship "Legion III"
+		ship "Legion IX"
 	on complete
 		payment 126107
 
@@ -6070,9 +6070,9 @@ mission "nyx bounty Karn Broken Lances 8923"
 		government "Karn Broken Lances"
 		personality heroic vindictive
 		system destination
-		ship "Retainer IX"
-		ship "Retainer IX"
-		ship "Retainer IX"
+		ship "Retainer I"
+		ship "Retainer I"
+		ship "Retainer I"
 	on complete
 		payment 249619
 
@@ -6112,7 +6112,7 @@ mission "ythera bounty Sarn Marches 34279"
 		government "Sarn Marches"
 		personality heroic vindictive
 		system destination
-		ship "Grimgrim Rampart"
+		ship "Vow I"
 	on complete
 		payment 90911
 
@@ -6132,8 +6132,8 @@ mission "orokh bounty Hollow Choir 44578"
 		government "Hollow Choir"
 		personality heroic vindictive
 		system destination
-		ship "Reliquary IX"
-		ship "Reliquary IX"
+		ship "Antiphon VII"
+		ship "Antiphon VII"
 	on complete
 		payment 269756
 
@@ -6153,8 +6153,8 @@ mission "aurei bounty Sarn Marches 32472"
 		government "Sarn Marches"
 		personality heroic vindictive
 		system destination
-		ship "Vow I"
-		ship "Vow I"
+		ship "Legion X"
+		ship "Legion X"
 	on complete
 		payment 176665
 
@@ -6195,8 +6195,8 @@ mission "sarn bounty Grask Wreckers 75159"
 		government "Grask Wreckers"
 		personality heroic vindictive
 		system destination
-		ship "Rudgrask Sifter"
-		ship "Rudgrask Sifter"
+		ship "Sifter VII"
+		ship "Sifter VII"
 	on complete
 		payment 233759
 
@@ -6216,7 +6216,7 @@ mission "bracken bounty Nyx Quietus 49723"
 		government "Nyx Quietus"
 		personality heroic vindictive
 		system destination
-		ship "Nyxquiet Pall"
+		ship "Veil X"
 	on complete
 		payment 90385
 
@@ -6236,8 +6236,8 @@ mission "bracken bounty Sarn Marches 84958"
 		government "Sarn Marches"
 		personality heroic vindictive
 		system destination
-		ship "Grimgrim Rampart"
-		ship "Grimgrim Rampart"
+		ship "Legion III"
+		ship "Legion III"
 	on complete
 		payment 179257
 
@@ -6257,7 +6257,7 @@ mission "terran bounty Karn Broken Lances 59061"
 		government "Karn Broken Lances"
 		personality heroic vindictive
 		system destination
-		ship "Fee III"
+		ship "Wager I"
 	on complete
 		payment 111438
 
@@ -6277,9 +6277,9 @@ mission "terran bounty Karn Broken Lances 58108"
 		government "Karn Broken Lances"
 		personality heroic vindictive
 		system destination
-		ship "Fee III"
-		ship "Fee III"
-		ship "Fee III"
+		ship "Wager I"
+		ship "Wager I"
+		ship "Wager I"
 	on complete
 		payment 348130
 
@@ -6299,7 +6299,7 @@ mission "aurei bounty Sarn Marches 34437"
 		government "Sarn Marches"
 		personality heroic vindictive
 		system destination
-		ship "Vow I"
+		ship "Legion X"
 	on complete
 		payment 126236
 
@@ -6339,7 +6339,7 @@ mission "aurei bounty Grask Wreckers 24921"
 		government "Grask Wreckers"
 		personality heroic vindictive
 		system destination
-		ship "Rudgrask Sifter"
+		ship "Sifter VII"
 	on complete
 		payment 115870
 
@@ -6379,8 +6379,8 @@ mission "voth bounty Kel'Toth Drift 46105"
 		government "Kel'Toth Drift"
 		personality heroic vindictive
 		system destination
-		ship "Murtoth Swarm"
-		ship "Murtoth Swarm"
+		ship "Brood VII"
+		ship "Brood VII"
 	on complete
 		payment 238722
 
@@ -6400,7 +6400,7 @@ mission "orokh bounty Hollow Choir 57327"
 		government "Hollow Choir"
 		personality heroic vindictive
 		system destination
-		ship "Reliquary IX"
+		ship "Antiphon VII"
 	on complete
 		payment 110300
 
@@ -6420,8 +6420,8 @@ mission "keltoth bounty Hollow Choir 50477"
 		government "Hollow Choir"
 		personality heroic vindictive
 		system destination
-		ship "Antiphon VII"
-		ship "Antiphon VII"
+		ship "Reliquary IX"
+		ship "Reliquary IX"
 	on complete
 		payment 209479
 
@@ -6441,8 +6441,8 @@ mission "drell bounty Nyx Quietus 58005"
 		government "Nyx Quietus"
 		personality heroic vindictive
 		system destination
-		ship "Nyxquiet Pall"
-		ship "Nyxquiet Pall"
+		ship "Quietvane Pall"
+		ship "Quietvane Pall"
 	on complete
 		payment 165748
 
@@ -6462,9 +6462,9 @@ mission "voth bounty Sarn Marches 4934"
 		government "Sarn Marches"
 		personality heroic vindictive
 		system destination
-		ship "Legion X"
-		ship "Legion X"
-		ship "Legion X"
+		ship "Legion III"
+		ship "Legion III"
+		ship "Legion III"
 	on complete
 		payment 310765
 
@@ -6484,7 +6484,7 @@ mission "ixil bounty Karn Broken Lances 36492"
 		government "Karn Broken Lances"
 		personality heroic vindictive
 		system destination
-		ship "Fee III"
+		ship "Retainer IX"
 	on complete
 		payment 124775
 
@@ -6504,7 +6504,7 @@ mission "aurei bounty Grask Wreckers 43218"
 		government "Grask Wreckers"
 		personality heroic vindictive
 		system destination
-		ship "Rudgrask Sifter"
+		ship "Hulk X"
 	on complete
 		payment 88107
 
@@ -6524,8 +6524,8 @@ mission "orokh bounty Karn Broken Lances 20483"
 		government "Karn Broken Lances"
 		personality heroic vindictive
 		system destination
-		ship "Retainer I"
-		ship "Retainer I"
+		ship "Fee III"
+		ship "Fee III"
 	on complete
 		payment 255902
 
@@ -6545,8 +6545,8 @@ mission "aurei bounty Kel'Toth Drift 36713"
 		government "Kel'Toth Drift"
 		personality heroic vindictive
 		system destination
-		ship "Vektoth Swarm"
-		ship "Vektoth Swarm"
+		ship "Brood IX"
+		ship "Brood IX"
 	on complete
 		payment 202994
 
@@ -6566,7 +6566,7 @@ mission "vashari bounty Nyx Quietus 37006"
 		government "Nyx Quietus"
 		personality heroic vindictive
 		system destination
-		ship "Nocturne X"
+		ship "Veil X"
 	on complete
 		payment 89159
 
@@ -6586,7 +6586,7 @@ mission "choir bounty Karn Broken Lances 18080"
 		government "Karn Broken Lances"
 		personality heroic vindictive
 		system destination
-		ship "Retainer IX"
+		ship "Retainer I"
 	on complete
 		payment 117066
 
@@ -6670,9 +6670,9 @@ mission "tessarai bounty Nyx Quietus 54456"
 		government "Nyx Quietus"
 		personality heroic vindictive
 		system destination
-		ship "Vanequiet Nocturne"
-		ship "Vanequiet Nocturne"
-		ship "Vanequiet Nocturne"
+		ship "Nyxquiet Pall"
+		ship "Nyxquiet Pall"
+		ship "Nyxquiet Pall"
 	on complete
 		payment 268190
 
@@ -6733,8 +6733,8 @@ mission "bracken bounty Sarn Exiles 31190"
 		government "Sarn Exiles"
 		personality heroic vindictive
 		system destination
-		ship "Vow I"
-		ship "Vow I"
+		ship "Legion III"
+		ship "Legion III"
 	on complete
 		payment 193431
 
@@ -6775,8 +6775,8 @@ mission "keltoth bounty Hollow Choir 47485"
 		government "Hollow Choir"
 		personality heroic vindictive
 		system destination
-		ship "Censer X"
-		ship "Censer X"
+		ship "Antiphon VII"
+		ship "Antiphon VII"
 	on complete
 		payment 190998
 
@@ -6796,8 +6796,8 @@ mission "keltoth bounty Choir Apostate 58045"
 		government "Choir Apostate"
 		personality heroic vindictive
 		system destination
-		ship "Vesphol Antiphon"
-		ship "Vesphol Antiphon"
+		ship "Vespmatin Censer"
+		ship "Vespmatin Censer"
 	on complete
 		payment 199655
 
@@ -6817,7 +6817,7 @@ mission "choir bounty Sarn Exiles 94226"
 		government "Sarn Exiles"
 		personality heroic vindictive
 		system destination
-		ship "Vow I"
+		ship "Legion IX"
 	on complete
 		payment 112931
 
@@ -6837,8 +6837,8 @@ mission "lumen bounty Nyx Quietus 87671"
 		government "Nyx Quietus"
 		personality heroic vindictive
 		system destination
-		ship "Veil X"
-		ship "Veil X"
+		ship "Nocturne X"
+		ship "Nocturne X"
 	on complete
 		payment 219821
 
@@ -6858,9 +6858,9 @@ mission "ythera bounty Karn Broken Lances 77628"
 		government "Karn Broken Lances"
 		personality heroic vindictive
 		system destination
-		ship "Retainer I"
-		ship "Retainer I"
-		ship "Retainer I"
+		ship "Fee III"
+		ship "Fee III"
+		ship "Fee III"
 	on complete
 		payment 301899
 
@@ -6880,7 +6880,7 @@ mission "ceph bounty Grask Wreckers 53354"
 		government "Grask Wreckers"
 		personality heroic vindictive
 		system destination
-		ship "Sifter VII"
+		ship "Sifter IX"
 	on complete
 		payment 106200
 
@@ -6900,8 +6900,8 @@ mission "silane bounty Sarn Marches 22756"
 		government "Sarn Marches"
 		personality heroic vindictive
 		system destination
-		ship "Legion IX"
-		ship "Legion IX"
+		ship "Vow I"
+		ship "Vow I"
 	on complete
 		payment 172929
 
@@ -6921,8 +6921,8 @@ mission "nyx bounty Choir Apostate 66844"
 		government "Choir Apostate"
 		personality heroic vindictive
 		system destination
-		ship "Vespmatin Censer"
-		ship "Vespmatin Censer"
+		ship "Censer X"
+		ship "Censer X"
 	on complete
 		payment 174672
 
@@ -6942,7 +6942,7 @@ mission "ceph bounty Grask Wreckers 21358"
 		government "Grask Wreckers"
 		personality heroic vindictive
 		system destination
-		ship "Claghulk Hulk"
+		ship "Hulk X"
 	on complete
 		payment 102867
 
@@ -6962,9 +6962,9 @@ mission "ceph bounty Karn Broken Lances 83674"
 		government "Karn Broken Lances"
 		personality heroic vindictive
 		system destination
-		ship "Wager I"
-		ship "Wager I"
-		ship "Wager I"
+		ship "Retainer I"
+		ship "Retainer I"
+		ship "Retainer I"
 	on complete
 		payment 301149
 
@@ -6984,7 +6984,7 @@ mission "orokh bounty Grask Wreckers 16451"
 		government "Grask Wreckers"
 		personality heroic vindictive
 		system destination
-		ship "Sifter VII"
+		ship "Claghulk Hulk"
 	on complete
 		payment 115281
 
@@ -7004,7 +7004,7 @@ mission "tessarai bounty Karn Broken Lances 3026"
 		government "Karn Broken Lances"
 		personality heroic vindictive
 		system destination
-		ship "Wager I"
+		ship "Tegghald Contract"
 	on complete
 		payment 100863
 
@@ -7024,7 +7024,7 @@ mission "bracken bounty Hollow Choir 26839"
 		government "Hollow Choir"
 		personality heroic vindictive
 		system destination
-		ship "Antiphon VII"
+		ship "Reliquary IX"
 	on complete
 		payment 113727
 
@@ -7044,7 +7044,7 @@ mission "sarn bounty Grask Wreckers 31207"
 		government "Grask Wreckers"
 		personality heroic vindictive
 		system destination
-		ship "Rudgrask Sifter"
+		ship "Sifter VII"
 	on complete
 		payment 134740
 
@@ -7084,7 +7084,7 @@ mission "silane bounty Kel'Toth Drift 19349"
 		government "Kel'Toth Drift"
 		personality heroic vindictive
 		system destination
-		ship "Vektoth Swarm"
+		ship "Murtoth Swarm"
 	on complete
 		payment 132179
 
@@ -7104,9 +7104,9 @@ mission "bracken bounty Grask Wreckers 82807"
 		government "Grask Wreckers"
 		personality heroic vindictive
 		system destination
-		ship "Claghulk Hulk"
-		ship "Claghulk Hulk"
-		ship "Claghulk Hulk"
+		ship "Sifter VII"
+		ship "Sifter VII"
+		ship "Sifter VII"
 	on complete
 		payment 347852
 
@@ -7146,7 +7146,7 @@ mission "vashari bounty Sarn Marches 73713"
 		government "Sarn Marches"
 		personality heroic vindictive
 		system destination
-		ship "Legion X"
+		ship "Legion IX"
 	on complete
 		payment 110039
 
@@ -7166,7 +7166,7 @@ mission "aurei bounty Karn Broken Lances 89806"
 		government "Karn Broken Lances"
 		personality heroic vindictive
 		system destination
-		ship "Retainer IX"
+		ship "Wager I"
 	on complete
 		payment 82899
 
@@ -7186,9 +7186,9 @@ mission "voth bounty Choir Apostate 18637"
 		government "Choir Apostate"
 		personality heroic vindictive
 		system destination
-		ship "Vesphol Antiphon"
-		ship "Vesphol Antiphon"
-		ship "Vesphol Antiphon"
+		ship "Censer X"
+		ship "Censer X"
+		ship "Censer X"
 	on complete
 		payment 247408
 
@@ -7208,9 +7208,9 @@ mission "karn bounty Kel'Toth Drift 91541"
 		government "Kel'Toth Drift"
 		personality heroic vindictive
 		system destination
-		ship "Vektoth Swarm"
-		ship "Vektoth Swarm"
-		ship "Vektoth Swarm"
+		ship "Brood IX"
+		ship "Brood IX"
+		ship "Brood IX"
 	on complete
 		payment 335744
 
@@ -7230,8 +7230,8 @@ mission "vashari bounty Nyx Quietus 73924"
 		government "Nyx Quietus"
 		personality heroic vindictive
 		system destination
-		ship "Nocturne X"
-		ship "Nocturne X"
+		ship "Vanequiet Nocturne"
+		ship "Vanequiet Nocturne"
 	on complete
 		payment 199142
 
@@ -7271,7 +7271,7 @@ mission "orokh bounty Hollow Choir 18722"
 		government "Hollow Choir"
 		personality heroic vindictive
 		system destination
-		ship "Vespmatin Censer"
+		ship "Reliquary IX"
 	on complete
 		payment 127098
 
@@ -7291,8 +7291,8 @@ mission "drell bounty Sarn Exiles 53775"
 		government "Sarn Exiles"
 		personality heroic vindictive
 		system destination
-		ship "Legion IX"
-		ship "Legion IX"
+		ship "Grimgrim Rampart"
+		ship "Grimgrim Rampart"
 	on complete
 		payment 205245
 
@@ -7312,8 +7312,8 @@ mission "drell bounty Grask Wreckers 75099"
 		government "Grask Wreckers"
 		personality heroic vindictive
 		system destination
-		ship "Hulk X"
-		ship "Hulk X"
+		ship "Claghulk Hulk"
+		ship "Claghulk Hulk"
 	on complete
 		payment 187647
 
@@ -7333,8 +7333,8 @@ mission "karn bounty Sarn Exiles 51577"
 		government "Sarn Exiles"
 		personality heroic vindictive
 		system destination
-		ship "Legion IX"
-		ship "Legion IX"
+		ship "Legion III"
+		ship "Legion III"
 	on complete
 		payment 240963
 
@@ -7354,8 +7354,8 @@ mission "ythera bounty Sarn Marches 69872"
 		government "Sarn Marches"
 		personality heroic vindictive
 		system destination
-		ship "Grimgrim Rampart"
-		ship "Grimgrim Rampart"
+		ship "Legion X"
+		ship "Legion X"
 	on complete
 		payment 221554
 
@@ -7375,9 +7375,9 @@ mission "drell bounty Choir Apostate 75839"
 		government "Choir Apostate"
 		personality heroic vindictive
 		system destination
-		ship "Antiphon VII"
-		ship "Antiphon VII"
-		ship "Antiphon VII"
+		ship "Censer X"
+		ship "Censer X"
+		ship "Censer X"
 	on complete
 		payment 293140
 
@@ -7419,7 +7419,7 @@ mission "vashari bounty Grask Wreckers 31783"
 		government "Grask Wreckers"
 		personality heroic vindictive
 		system destination
-		ship "Rudgrask Sifter"
+		ship "Sifter VII"
 	on complete
 		payment 95442
 
@@ -7460,7 +7460,7 @@ mission "karn bounty Kel'Toth Drift 2825"
 		government "Kel'Toth Drift"
 		personality heroic vindictive
 		system destination
-		ship "Brood VII"
+		ship "Nymph IV"
 	on complete
 		payment 130444
 
@@ -7480,7 +7480,7 @@ mission "lumen bounty Nyx Quietus 30004"
 		government "Nyx Quietus"
 		personality heroic vindictive
 		system destination
-		ship "Quietvane Pall"
+		ship "Vanequiet Nocturne"
 	on complete
 		payment 125998
 
@@ -7500,8 +7500,8 @@ mission "orokh bounty Hollow Choir 47806"
 		government "Hollow Choir"
 		personality heroic vindictive
 		system destination
-		ship "Reliquary IX"
-		ship "Reliquary IX"
+		ship "Censer X"
+		ship "Censer X"
 	on complete
 		payment 258240
 
@@ -7521,9 +7521,9 @@ mission "karn bounty Sarn Exiles 94810"
 		government "Sarn Exiles"
 		personality heroic vindictive
 		system destination
-		ship "Vow I"
-		ship "Vow I"
-		ship "Vow I"
+		ship "Legion IX"
+		ship "Legion IX"
+		ship "Legion IX"
 	on complete
 		payment 321699
 
@@ -7542,7 +7542,7 @@ mission "ixil escort 86982"
 	npc save accompany
 		government "Ixil Skyholds"
 		personality timid escort
-		ship "Telil Mantle"
+		ship "Telaur Halo"
 	on complete
 		payment 100750
 
@@ -7561,8 +7561,8 @@ mission "choir escort 65689"
 	npc save accompany
 		government "Choir Mendicants"
 		personality timid escort
-		ship "Reliquary IX"
-		ship "Reliquary IX"
+		ship "Censer X"
+		ship "Censer X"
 	on complete
 		payment 132014
 
@@ -7581,9 +7581,9 @@ mission "voth escort 87136"
 	npc save accompany
 		government "Voth Underclans"
 		personality timid escort
-		ship "Deadfall IV"
-		ship "Deadfall IV"
-		ship "Deadfall IV"
+		ship "Keel IX"
+		ship "Keel IX"
+		ship "Keel IX"
 	on complete
 		payment 123657
 
@@ -7602,8 +7602,8 @@ mission "drell escort 70470"
 	npc save accompany
 		government "Drell Caravan"
 		personality timid escort
-		ship "Sunddrell Hearth"
-		ship "Sunddrell Hearth"
+		ship "Drelldrell Wanderer"
+		ship "Drelldrell Wanderer"
 	on complete
 		payment 102173
 
@@ -7622,7 +7622,7 @@ mission "silane escort 92339"
 	npc save accompany
 		government "Silane Factors"
 		personality timid escort
-		ship "Corrmari Consul"
+		ship "Consul V"
 	on complete
 		payment 111084
 
@@ -7641,8 +7641,8 @@ mission "terran escort 47007"
 	npc save accompany
 		government "Concord Merchant Guild"
 		personality timid escort
-		ship "Novnov Warden"
-		ship "Novnov Warden"
+		ship "Dunhar Warden"
+		ship "Dunhar Warden"
 	on complete
 		payment 122368
 
@@ -7680,8 +7680,8 @@ mission "terran escort 36291"
 	npc save accompany
 		government "Concord Merchant Guild"
 		personality timid escort
-		ship "Drover I"
-		ship "Drover I"
+		ship "Dunhar Warden"
+		ship "Dunhar Warden"
 	on complete
 		payment 111432
 
@@ -7700,9 +7700,9 @@ mission "sarn escort 75589"
 	npc save accompany
 		government "Sarn Exiles"
 		personality timid escort
-		ship "Grimgrim Rampart"
-		ship "Grimgrim Rampart"
-		ship "Grimgrim Rampart"
+		ship "Legion X"
+		ship "Legion X"
+		ship "Legion X"
 	on complete
 		payment 95454
 
@@ -7721,8 +7721,8 @@ mission "lumen escort 42241"
 	npc save accompany
 		government "Lumen Filament"
 		personality timid escort
-		ship "Corona III"
-		ship "Corona III"
+		ship "Phosori Spark"
+		ship "Phosori Spark"
 	on complete
 		payment 143583
 
@@ -7741,9 +7741,9 @@ mission "terran escort 50869"
 	npc save accompany
 		government "Concord Merchant Guild"
 		personality timid escort
-		ship "Dunhar Warden"
-		ship "Dunhar Warden"
-		ship "Dunhar Warden"
+		ship "Novnov Warden"
+		ship "Novnov Warden"
+		ship "Novnov Warden"
 	on complete
 		payment 120590
 
@@ -7782,8 +7782,8 @@ mission "ythera escort 71190"
 	npc save accompany
 		government "Ythera Rootward"
 		personality timid escort
-		ship "Frond V"
-		ship "Frond V"
+		ship "Frond IV"
+		ship "Frond IV"
 	on complete
 		payment 139900
 
@@ -7802,9 +7802,9 @@ mission "ixil escort 30507"
 	npc save accompany
 		government "Ixil Skyholds"
 		personality timid escort
-		ship "Ombraur Updraft"
-		ship "Ombraur Updraft"
-		ship "Ombraur Updraft"
+		ship "Phaentel Cirrus"
+		ship "Phaentel Cirrus"
+		ship "Phaentel Cirrus"
 	on complete
 		payment 106636
 
@@ -7823,7 +7823,7 @@ mission "orokh escort 57817"
 	npc save accompany
 		government "Orokh Forgemasters"
 		personality timid escort
-		ship "Brennvurm Bellows"
+		ship "Tororokh Cinder"
 	on complete
 		payment 123950
 
@@ -7842,7 +7842,7 @@ mission "ythera escort 16333"
 	npc save accompany
 		government "Ythera Rootward"
 		personality timid escort
-		ship "Frond V"
+		ship "Sylvyth Spore"
 	on complete
 		payment 115754
 
@@ -7881,9 +7881,9 @@ mission "morrow escort 69115"
 	npc save accompany
 		government "Morrow Combine"
 		personality timid escort
-		ship "Freight V"
-		ship "Freight V"
-		ship "Freight V"
+		ship "Gildstro Tariff"
+		ship "Gildstro Tariff"
+		ship "Gildstro Tariff"
 	on complete
 		payment 102601
 
@@ -7902,8 +7902,8 @@ mission "terran escort 4614"
 	npc save accompany
 		government "Concord Merchant Guild"
 		personality timid escort
-		ship "Novnov Warden"
-		ship "Novnov Warden"
+		ship "Dunhar Warden"
+		ship "Dunhar Warden"
 	on complete
 		payment 127787
 
@@ -7922,7 +7922,7 @@ mission "orokh escort 88790"
 	npc save accompany
 		government "Orokh Forgemasters"
 		personality timid escort
-		ship "Ember III"
+		ship "Tororokh Cinder"
 	on complete
 		payment 110263
 
@@ -7941,8 +7941,8 @@ mission "morrow escort 18832"
 	npc save accompany
 		government "Morrow Combine"
 		personality timid escort
-		ship "Bulwark III"
-		ship "Bulwark III"
+		ship "Freight V"
+		ship "Freight V"
 	on complete
 		payment 133909
 
@@ -7961,9 +7961,9 @@ mission "grask escort 13538"
 	npc save accompany
 		government "Grask Reclaimers"
 		personality timid escort
-		ship "Sifter VII"
-		ship "Sifter VII"
-		ship "Sifter VII"
+		ship "Claghulk Hulk"
+		ship "Claghulk Hulk"
+		ship "Claghulk Hulk"
 	on complete
 		payment 143209
 
@@ -7982,9 +7982,9 @@ mission "drell escort 47849"
 	npc save accompany
 		government "Drell Caravan"
 		personality timid escort
-		ship "Farsight X"
-		ship "Farsight X"
-		ship "Farsight X"
+		ship "Miramira Farsight"
+		ship "Miramira Farsight"
+		ship "Miramira Farsight"
 	on complete
 		payment 130127
 
@@ -8022,9 +8022,9 @@ mission "ythera escort 96230"
 	npc save accompany
 		government "Ythera Rootward"
 		personality timid escort
-		ship "Frond V"
-		ship "Frond V"
-		ship "Frond V"
+		ship "Frond IV"
+		ship "Frond IV"
+		ship "Frond IV"
 	on complete
 		payment 140544
 
@@ -8064,8 +8064,8 @@ mission "sarn escort 50477"
 	npc save accompany
 		government "Sarn Dominion"
 		personality timid escort
-		ship "Vow I"
-		ship "Vow I"
+		ship "Grimgrim Rampart"
+		ship "Grimgrim Rampart"
 	on complete
 		payment 105571
 
@@ -8084,7 +8084,7 @@ mission "orokh escort 38905"
 	npc save accompany
 		government "Orokh Forgemasters"
 		personality timid escort
-		ship "Brennvurm Bellows"
+		ship "Ember III"
 	on complete
 		payment 112379
 
@@ -8103,9 +8103,9 @@ mission "tessarai escort 88972"
 	npc save accompany
 		government "Tessarai Enumeration"
 		personality timid escort
-		ship "Set IX"
-		ship "Set IX"
-		ship "Set IX"
+		ship "Proof IV"
+		ship "Proof IV"
+		ship "Proof IV"
 	on complete
 		payment 97882
 
@@ -8124,7 +8124,7 @@ mission "ythera escort 42022"
 	npc save accompany
 		government "Ythera Rootward"
 		personality timid escort
-		ship "Frond IV"
+		ship "Sylvyth Spore"
 	on complete
 		payment 108914
 
@@ -8143,9 +8143,9 @@ mission "grask escort 97831"
 	npc save accompany
 		government "Grask Reclaimers"
 		personality timid escort
-		ship "Claghulk Hulk"
-		ship "Claghulk Hulk"
-		ship "Claghulk Hulk"
+		ship "Hulk X"
+		ship "Hulk X"
+		ship "Hulk X"
 	on complete
 		payment 138700
 
@@ -8185,8 +8185,8 @@ mission "karn escort 85307"
 	npc save accompany
 		government "Karn Free Companies"
 		personality timid escort
-		ship "Retainer I"
-		ship "Retainer I"
+		ship "Wager I"
+		ship "Wager I"
 	on complete
 		payment 118408
 
@@ -8205,7 +8205,7 @@ mission "voth escort 77291"
 	npc save accompany
 		government "Voth Gravitum"
 		personality timid escort
-		ship "Keel IX"
+		ship "Deadfall IV"
 	on complete
 		payment 117011
 
@@ -8224,7 +8224,7 @@ mission "vashari escort 10812"
 	npc save accompany
 		government "Vashari Lapidary"
 		personality timid escort
-		ship "Chord X"
+		ship "Prism X"
 	on complete
 		payment 94796
 
@@ -8243,7 +8243,7 @@ mission "ythera escort 86007"
 	npc save accompany
 		government "Ythera Rootward"
 		personality timid escort
-		ship "Bramble X"
+		ship "Bramble II"
 	on complete
 		payment 99474
 
@@ -8262,8 +8262,8 @@ mission "karn escort 51002"
 	npc save accompany
 		government "Karn Broken Lances"
 		personality timid escort
-		ship "Tegghald Contract"
-		ship "Tegghald Contract"
+		ship "Retainer I"
+		ship "Retainer I"
 	on complete
 		payment 86931
 
@@ -8282,9 +8282,9 @@ mission "ixil escort 41548"
 	npc save accompany
 		government "Ixil Skyholds"
 		personality timid escort
-		ship "Phaentel Cirrus"
-		ship "Phaentel Cirrus"
-		ship "Phaentel Cirrus"
+		ship "Telil Mantle"
+		ship "Telil Mantle"
+		ship "Telil Mantle"
 	on complete
 		payment 130560
 
@@ -8303,8 +8303,8 @@ mission "bracken escort 51484"
 	npc save accompany
 		government "Bracken Coppice"
 		personality timid escort
-		ship "Bloom IV"
-		ship "Bloom IV"
+		ship "Creeper IV"
+		ship "Creeper IV"
 	on complete
 		payment 95331
 
@@ -8323,7 +8323,7 @@ mission "karn escort 67614"
 	npc save accompany
 		government "Karn Free Companies"
 		personality timid escort
-		ship "Tegghald Contract"
+		ship "Retainer I"
 	on complete
 		payment 138378
 
@@ -8342,9 +8342,9 @@ mission "grask escort 63322"
 	npc save accompany
 		government "Grask Reclaimers"
 		personality timid escort
-		ship "Hulk X"
-		ship "Hulk X"
-		ship "Hulk X"
+		ship "Sifter VII"
+		ship "Sifter VII"
+		ship "Sifter VII"
 	on complete
 		payment 140416
 
@@ -8363,7 +8363,7 @@ mission "lumen escort 64430"
 	npc save accompany
 		government "Lumen Filament"
 		personality timid escort
-		ship "Orisira Corona"
+		ship "Phosori Spark"
 	on complete
 		payment 120973
 
@@ -8382,9 +8382,9 @@ mission "ceph escort 49131"
 	npc save accompany
 		government "Ceph Shoalkeepers"
 		personality timid escort
-		ship "Trench I"
-		ship "Trench I"
-		ship "Trench I"
+		ship "Nautilus VII"
+		ship "Nautilus VII"
+		ship "Nautilus VII"
 	on complete
 		payment 134308
 
@@ -8403,8 +8403,8 @@ mission "karn escort 66420"
 	npc save accompany
 		government "Karn Broken Lances"
 		personality timid escort
-		ship "Tegghald Contract"
-		ship "Tegghald Contract"
+		ship "Wager I"
+		ship "Wager I"
 	on complete
 		payment 104149
 
@@ -8423,9 +8423,9 @@ mission "terran escort 15536"
 	npc save accompany
 		government "Concord Merchant Guild"
 		personality timid escort
-		ship "Dunhar Warden"
-		ship "Dunhar Warden"
-		ship "Dunhar Warden"
+		ship "Drover I"
+		ship "Drover I"
+		ship "Drover I"
 	on complete
 		payment 99134
 
@@ -8444,8 +8444,8 @@ mission "orokh escort 50312"
 	npc save accompany
 		government "Orokh Forgemasters"
 		personality timid escort
-		ship "Ember III"
-		ship "Ember III"
+		ship "Tororokh Cinder"
+		ship "Tororokh Cinder"
 	on complete
 		payment 114675
 
@@ -8484,9 +8484,9 @@ mission "aurei escort 67992"
 	npc save accompany
 		government "Aurei Caretakers"
 		personality timid escort
-		ship "Aeon V"
-		ship "Aeon V"
-		ship "Aeon V"
+		ship "Aursere Vestige"
+		ship "Aursere Vestige"
+		ship "Aursere Vestige"
 	on complete
 		payment 143366
 
@@ -8505,8 +8505,8 @@ mission "voth escort 71480"
 	npc save accompany
 		government "Voth Gravitum"
 		personality timid escort
-		ship "Keel IX"
-		ship "Keel IX"
+		ship "Keel X"
+		ship "Keel X"
 	on complete
 		payment 96951
 
@@ -8525,7 +8525,7 @@ mission "keltoth escort 19458"
 	npc save accompany
 		government "Kel'Toth Drift"
 		personality timid escort
-		ship "Nymph IV"
+		ship "Brood IX"
 	on complete
 		payment 97442
 
@@ -8563,9 +8563,9 @@ mission "nyx escort 7836"
 	npc save accompany
 		government "Nyx Umbral"
 		personality timid escort
-		ship "Veil X"
-		ship "Veil X"
-		ship "Veil X"
+		ship "Quietvane Pall"
+		ship "Quietvane Pall"
+		ship "Quietvane Pall"
 	on complete
 		payment 107549
 
@@ -8584,9 +8584,9 @@ mission "karn escort 96740"
 	npc save accompany
 		government "Karn Free Companies"
 		personality timid escort
-		ship "Retainer I"
-		ship "Retainer I"
-		ship "Retainer I"
+		ship "Tegghald Contract"
+		ship "Tegghald Contract"
+		ship "Tegghald Contract"
 	on complete
 		payment 96466
 
@@ -8605,7 +8605,7 @@ mission "keltoth escort 27280"
 	npc save accompany
 		government "Kel'Toth Brood"
 		personality timid escort
-		ship "Vektoth Swarm"
+		ship "Brood VII"
 	on complete
 		payment 95932
 
@@ -8624,9 +8624,9 @@ mission "choir escort 87599"
 	npc save accompany
 		government "Choir Mendicants"
 		personality timid escort
-		ship "Vesphol Antiphon"
-		ship "Vesphol Antiphon"
-		ship "Vesphol Antiphon"
+		ship "Antiphon VII"
+		ship "Antiphon VII"
+		ship "Antiphon VII"
 	on complete
 		payment 139904
 
@@ -8645,7 +8645,7 @@ mission "tessarai escort 37130"
 	npc save accompany
 		government "Tessarai Remainder"
 		personality timid escort
-		ship "Arainul Corollary"
+		ship "Proof IV"
 	on complete
 		payment 114123
 
@@ -8664,7 +8664,7 @@ mission "drell escort 24972"
 	npc save accompany
 		government "Drell Caravan"
 		personality timid escort
-		ship "Miramira Farsight"
+		ship "Drelldrell Wanderer"
 	on complete
 		payment 89663
 
@@ -8683,8 +8683,8 @@ mission "morrow escort 52760"
 	npc save accompany
 		government "Morrow Combine"
 		personality timid escort
-		ship "Tariff V"
-		ship "Tariff V"
+		ship "Bulwark III"
+		ship "Bulwark III"
 	on complete
 		payment 88572
 
@@ -8703,8 +8703,8 @@ mission "vashari escort 28163"
 	npc save accompany
 		government "Vashari Lapidary"
 		personality timid escort
-		ship "Facet X"
-		ship "Facet X"
+		ship "Prism X"
+		ship "Prism X"
 	on complete
 		payment 114294
 
@@ -8723,7 +8723,7 @@ mission "grask escort 77667"
 	npc save accompany
 		government "Grask Reclaimers"
 		personality timid escort
-		ship "Sifter IX"
+		ship "Hulk X"
 	on complete
 		payment 96291
 
@@ -8742,8 +8742,8 @@ mission "choir escort 21780"
 	npc save accompany
 		government "Choir Mendicants"
 		personality timid escort
-		ship "Vespmatin Censer"
-		ship "Vespmatin Censer"
+		ship "Censer X"
+		ship "Censer X"
 	on complete
 		payment 127510
 
@@ -8802,8 +8802,8 @@ mission "ythera escort 67092"
 	npc save accompany
 		government "Ythera Rootward"
 		personality timid escort
-		ship "Bramble II"
-		ship "Bramble II"
+		ship "Frond V"
+		ship "Frond V"
 	on complete
 		payment 100700
 
@@ -8822,9 +8822,9 @@ mission "ixil escort 90263"
 	npc save accompany
 		government "Ixil Skyholds"
 		personality timid escort
-		ship "Ombraur Updraft"
-		ship "Ombraur Updraft"
-		ship "Ombraur Updraft"
+		ship "Telaur Halo"
+		ship "Telaur Halo"
+		ship "Telaur Halo"
 	on complete
 		payment 101396
 
@@ -8843,9 +8843,9 @@ mission "orokh escort 37318"
 	npc save accompany
 		government "Orokh Forgemasters"
 		personality timid escort
-		ship "Vurmtor Anvil"
-		ship "Vurmtor Anvil"
-		ship "Vurmtor Anvil"
+		ship "Tororokh Cinder"
+		ship "Tororokh Cinder"
+		ship "Tororokh Cinder"
 	on complete
 		payment 98407
 
@@ -8864,7 +8864,7 @@ mission "terran escort 16753"
 	npc save accompany
 		government "Concord Merchant Guild"
 		personality timid escort
-		ship "Dunhar Warden"
+		ship "Kestrel I"
 	on complete
 		payment 141842
 
@@ -8883,7 +8883,7 @@ mission "bracken escort 14417"
 	npc save accompany
 		government "Bracken Coppice"
 		personality timid escort
-		ship "Thicket III"
+		ship "Thornsedge Creeper"
 	on complete
 		payment 129688
 
@@ -8940,9 +8940,9 @@ mission "orokh escort 17276"
 	npc save accompany
 		government "Orokh Forgemasters"
 		personality timid escort
-		ship "Tororokh Cinder"
-		ship "Tororokh Cinder"
-		ship "Tororokh Cinder"
+		ship "Cinder III"
+		ship "Cinder III"
+		ship "Cinder III"
 	on complete
 		payment 131560
 
@@ -8982,7 +8982,7 @@ mission "nyx escort 11630"
 	npc save accompany
 		government "Nyx Quietus"
 		personality timid escort
-		ship "Veil X"
+		ship "Nyxquiet Pall"
 	on complete
 		payment 116548
 
@@ -9001,8 +9001,8 @@ mission "morrow escort 99991"
 	npc save accompany
 		government "Morrow Combine"
 		personality timid escort
-		ship "Bulwark III"
-		ship "Bulwark III"
+		ship "Strowen Tariff"
+		ship "Strowen Tariff"
 	on complete
 		payment 88376
 
@@ -9021,8 +9021,8 @@ mission "drell escort 57483"
 	npc save accompany
 		government "Drell Caravan"
 		personality timid escort
-		ship "Wanderer IX"
-		ship "Wanderer IX"
+		ship "Miramira Farsight"
+		ship "Miramira Farsight"
 	on complete
 		payment 107874
 
@@ -9041,9 +9041,9 @@ mission "drell escort 79327"
 	npc save accompany
 		government "Drell Caravan"
 		personality timid escort
-		ship "Drelldrell Wanderer"
-		ship "Drelldrell Wanderer"
-		ship "Drelldrell Wanderer"
+		ship "Farsight X"
+		ship "Farsight X"
+		ship "Farsight X"
 	on complete
 		payment 111372
 
@@ -9062,8 +9062,8 @@ mission "aurei escort 99458"
 	npc save accompany
 		government "Aurei Caretakers"
 		personality timid escort
-		ship "Testament V"
-		ship "Testament V"
+		ship "Aeon V"
+		ship "Aeon V"
 	on complete
 		payment 86821
 
@@ -9082,8 +9082,8 @@ mission "choir escort 5367"
 	npc save accompany
 		government "Choir Mendicants"
 		personality timid escort
-		ship "Vespmatin Censer"
-		ship "Vespmatin Censer"
+		ship "Antiphon VII"
+		ship "Antiphon VII"
 	on complete
 		payment 86005
 
@@ -9102,9 +9102,9 @@ mission "voth escort 778"
 	npc save accompany
 		government "Voth Gravitum"
 		personality timid escort
-		ship "Deadfall X"
-		ship "Deadfall X"
-		ship "Deadfall X"
+		ship "Keel X"
+		ship "Keel X"
+		ship "Keel X"
 	on complete
 		payment 128329
 
@@ -9144,8 +9144,8 @@ mission "ceph escort 74993"
 	npc save accompany
 		government "Ceph Shoalkeepers"
 		personality timid escort
-		ship "Abysceph Nautilus"
-		ship "Abysceph Nautilus"
+		ship "Nautilus VII"
+		ship "Nautilus VII"
 	on complete
 		payment 108322
 
@@ -9164,8 +9164,8 @@ mission "grask escort 79423"
 	npc save accompany
 		government "Grask Reclaimers"
 		personality timid escort
-		ship "Sifter VII"
-		ship "Sifter VII"
+		ship "Rudgrask Sifter"
+		ship "Rudgrask Sifter"
 	on complete
 		payment 91971
 
@@ -9184,7 +9184,7 @@ mission "ixil escort 81995"
 	npc save accompany
 		government "Ixil Skyholds"
 		personality timid escort
-		ship "Ombraur Updraft"
+		ship "Telaur Halo"
 	on complete
 		payment 143311
 
@@ -9223,7 +9223,7 @@ mission "sarn escort 97387"
 	npc save accompany
 		government "Sarn Exiles"
 		personality timid escort
-		ship "Legion IX"
+		ship "Legion III"
 	on complete
 		payment 89824
 
@@ -9242,9 +9242,9 @@ mission "keltoth escort 36452"
 	npc save accompany
 		government "Kel'Toth Brood"
 		personality timid escort
-		ship "Murtoth Swarm"
-		ship "Murtoth Swarm"
-		ship "Murtoth Swarm"
+		ship "Vektoth Swarm"
+		ship "Vektoth Swarm"
+		ship "Vektoth Swarm"
 	on complete
 		payment 131607
 
@@ -9263,8 +9263,8 @@ mission "ixil escort 32399"
 	npc save accompany
 		government "Ixil Skyholds"
 		personality timid escort
-		ship "Phaentel Cirrus"
-		ship "Phaentel Cirrus"
+		ship "Ixombr Zephyr"
+		ship "Ixombr Zephyr"
 	on complete
 		payment 112465
 
@@ -9283,7 +9283,7 @@ mission "voth escort 25532"
 	npc save accompany
 		government "Voth Underclans"
 		personality timid escort
-		ship "Keel IX"
+		ship "Deadfall IV"
 	on complete
 		payment 127228
 
@@ -9302,9 +9302,9 @@ mission "grask escort 54937"
 	npc save accompany
 		government "Grask Reclaimers"
 		personality timid escort
-		ship "Sifter VII"
-		ship "Sifter VII"
-		ship "Sifter VII"
+		ship "Hulk X"
+		ship "Hulk X"
+		ship "Hulk X"
 	on complete
 		payment 121193
 
@@ -9323,7 +9323,7 @@ mission "bracken escort 20705"
 	npc save accompany
 		government "Bracken Coppice"
 		personality timid escort
-		ship "Bloom IV"
+		ship "Thicket III"
 	on complete
 		payment 98907
 
@@ -9342,7 +9342,7 @@ mission "lumen escort 24513"
 	npc save accompany
 		government "Lumen Diaspora"
 		personality timid escort
-		ship "Siraori Filament"
+		ship "Orisira Corona"
 	on complete
 		payment 91029
 
@@ -9361,9 +9361,9 @@ mission "drell escort 2843"
 	npc save accompany
 		government "Drell Caravan"
 		personality timid escort
-		ship "Farsight X"
-		ship "Farsight X"
-		ship "Farsight X"
+		ship "Wanderer IX"
+		ship "Wanderer IX"
+		ship "Wanderer IX"
 	on complete
 		payment 96641
 
@@ -9402,8 +9402,8 @@ mission "karn escort 1553"
 	npc save accompany
 		government "Karn Free Companies"
 		personality timid escort
-		ship "Fee III"
-		ship "Fee III"
+		ship "Wager I"
+		ship "Wager I"
 	on complete
 		payment 139096
 
@@ -9422,8 +9422,8 @@ mission "aurei escort 84783"
 	npc save accompany
 		government "Aurei Remnant"
 		personality timid escort
-		ship "Testament V"
-		ship "Testament V"
+		ship "Aeon V"
+		ship "Aeon V"
 	on complete
 		payment 124579
 
@@ -9461,7 +9461,7 @@ mission "vashari escort 78539"
 	npc save accompany
 		government "Vashari Lapidary"
 		personality timid escort
-		ship "Chord X"
+		ship "Prism X"
 	on complete
 		payment 132203
 
@@ -9480,7 +9480,7 @@ mission "nyx escort 85398"
 	npc save accompany
 		government "Nyx Umbral"
 		personality timid escort
-		ship "Nocturne X"
+		ship "Veil X"
 	on complete
 		payment 92854
 
@@ -9499,8 +9499,8 @@ mission "aurei escort 98972"
 	npc save accompany
 		government "Aurei Remnant"
 		personality timid escort
-		ship "Aeon V"
-		ship "Aeon V"
+		ship "Aursere Vestige"
+		ship "Aursere Vestige"
 	on complete
 		payment 100604
 
@@ -9539,7 +9539,7 @@ mission "silane escort 91709"
 	npc save accompany
 		government "Silane Exchange"
 		personality timid escort
-		ship "Corrmari Margin"
+		ship "Silcorr Bourse"
 	on complete
 		payment 110731
 
@@ -9558,7 +9558,7 @@ mission "keltoth escort 63731"
 	npc save accompany
 		government "Kel'Toth Brood"
 		personality timid escort
-		ship "Murtoth Swarm"
+		ship "Nymph IV"
 	on complete
 		payment 122174
 
@@ -9577,7 +9577,7 @@ mission "keltoth escort 87825"
 	npc save accompany
 		government "Kel'Toth Drift"
 		personality timid escort
-		ship "Murtoth Swarm"
+		ship "Brood IX"
 	on complete
 		payment 109892
 
@@ -9596,7 +9596,7 @@ mission "voth escort 45155"
 	npc save accompany
 		government "Voth Underclans"
 		personality timid escort
-		ship "Keel X"
+		ship "Deadfall IV"
 	on complete
 		payment 108014
 
@@ -9615,8 +9615,8 @@ mission "ceph escort 72875"
 	npc save accompany
 		government "Ceph Shoalkeepers"
 		personality timid escort
-		ship "Nautilus VII"
-		ship "Nautilus VII"
+		ship "Abysceph Nautilus"
+		ship "Abysceph Nautilus"
 	on complete
 		payment 142987
 
@@ -9635,9 +9635,9 @@ mission "ythera escort 62126"
 	npc save accompany
 		government "Ythera Rootward"
 		personality timid escort
-		ship "Frond IV"
-		ship "Frond IV"
-		ship "Frond IV"
+		ship "Bramble II"
+		ship "Bramble II"
+		ship "Bramble II"
 	on complete
 		payment 111580
 
@@ -9656,7 +9656,7 @@ mission "voth escort 60669"
 	npc save accompany
 		government "Voth Underclans"
 		personality timid escort
-		ship "Keel IX"
+		ship "Murgvoth Weight"
 	on complete
 		payment 135167
 
@@ -9675,9 +9675,9 @@ mission "terran escort 69581"
 	npc save accompany
 		government "Concord Merchant Guild"
 		personality timid escort
-		ship "Novnov Warden"
-		ship "Novnov Warden"
-		ship "Novnov Warden"
+		ship "Drover I"
+		ship "Drover I"
+		ship "Drover I"
 	on complete
 		payment 87535
 
@@ -9696,7 +9696,7 @@ mission "karn escort 24544"
 	npc save accompany
 		government "Karn Free Companies"
 		personality timid escort
-		ship "Retainer I"
+		ship "Fee III"
 	on complete
 		payment 129959
 
@@ -9715,9 +9715,9 @@ mission "terran escort 75085"
 	npc save accompany
 		government "Concord Merchant Guild"
 		personality timid escort
-		ship "Dunhar Warden"
-		ship "Dunhar Warden"
-		ship "Dunhar Warden"
+		ship "Kestrel I"
+		ship "Kestrel I"
+		ship "Kestrel I"
 	on complete
 		payment 110922
 
@@ -9736,9 +9736,9 @@ mission "ythera escort 98324"
 	npc save accompany
 		government "Ythera Rootward"
 		personality timid escort
-		ship "Bramble X"
-		ship "Bramble X"
-		ship "Bramble X"
+		ship "Frond IV"
+		ship "Frond IV"
+		ship "Frond IV"
 	on complete
 		payment 135042
 
@@ -9757,8 +9757,8 @@ mission "orokh escort 39374"
 	npc save accompany
 		government "Orokh Forgemasters"
 		personality timid escort
-		ship "Vurmtor Anvil"
-		ship "Vurmtor Anvil"
+		ship "Brennvurm Bellows"
+		ship "Brennvurm Bellows"
 	on complete
 		payment 111918
 
@@ -9798,9 +9798,9 @@ mission "keltoth escort 20507"
 	npc save accompany
 		government "Kel'Toth Brood"
 		personality timid escort
-		ship "Murtoth Swarm"
-		ship "Murtoth Swarm"
-		ship "Murtoth Swarm"
+		ship "Vektoth Swarm"
+		ship "Vektoth Swarm"
+		ship "Vektoth Swarm"
 	on complete
 		payment 131162
 
@@ -9819,8 +9819,8 @@ mission "tessarai escort 80097"
 	npc save accompany
 		government "Tessarai Remainder"
 		personality timid escort
-		ship "Corollary VII"
-		ship "Corollary VII"
+		ship "Arainul Corollary"
+		ship "Arainul Corollary"
 	on complete
 		payment 114072
 
@@ -9839,8 +9839,8 @@ mission "keltoth escort 70927"
 	npc save accompany
 		government "Kel'Toth Drift"
 		personality timid escort
-		ship "Murtoth Swarm"
-		ship "Murtoth Swarm"
+		ship "Brood IX"
+		ship "Brood IX"
 	on complete
 		payment 129900
 
@@ -9859,7 +9859,7 @@ mission "voth escort 11489"
 	npc save accompany
 		government "Voth Underclans"
 		personality timid escort
-		ship "Deadfall X"
+		ship "Deadfall IV"
 	on complete
 		payment 140228
 
@@ -9878,8 +9878,8 @@ mission "keltoth escort 98594"
 	npc save accompany
 		government "Kel'Toth Drift"
 		personality timid escort
-		ship "Murtoth Swarm"
-		ship "Murtoth Swarm"
+		ship "Brood IX"
+		ship "Brood IX"
 	on complete
 		payment 129386
 
@@ -9898,7 +9898,7 @@ mission "voth escort 50101"
 	npc save accompany
 		government "Voth Underclans"
 		personality timid escort
-		ship "Keel X"
+		ship "Deadfall IV"
 	on complete
 		payment 129977
 
@@ -9917,7 +9917,7 @@ mission "ixil escort 47695"
 	npc save accompany
 		government "Ixil Skyholds"
 		personality timid escort
-		ship "Ombraur Updraft"
+		ship "Phaentel Cirrus"
 	on complete
 		payment 103287
 
@@ -9936,9 +9936,9 @@ mission "bracken escort 76817"
 	npc save accompany
 		government "Bracken Coppice"
 		personality timid escort
-		ship "Thicket III"
-		ship "Thicket III"
-		ship "Thicket III"
+		ship "Creeper IV"
+		ship "Creeper IV"
+		ship "Creeper IV"
 	on complete
 		payment 130675
 
@@ -9957,9 +9957,9 @@ mission "nyx escort 38949"
 	npc save accompany
 		government "Nyx Quietus"
 		personality timid escort
-		ship "Vanequiet Nocturne"
-		ship "Vanequiet Nocturne"
-		ship "Vanequiet Nocturne"
+		ship "Quietvane Pall"
+		ship "Quietvane Pall"
+		ship "Quietvane Pall"
 	on complete
 		payment 93510
 
@@ -9978,8 +9978,8 @@ mission "voth escort 41549"
 	npc save accompany
 		government "Voth Gravitum"
 		personality timid escort
-		ship "Deadfall X"
-		ship "Deadfall X"
+		ship "Murgvoth Weight"
+		ship "Murgvoth Weight"
 	on complete
 		payment 125163
 
@@ -9998,9 +9998,9 @@ mission "grask escort 91852"
 	npc save accompany
 		government "Grask Reclaimers"
 		personality timid escort
-		ship "Rudgrask Sifter"
-		ship "Rudgrask Sifter"
-		ship "Rudgrask Sifter"
+		ship "Sifter VII"
+		ship "Sifter VII"
+		ship "Sifter VII"
 	on complete
 		payment 142811
 
@@ -10019,7 +10019,7 @@ mission "nyx escort 67792"
 	npc save accompany
 		government "Nyx Umbral"
 		personality timid escort
-		ship "Vanequiet Nocturne"
+		ship "Veil X"
 	on complete
 		payment 136426
 
@@ -10038,8 +10038,8 @@ mission "orokh escort 94732"
 	npc save accompany
 		government "Orokh Forgemasters"
 		personality timid escort
-		ship "Ember III"
-		ship "Ember III"
+		ship "Cinder III"
+		ship "Cinder III"
 	on complete
 		payment 110903
 
@@ -10058,7 +10058,7 @@ mission "bracken escort 95456"
 	npc save accompany
 		government "Bracken Coppice"
 		personality timid escort
-		ship "Creeper IV"
+		ship "Bloom VII"
 	on complete
 		payment 95286
 
@@ -10097,9 +10097,9 @@ mission "terran escort 52501"
 	npc save accompany
 		government "Concord Merchant Guild"
 		personality timid escort
-		ship "Dunhar Warden"
-		ship "Dunhar Warden"
-		ship "Dunhar Warden"
+		ship "Novnov Warden"
+		ship "Novnov Warden"
+		ship "Novnov Warden"
 	on complete
 		payment 117031
 
@@ -10118,8 +10118,8 @@ mission "lumen escort 72214"
 	npc save accompany
 		government "Lumen Diaspora"
 		personality timid escort
-		ship "Arc I"
-		ship "Arc I"
+		ship "Corona III"
+		ship "Corona III"
 	on complete
 		payment 92780
 
@@ -10138,9 +10138,9 @@ mission "drell escort 52074"
 	npc save accompany
 		government "Drell Caravan"
 		personality timid escort
-		ship "Miramira Farsight"
-		ship "Miramira Farsight"
-		ship "Miramira Farsight"
+		ship "Wanderer IX"
+		ship "Wanderer IX"
+		ship "Wanderer IX"
 	on complete
 		payment 104588
 
@@ -10159,7 +10159,7 @@ mission "voth escort 8334"
 	npc save accompany
 		government "Voth Gravitum"
 		personality timid escort
-		ship "Murgvoth Weight"
+		ship "Deadfall X"
 	on complete
 		payment 133774
 
@@ -10197,9 +10197,9 @@ mission "sarn escort 69041"
 	npc save accompany
 		government "Sarn Marches"
 		personality timid escort
-		ship "Legion IX"
-		ship "Legion IX"
-		ship "Legion IX"
+		ship "Legion III"
+		ship "Legion III"
+		ship "Legion III"
 	on complete
 		payment 115594
 
@@ -10218,9 +10218,9 @@ mission "sarn escort 64365"
 	npc save accompany
 		government "Sarn Exiles"
 		personality timid escort
-		ship "Grimgrim Rampart"
-		ship "Grimgrim Rampart"
-		ship "Grimgrim Rampart"
+		ship "Legion X"
+		ship "Legion X"
+		ship "Legion X"
 	on complete
 		payment 117637
 
@@ -10239,9 +10239,9 @@ mission "voth escort 19300"
 	npc save accompany
 		government "Voth Underclans"
 		personality timid escort
-		ship "Keel X"
-		ship "Keel X"
-		ship "Keel X"
+		ship "Murgvoth Weight"
+		ship "Murgvoth Weight"
+		ship "Murgvoth Weight"
 	on complete
 		payment 99052
 
@@ -10260,8 +10260,8 @@ mission "tessarai escort 11819"
 	npc save accompany
 		government "Tessarai Enumeration"
 		personality timid escort
-		ship "Proof IV"
-		ship "Proof IV"
+		ship "Corollary VII"
+		ship "Corollary VII"
 	on complete
 		payment 138858
 
@@ -10280,8 +10280,8 @@ mission "ythera escort 49706"
 	npc save accompany
 		government "Ythera Rootward"
 		personality timid escort
-		ship "Sylvyth Spore"
-		ship "Sylvyth Spore"
+		ship "Bramble II"
+		ship "Bramble II"
 	on complete
 		payment 112584
 
@@ -10300,9 +10300,9 @@ mission "ythera escort 9383"
 	npc save accompany
 		government "Ythera Rootward"
 		personality timid escort
-		ship "Bramble II"
-		ship "Bramble II"
-		ship "Bramble II"
+		ship "Frond IV"
+		ship "Frond IV"
+		ship "Frond IV"
 	on complete
 		payment 107288
 
@@ -10321,9 +10321,9 @@ mission "terran escort 27286"
 	npc save accompany
 		government "Concord Merchant Guild"
 		personality timid escort
-		ship "Dunhar Warden"
-		ship "Dunhar Warden"
-		ship "Dunhar Warden"
+		ship "Drover III"
+		ship "Drover III"
+		ship "Drover III"
 	on complete
 		payment 111498
 
@@ -10342,7 +10342,7 @@ mission "voth escort 88957"
 	npc save accompany
 		government "Voth Gravitum"
 		personality timid escort
-		ship "Keel X"
+		ship "Keel IX"
 	on complete
 		payment 88421
 
@@ -10361,9 +10361,9 @@ mission "silane escort 8795"
 	npc save accompany
 		government "Silane Factors"
 		personality timid escort
-		ship "Consul V"
-		ship "Consul V"
-		ship "Consul V"
+		ship "Silcorr Bourse"
+		ship "Silcorr Bourse"
+		ship "Silcorr Bourse"
 	on complete
 		payment 130937
 
@@ -10382,7 +10382,7 @@ mission "ceph escort 76590"
 	npc save accompany
 		government "Ceph Shoalkeepers"
 		personality timid escort
-		ship "Cephnerei Trench"
+		ship "Trench I"
 	on complete
 		payment 87938
 
@@ -10402,7 +10402,7 @@ mission "keltoth salvage 54048"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Vanequiet Nocturne"
+		ship "Nocturne X"
 	on complete
 		payment 63178
 
@@ -10422,7 +10422,7 @@ mission "karn salvage 45541"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Freight V"
+		ship "Tariff V"
 	on complete
 		payment 90656
 
@@ -10442,7 +10442,7 @@ mission "voth salvage 48188"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Novnov Warden"
+		ship "Drover III"
 	on complete
 		payment 94394
 
@@ -10462,7 +10462,7 @@ mission "aurei salvage 52494"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Testament V"
+		ship "Aeon V"
 	on complete
 		payment 79766
 
@@ -10482,7 +10482,7 @@ mission "orokh salvage 72920"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Facet X"
+		ship "Aelith Facet"
 	on complete
 		payment 65986
 
@@ -10502,7 +10502,7 @@ mission "bracken salvage 94873"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Creeper IV"
+		ship "Thicket III"
 	on complete
 		payment 95204
 
@@ -10542,7 +10542,7 @@ mission "tessarai salvage 95260"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Gildstro Tariff"
+		ship "Bulwark III"
 	on complete
 		payment 104995
 
@@ -10562,7 +10562,7 @@ mission "sarn salvage 39228"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Tororokh Cinder"
+		ship "Cinder III"
 	on complete
 		payment 102337
 
@@ -10582,7 +10582,7 @@ mission "choir salvage 7713"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Bourse VII"
+		ship "Consul V"
 	on complete
 		payment 100263
 
@@ -10602,7 +10602,7 @@ mission "ceph salvage 64466"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Corona III"
+		ship "Siraori Filament"
 	on complete
 		payment 64861
 
@@ -10622,7 +10622,7 @@ mission "lumen salvage 13980"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Keel IX"
+		ship "Deadfall IV"
 	on complete
 		payment 83720
 
@@ -10642,7 +10642,7 @@ mission "terran salvage 57924"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Keel IX"
+		ship "Deadfall X"
 	on complete
 		payment 96532
 
@@ -10682,7 +10682,7 @@ mission "keltoth salvage 34677"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Miramira Farsight"
+		ship "Farsight X"
 	on complete
 		payment 104819
 
@@ -10702,7 +10702,7 @@ mission "morrow salvage 55525"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Corona III"
+		ship "Arc I"
 	on complete
 		payment 104769
 
@@ -10722,7 +10722,7 @@ mission "keltoth salvage 23241"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Bourse VII"
+		ship "Corrmari Consul"
 	on complete
 		payment 82021
 
@@ -10742,7 +10742,7 @@ mission "ceph salvage 15065"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Tegghald Contract"
+		ship "Retainer IX"
 	on complete
 		payment 73747
 
@@ -10782,7 +10782,7 @@ mission "voth salvage 71006"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Consul V"
+		ship "Bourse VII"
 	on complete
 		payment 78215
 
@@ -10802,7 +10802,7 @@ mission "ythera salvage 88800"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Sunddrell Hearth"
+		ship "Drelldrell Wanderer"
 	on complete
 		payment 74798
 
@@ -10842,7 +10842,7 @@ mission "ixil salvage 27474"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Gildstro Tariff"
+		ship "Bulwark III"
 	on complete
 		payment 84209
 
@@ -10862,7 +10862,7 @@ mission "ixil salvage 27107"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Aelith Facet"
+		ship "Chord X"
 	on complete
 		payment 86743
 
@@ -10882,7 +10882,7 @@ mission "karn salvage 74002"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Thicket III"
+		ship "Thornsedge Creeper"
 	on complete
 		payment 96964
 
@@ -10902,7 +10902,7 @@ mission "ythera salvage 52764"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Vanequiet Nocturne"
+		ship "Quietvane Pall"
 	on complete
 		payment 97870
 
@@ -10922,7 +10922,7 @@ mission "lumen salvage 88519"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Silcorr Bourse"
+		ship "Corrmari Margin"
 	on complete
 		payment 85767
 
@@ -10942,7 +10942,7 @@ mission "nyx salvage 50670"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Drover I"
+		ship "Novnov Warden"
 	on complete
 		payment 100563
 
@@ -10962,7 +10962,7 @@ mission "drell salvage 42694"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Drelldrell Wanderer"
+		ship "Farsight X"
 	on complete
 		payment 102951
 
@@ -10982,7 +10982,7 @@ mission "drell salvage 13917"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Corrmari Consul"
+		ship "Silcorr Bourse"
 	on complete
 		payment 98389
 
@@ -11022,7 +11022,7 @@ mission "lumen salvage 76085"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Trench I"
+		ship "Abysceph Nautilus"
 	on complete
 		payment 99498
 
@@ -11042,7 +11042,7 @@ mission "lumen salvage 77725"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Nymph IV"
+		ship "Murtoth Swarm"
 	on complete
 		payment 103661
 
@@ -11062,7 +11062,7 @@ mission "nyx salvage 15179"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Drover I"
+		ship "Novnov Warden"
 	on complete
 		payment 87328
 
@@ -11082,7 +11082,7 @@ mission "karn salvage 44672"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Drover I"
+		ship "Novnov Warden"
 	on complete
 		payment 92082
 
@@ -11102,7 +11102,7 @@ mission "keltoth salvage 27606"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Sylvyth Spore"
+		ship "Bramble X"
 	on complete
 		payment 77810
 
@@ -11122,7 +11122,7 @@ mission "vashari salvage 77231"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Claghulk Hulk"
+		ship "Sifter VII"
 	on complete
 		payment 84047
 
@@ -11142,7 +11142,7 @@ mission "ceph salvage 77044"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Bourse VII"
+		ship "Silcorr Bourse"
 	on complete
 		payment 86124
 
@@ -11162,7 +11162,7 @@ mission "ixil salvage 47496"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Trench I"
+		ship "Abysceph Nautilus"
 	on complete
 		payment 65243
 
@@ -11182,7 +11182,7 @@ mission "voth salvage 48530"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Hulk X"
+		ship "Sifter IX"
 	on complete
 		payment 89736
 
@@ -11222,7 +11222,7 @@ mission "lumen salvage 12110"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Drover I"
+		ship "Kestrel I"
 	on complete
 		payment 83417
 
@@ -11242,7 +11242,7 @@ mission "grask salvage 26227"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Ember III"
+		ship "Cinder III"
 	on complete
 		payment 66724
 
@@ -11262,7 +11262,7 @@ mission "terran salvage 55625"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Tororokh Cinder"
+		ship "Ember III"
 	on complete
 		payment 84937
 
@@ -11282,7 +11282,7 @@ mission "ixil salvage 69846"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Brennvurm Bellows"
+		ship "Vurmtor Anvil"
 	on complete
 		payment 64291
 
@@ -11302,7 +11302,7 @@ mission "drell salvage 36964"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Ombraur Updraft"
+		ship "Telaur Halo"
 	on complete
 		payment 90851
 
@@ -11342,7 +11342,7 @@ mission "terran salvage 86890"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Keel IX"
+		ship "Deadfall X"
 	on complete
 		payment 105087
 
@@ -11362,7 +11362,7 @@ mission "silane salvage 59970"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Wager I"
+		ship "Tegghald Contract"
 	on complete
 		payment 103748
 
@@ -11382,7 +11382,7 @@ mission "ixil salvage 36773"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Nereimor Fathom"
+		ship "Nautilus VII"
 	on complete
 		payment 90380
 
@@ -11402,7 +11402,7 @@ mission "ythera salvage 52642"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Bloom VII"
+		ship "Thicket III"
 	on complete
 		payment 99989
 
@@ -11422,7 +11422,7 @@ mission "ceph salvage 42318"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Veil X"
+		ship "Nyxquiet Pall"
 	on complete
 		payment 98291
 
@@ -11442,7 +11442,7 @@ mission "ceph salvage 60194"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Facet X"
+		ship "Aelith Facet"
 	on complete
 		payment 102700
 
@@ -11462,7 +11462,7 @@ mission "karn salvage 56802"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Ohmsolm Testament"
+		ship "Vestige IX"
 	on complete
 		payment 75332
 
@@ -11482,7 +11482,7 @@ mission "silane salvage 19580"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Arc I"
+		ship "Siraori Filament"
 	on complete
 		payment 70597
 
@@ -11502,7 +11502,7 @@ mission "lumen salvage 52706"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Vanequiet Nocturne"
+		ship "Quietvane Pall"
 	on complete
 		payment 104443
 
@@ -11522,7 +11522,7 @@ mission "grask salvage 73647"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Brood VII"
+		ship "Vektoth Swarm"
 	on complete
 		payment 103837
 
@@ -11542,7 +11542,7 @@ mission "drell salvage 69285"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Drover I"
+		ship "Dunhar Warden"
 	on complete
 		payment 85688
 
@@ -11562,7 +11562,7 @@ mission "grask salvage 86777"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Wanderer IX"
+		ship "Drelldrell Wanderer"
 	on complete
 		payment 81521
 
@@ -11582,7 +11582,7 @@ mission "ythera salvage 24503"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Hulk X"
+		ship "Sifter IX"
 	on complete
 		payment 66448
 
@@ -11602,7 +11602,7 @@ mission "drell salvage 50841"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Drelldrell Wanderer"
+		ship "Miramira Farsight"
 	on complete
 		payment 76092
 
@@ -11622,7 +11622,7 @@ mission "silane salvage 71066"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Nocturne X"
+		ship "Vanequiet Nocturne"
 	on complete
 		payment 104199
 
@@ -11642,7 +11642,7 @@ mission "silane salvage 71910"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Vestige IX"
+		ship "Aeon V"
 	on complete
 		payment 78941
 
@@ -11662,7 +11662,7 @@ mission "orokh salvage 66210"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Cinder III"
+		ship "Ember III"
 	on complete
 		payment 68276
 
@@ -11682,7 +11682,7 @@ mission "keltoth salvage 11364"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Aelith Facet"
+		ship "Prism X"
 	on complete
 		payment 84332
 
@@ -11702,7 +11702,7 @@ mission "vashari salvage 88982"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Brennvurm Bellows"
+		ship "Tororokh Cinder"
 	on complete
 		payment 97370
 
@@ -11742,7 +11742,7 @@ mission "sarn salvage 16499"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Murgvoth Weight"
+		ship "Deadfall X"
 	on complete
 		payment 85761
 
@@ -11762,7 +11762,7 @@ mission "sarn salvage 57767"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Ohmsolm Testament"
+		ship "Testament V"
 	on complete
 		payment 73902
 
@@ -11782,7 +11782,7 @@ mission "drell salvage 82097"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Abysceph Nautilus"
+		ship "Nautilus VII"
 	on complete
 		payment 98105
 
@@ -11822,7 +11822,7 @@ mission "nyx salvage 62003"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Vanequiet Nocturne"
+		ship "Quietvane Pall"
 	on complete
 		payment 67096
 
@@ -11862,7 +11862,7 @@ mission "choir salvage 9675"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Prism X"
+		ship "Lyrael Lattice"
 	on complete
 		payment 78054
 
@@ -11882,7 +11882,7 @@ mission "grask salvage 14155"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Drover I"
+		ship "Drover III"
 	on complete
 		payment 66198
 
@@ -11902,7 +11902,7 @@ mission "tessarai salvage 72575"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Aelith Facet"
+		ship "Facet X"
 	on complete
 		payment 94942
 
@@ -11922,7 +11922,7 @@ mission "silane salvage 87817"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Aeon V"
+		ship "Ohmsolm Testament"
 	on complete
 		payment 88440
 
@@ -11942,7 +11942,7 @@ mission "keltoth salvage 12071"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Miramira Farsight"
+		ship "Wanderer IX"
 	on complete
 		payment 72016
 
@@ -11962,7 +11962,7 @@ mission "morrow salvage 55968"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Freight V"
+		ship "Tariff V"
 	on complete
 		payment 74896
 
@@ -11982,7 +11982,7 @@ mission "karn salvage 70433"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Ohmsolm Testament"
+		ship "Aeon V"
 	on complete
 		payment 67872
 
@@ -12022,7 +12022,7 @@ mission "keltoth salvage 82889"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Retainer I"
+		ship "Fee III"
 	on complete
 		payment 96954
 
@@ -12062,7 +12062,7 @@ mission "sarn salvage 16854"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Quietvane Pall"
+		ship "Nyxquiet Pall"
 	on complete
 		payment 102207
 
@@ -12082,7 +12082,7 @@ mission "lumen salvage 72715"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Claghulk Hulk"
+		ship "Hulk X"
 	on complete
 		payment 81671
 
@@ -12102,7 +12102,7 @@ mission "terran salvage 94792"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Gildstro Tariff"
+		ship "Bulwark III"
 	on complete
 		payment 69751
 
@@ -12162,7 +12162,7 @@ mission "terran salvage 98539"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Sunddrell Hearth"
+		ship "Drelldrell Wanderer"
 	on complete
 		payment 92345
 
@@ -12182,7 +12182,7 @@ mission "bracken salvage 23561"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Testament V"
+		ship "Ohmsolm Testament"
 	on complete
 		payment 71533
 
@@ -12202,7 +12202,7 @@ mission "morrow salvage 8650"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Tororokh Cinder"
+		ship "Ember III"
 	on complete
 		payment 79274
 
@@ -12222,7 +12222,7 @@ mission "ythera salvage 66607"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Facet X"
+		ship "Chord X"
 	on complete
 		payment 83599
 
@@ -12262,7 +12262,7 @@ mission "keltoth salvage 39873"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Retainer IX"
+		ship "Fee III"
 	on complete
 		payment 104037
 
@@ -12282,7 +12282,7 @@ mission "lumen salvage 80904"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Corrmari Consul"
+		ship "Corrmari Margin"
 	on complete
 		payment 86942
 
@@ -12342,7 +12342,7 @@ mission "terran salvage 85770"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Thornsedge Creeper"
+		ship "Bloom IV"
 	on complete
 		payment 86933
 
@@ -12362,7 +12362,7 @@ mission "sarn salvage 30170"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Nereimor Fathom"
+		ship "Cephnerei Trench"
 	on complete
 		payment 101625
 
@@ -12382,7 +12382,7 @@ mission "silane salvage 72032"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Retainer IX"
+		ship "Tegghald Contract"
 	on complete
 		payment 64272
 
@@ -12402,7 +12402,7 @@ mission "lumen salvage 48356"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Tegghald Contract"
+		ship "Retainer IX"
 	on complete
 		payment 90732
 
@@ -12422,7 +12422,7 @@ mission "karn salvage 59765"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Bulwark III"
+		ship "Strowen Tariff"
 	on complete
 		payment 88828
 
@@ -12442,7 +12442,7 @@ mission "sarn salvage 83145"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Hulk X"
+		ship "Sifter VII"
 	on complete
 		payment 92420
 
@@ -12462,7 +12462,7 @@ mission "ixil salvage 92498"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Phaentel Cirrus"
+		ship "Ixombr Zephyr"
 	on complete
 		payment 63426
 
@@ -12482,7 +12482,7 @@ mission "grask salvage 44664"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Frond IV"
+		ship "Bramble X"
 	on complete
 		payment 103729
 
@@ -12542,7 +12542,7 @@ mission "keltoth salvage 71610"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Abysceph Nautilus"
+		ship "Nautilus VII"
 	on complete
 		payment 94241
 
@@ -12582,7 +12582,7 @@ mission "silane salvage 455"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Sylvyth Spore"
+		ship "Frond IV"
 	on complete
 		payment 88741
 
@@ -12602,7 +12602,7 @@ mission "ythera salvage 63429"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Vesphol Antiphon"
+		ship "Censer X"
 	on complete
 		payment 67132
 
@@ -12622,7 +12622,7 @@ mission "karn salvage 91714"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Rudgrask Sifter"
+		ship "Sifter IX"
 	on complete
 		payment 85454
 
@@ -12662,7 +12662,7 @@ mission "ixil salvage 75437"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Vanequiet Nocturne"
+		ship "Veil X"
 	on complete
 		payment 82659
 
@@ -12682,7 +12682,7 @@ mission "grask salvage 89127"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Consul V"
+		ship "Corrmari Margin"
 	on complete
 		payment 104446
 
@@ -12702,7 +12702,7 @@ mission "ixil salvage 6677"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Nymph IV"
+		ship "Murtoth Swarm"
 	on complete
 		payment 89715
 
@@ -12722,7 +12722,7 @@ mission "sarn salvage 41515"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Trench I"
+		ship "Nautilus VII"
 	on complete
 		payment 86229
 
@@ -12742,7 +12742,7 @@ mission "keltoth salvage 92036"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Corona III"
+		ship "Siraori Filament"
 	on complete
 		payment 102621
 
@@ -12762,7 +12762,7 @@ mission "terran salvage 18515"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Claghulk Hulk"
+		ship "Sifter VII"
 	on complete
 		payment 79911
 
@@ -12782,7 +12782,7 @@ mission "keltoth salvage 33053"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Nautilus VII"
+		ship "Trench I"
 	on complete
 		payment 105197
 
@@ -12802,7 +12802,7 @@ mission "morrow salvage 73312"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Trench I"
+		ship "Nautilus VII"
 	on complete
 		payment 70222
 
@@ -12822,7 +12822,7 @@ mission "ythera salvage 46241"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Deadfall IV"
+		ship "Murgvoth Weight"
 	on complete
 		payment 93193
 
@@ -12862,7 +12862,7 @@ mission "vashari salvage 32448"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Orisira Corona"
+		ship "Phosori Spark"
 	on complete
 		payment 105864
 
@@ -12882,7 +12882,7 @@ mission "ixil salvage 18894"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Fee III"
+		ship "Tegghald Contract"
 	on complete
 		payment 86530
 
@@ -12902,7 +12902,7 @@ mission "voth salvage 7257"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Bulwark III"
+		ship "Gildstro Tariff"
 	on complete
 		payment 63883
 
@@ -12922,7 +12922,7 @@ mission "voth salvage 12009"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Telaur Halo"
+		ship "Phaentel Cirrus"
 	on complete
 		payment 86529
 
@@ -12962,7 +12962,7 @@ mission "vashari salvage 81776"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Sylvyth Spore"
+		ship "Bramble X"
 	on complete
 		payment 82231
 
@@ -12982,7 +12982,7 @@ mission "silane salvage 52254"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Quietvane Pall"
+		ship "Vanequiet Nocturne"
 	on complete
 		payment 100467
 
@@ -13002,7 +13002,7 @@ mission "drell salvage 32716"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Retainer IX"
+		ship "Tegghald Contract"
 	on complete
 		payment 94135
 
@@ -13022,7 +13022,7 @@ mission "nyx salvage 30240"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Corona III"
+		ship "Arc I"
 	on complete
 		payment 92095
 
@@ -13062,7 +13062,7 @@ mission "ixil salvage 48711"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Novnov Warden"
+		ship "Drover I"
 	on complete
 		payment 66758
 
@@ -13082,7 +13082,7 @@ mission "voth salvage 62932"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Claghulk Hulk"
+		ship "Hulk X"
 	on complete
 		payment 104974
 
@@ -13122,7 +13122,7 @@ mission "karn salvage 34593"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Legion IX"
+		ship "Legion III"
 	on complete
 		payment 93845
 
@@ -13142,7 +13142,7 @@ mission "voth salvage 12281"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Deadfall IV"
+		ship "Murgvoth Weight"
 	on complete
 		payment 101616
 
@@ -13162,7 +13162,7 @@ mission "morrow salvage 44636"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Hulk X"
+		ship "Rudgrask Sifter"
 	on complete
 		payment 96996
 
@@ -13182,7 +13182,7 @@ mission "nyx salvage 86380"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Retainer I"
+		ship "Tegghald Contract"
 	on complete
 		payment 77593
 
@@ -13202,7 +13202,7 @@ mission "ceph salvage 24971"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Fee III"
+		ship "Tegghald Contract"
 	on complete
 		payment 78457
 
@@ -13222,7 +13222,7 @@ mission "nyx salvage 2796"
 		government Derelict
 		personality derelict uninterested
 		system destination
-		ship "Tororokh Cinder"
+		ship "Vurmtor Anvil"
 	on complete
 		payment 87828
 

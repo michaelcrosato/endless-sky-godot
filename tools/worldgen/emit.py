@@ -17,6 +17,7 @@ Two format details are easy to get wrong and expensive to debug:
 """
 
 import os
+import zlib
 from typing import Dict, List
 
 from galaxy import STAR_SPRITES, WORLD_SPRITES, System, World
@@ -347,6 +348,20 @@ def _filter(w: Writer, depth: int, spec: Dict[str, object]) -> None:
             w.line(depth, key, quote(value))
 
 
+def _stable_hash(text: str) -> int:
+    """A hash that is the same in every process.
+
+    Python salts str.__hash__ with PYTHONHASHSEED, which is random per run unless
+    it is set, so `hash(name) % len(pool)` picked a different ship for every job on
+    every run. That made jobs.txt the one generated file that could not be
+    reproduced -- the committed one was written under a salt nobody has -- while the
+    module docstring promised everything here is regenerable from the seed. CRC32 is
+    stable across processes, platforms and Python versions, and keeps the property
+    that actually mattered: the choice is a function of the job's name.
+    """
+    return zlib.crc32(text.encode("utf-8"))
+
+
 def missions(root: str, work: List[Job], fleet: List[Ship]) -> int:
     w = Writer()
     by_race: Dict[str, List[Ship]] = {}
@@ -398,7 +413,7 @@ def missions(root: str, work: List[Job], fleet: List[Ship]) -> int:
             # individual name, not a count - a number there names one ship "3" and
             # silently places a single hull where three were meant.
             pool = by_race.get(str(npc.get("race")), fleet)
-            picked = pool[hash(job.name) % len(pool)] if pool else None
+            picked = pool[_stable_hash(job.name) % len(pool)] if pool else None
             if picked is not None:
                 for _ in range(max(1, int(npc.get("count", 1)))):
                     w.line(2, "ship", quote(picked.name))

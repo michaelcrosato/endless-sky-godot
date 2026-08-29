@@ -60,6 +60,18 @@ jobs:
       - name: Test
         run: dotnet test tests/sim/EndlessSky.SimTests.csproj --nologo -v minimal
 
+      # universe/ is a build artifact with a source, and that claim is only worth
+      # anything if it is checked. It was not: emit.py picked each job's NPC hull with
+      # Python's salted hash(), so every regeneration produced a different jobs.txt and
+      # the committed one could not be reproduced by anyone. Regenerating here and
+      # diffing keeps the generator and its output honest with each other.
+      - name: The generated universe still regenerates
+        run: |
+          set -euo pipefail
+          python3 tools/worldgen/worldgen.py --out /tmp/universe-check
+          diff -r universe /tmp/universe-check \
+            || { echo "::error::universe/ does not match tools/worldgen output; regenerate and commit"; exit 1; }
+
   godot:
     name: Engine build + headless smoke
     runs-on: ubuntu-latest
