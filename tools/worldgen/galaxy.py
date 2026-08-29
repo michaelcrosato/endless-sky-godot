@@ -116,45 +116,141 @@ class System:
 
 
 class NameForge:
-    """Race-flavoured names that never repeat."""
+    """Race-flavoured names that are distinct from each other, not merely unique.
+
+    Uniqueness is cheap — a counter gives you that. What a player notices is
+    SIMILARITY, and syllable-mashing from a six-item list produces a thousand
+    unique names of which half open with the same five letters. Measured on the
+    first version of this generator: 52% of system names shared a five-character
+    prefix with another, and one world prefix appeared 46 times.
+
+    So two things happen here. Names are built from several patterns rather than
+    one, and every accepted name must also claim an unused PREFIX. When prefixes
+    run short the forge switches to patterns that start somewhere else — a
+    descriptive word, a catalogue designation — rather than grinding out another
+    near-duplicate.
+    """
+
+    #: How many names may share an opening. Above 1 the map starts to blur.
+    PREFIX_LIMIT = 2
 
     def __init__(self, rng: random.Random):
         self.rng = rng
         self.used: Set[str] = set()
+        self.prefixes: Dict[str, int] = {}
 
     def make(self, race: Optional[Race], kind: str = "system") -> str:
-        for _ in range(400):
-            name = self._attempt(race, kind)
-            if name not in self.used:
-                self.used.add(name)
+        best: Optional[str] = None
+
+        for attempt in range(60):
+            name = self._attempt(race, kind, attempt)
+            if name in self.used:
+                continue
+
+            key = name[:5].lower()
+            if self.prefixes.get(key, 0) < self.PREFIX_LIMIT:
+                self._claim(name)
                 return name
 
-        # Fall back to numbering rather than looping forever; a duplicate name
-        # would collide in the loader's dictionary and silently drop a system.
-        base = self._attempt(race, kind)
-        index = 2
-        while f"{base} {index}" in self.used:
-            index += 1
-        name = f"{base} {index}"
+            # Keep the first unique name as a fallback, but go on looking for one
+            # that also opens differently.
+            best = best or name
+
+        if best is not None and best not in self.used:
+            self._claim(best)
+            return best
+
+        # Last resort: a catalogue designation, which is always distinct and reads
+        # as deliberate rather than as a failure.
+        while True:
+            name = f"{self.rng.choice(CATALOGUE)}-{self.rng.randint(100, 9999)}"
+            if name not in self.used:
+                self._claim(name)
+                return name
+
+    def designate(self, proposed: str) -> str:
+        """A catalogue-style name, made unique without touching the prefix budget.
+
+        Survey designations are SUPPOSED to share an opening with their system —
+        that is the whole point of a catalogue — so they are exempt from the
+        prefix limit that invented names answer to.
+        """
+        name = proposed
+        suffix = 2
+        while name in self.used:
+            name = f"{proposed}-{suffix}"
+            suffix += 1
+
         self.used.add(name)
         return name
 
-    def _attempt(self, race: Optional[Race], kind: str) -> str:
+    def _claim(self, name: str) -> None:
+        self.used.add(name)
+        key = name[:5].lower()
+        self.prefixes[key] = self.prefixes.get(key, 0) + 1
+
+    def _attempt(self, race: Optional[Race], kind: str, attempt: int) -> str:
         rng = self.rng
         if race is None:
-            stem = rng.choice(FRONTIER_STEMS)
-            if rng.random() < 0.35:
-                return f"{stem} {rng.choice(GREEK)}"
-            return f"{stem}-{rng.randint(2, 989)}"
+            return self._frontier(rng, attempt)
 
-        parts = rng.randint(2, 3)
-        word = "".join(rng.choice(race.syllables) for _ in range(parts))
-        word = word.capitalize()
-        if rng.random() < 0.55:
-            word += rng.choice(race.suffixes)
-        if kind == "system" and rng.random() < 0.18:
-            word += f" {rng.choice(ROMAN)}"
-        return word
+        # Later attempts favour patterns that begin with something other than the
+        # race's syllables, which is what actually breaks a prefix cluster.
+        if attempt < 12:
+            pattern = rng.choices(
+                ["mash", "compound", "descriptive", "designation", "possessive"],
+                weights=[34, 24, 20, 12, 10])[0]
+        else:
+            pattern = rng.choice(["descriptive", "designation", "possessive", "compound"])
+
+        stem = "".join(rng.choice(race.syllables)
+                       for _ in range(rng.randint(2, 3))).capitalize()
+
+        if pattern == "mash":
+            name = stem + (rng.choice(race.suffixes) if rng.random() < 0.55 else "")
+        elif pattern == "compound":
+            name = f"{stem}{rng.choice(race.suffixes)} {rng.choice(PLACE_WORDS)}"
+        elif pattern == "descriptive":
+            name = f"{rng.choice(QUALIFIERS)} {stem}{rng.choice(race.suffixes)}"
+        elif pattern == "possessive":
+            name = f"{stem}'s {rng.choice(PLACE_WORDS)}"
+        else:
+            name = f"{stem[:4]}-{rng.randint(2, 99)}{rng.choice(['', 'A', 'B', 'C'])}"
+
+        if kind == "system" and rng.random() < 0.10:
+            name += f" {rng.choice(ROMAN)}"
+        return name
+
+    def _frontier(self, rng, attempt: int) -> str:
+        stem = rng.choice(FRONTIER_STEMS)
+        style = rng.random()
+        if attempt > 8 or style < 0.25:
+            return f"{rng.choice(CATALOGUE)}-{rng.randint(100, 9999)}"
+        if style < 0.45:
+            return f"{stem} {rng.choice(GREEK)}"
+        if style < 0.65:
+            return f"{rng.choice(QUALIFIERS)} {stem}"
+        if style < 0.85:
+            return f"{stem} {rng.choice(PLACE_WORDS)}"
+        return f"{stem}-{rng.randint(2, 989)}"
+
+
+#: Words that turn a stem into a place rather than a sound.
+PLACE_WORDS = [
+    "Reach", "Verge", "Deep", "Shoal", "Drift", "Span", "Gate", "Crossing",
+    "Anchorage", "Waypoint", "Hollow", "Expanse", "Threshold", "Bight",
+    "Narrows", "Approach", "Terminus", "Roost", "Landing", "Watch",
+]
+
+#: Adjectives, which move a name's opening letters away from the race stem.
+QUALIFIERS = [
+    "Outer", "Inner", "Lesser", "Greater", "Old", "New", "Far", "Near",
+    "Broken", "Quiet", "Cold", "Bright", "Deep", "High", "Low", "Lost",
+    "First", "Last", "Silent", "Hidden",
+]
+
+#: Survey catalogue prefixes, for names that must be distinct at any cost.
+CATALOGUE = ["HR", "GJ", "KX", "NGC", "PSR", "TYC", "WD", "LP", "BD", "CD"]
 
 
 FRONTIER_STEMS = [
@@ -168,6 +264,9 @@ GREEK = ["Alpha", "Beta", "Gamma", "Delta", "Epsilon", "Zeta", "Eta", "Theta",
          "Iota", "Kappa", "Lambda", "Sigma", "Omega"]
 
 ROMAN = ["II", "III", "IV", "V", "VI", "VII", "IX", "XI"]
+
+#: Body designations within a system, in orbital order.
+ROMAN_BODY = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII"]
 
 
 def build(seed: int = 20260828, total_systems: int = 1000) -> List[System]:
@@ -231,7 +330,7 @@ def _make_system(rng: random.Random, forge: NameForge, race: Optional[Race],
         # which leaves them holding no territory in any meaningful sense.
         government = rng.choice(claimant.factions).name
 
-    worlds = _make_worlds(rng, forge, race, habitable, government)
+    worlds = _make_worlds(rng, forge, race, habitable, government, name)
     asteroids, minables = _make_rocks(rng)
     trade = _make_trade(rng, worlds)
 
@@ -248,7 +347,7 @@ def _make_system(rng: random.Random, forge: NameForge, race: Optional[Race],
     return system
 
 
-def _make_worlds(rng, forge, race, habitable, government) -> List[World]:
+def _make_worlds(rng, forge, race, habitable, government, system_name) -> List[World]:
     count = rng.choices([0, 1, 2, 3, 4, 5, 6], weights=[6, 14, 22, 24, 18, 11, 5])[0]
     pool = list(race.worlds) if race else [
         "rock", "ice", "gas", "desert", "ocean", "earthlike", "cloud", "derelict"]
@@ -275,8 +374,13 @@ def _make_worlds(rng, forge, race, habitable, government) -> List[World]:
             and rng.random() < 0.55
         )
 
+        # A settled world earns a name; an empty rock gets the survey designation
+        # its system already carries. That is how real catalogues work, it tells a
+        # player at a glance where a body is, and it stops three thousand empty
+        # rocks competing for the same pool of invented syllables.
         world = World(
-            name=forge.make(race, "planet"),
+            name=(forge.make(race, "planet") if inhabited
+                  else forge.designate(f"{system_name} {ROMAN_BODY[index % len(ROMAN_BODY)]}")),
             kind=kind,
             government=government if inhabited else "",
             attributes=_world_attributes(rng, kind, inhabited, race),
@@ -301,8 +405,10 @@ def _make_worlds(rng, forge, race, habitable, government) -> List[World]:
             for _ in range(rng.randint(1, 3)):
                 moon_kind = rng.choice(["rock", "ice", "industrial", "derelict"])
                 moon_inhabited = race is not None and rng.random() < 0.30
+                moon_index = len(world.moons)
                 world.moons.append(World(
-                    name=forge.make(race, "planet"),
+                    name=(forge.make(race, "planet") if moon_inhabited
+                          else forge.designate(f"{world.name} {chr(ord('a') + moon_index)}")),
                     kind=moon_kind,
                     government=government if moon_inhabited else "",
                     attributes=_world_attributes(rng, moon_kind, moon_inhabited, race),

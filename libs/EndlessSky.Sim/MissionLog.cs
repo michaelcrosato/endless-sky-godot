@@ -44,6 +44,21 @@ namespace EndlessSky.Sim
         public Dictionary<MissionNpc, ShipEvent> NpcEvents { get; } =
             new Dictionary<MissionNpc, ShipEvent>();
 
+        /// <summary>
+        /// This mission's NPCs as actual ships, built when it was accepted.
+        /// </summary>
+        public List<NpcInstance> Npcs { get; } = new List<NpcInstance>();
+
+        /// <summary>The NPC ships of this mission that are in a given system.</summary>
+        /// <remarks>
+        /// Filtered on where each hull actually is, not on where its NPC block was
+        /// placed: an escort that jumped with the player has left its original system
+        /// behind, and looking at the placement would keep it there forever.
+        /// </remarks>
+        public IEnumerable<Ship> ShipsIn(StarSystem? system) =>
+            Npcs.SelectMany(n => n.Survivors)
+                .Where(s => ReferenceEquals(s.CurrentSystem, system));
+
         public bool IsOverdue(DateTime today) => Deadline.HasValue && today > Deadline.Value;
 
         public override string ToString() => $"{Mission.DisplayName} ({Outcome})";
@@ -75,10 +90,16 @@ namespace EndlessSky.Sim
         private readonly List<ActiveMission> _active = new List<ActiveMission>();
         private readonly List<ActiveMission> _finished = new List<ActiveMission>();
         private readonly PlayerState _player;
+        private readonly NpcSpawner? _npcs;
 
-        public MissionLog(PlayerState player)
+        public MissionLog(PlayerState player, NpcSpawner? npcs = null)
         {
             _player = player ?? throw new ArgumentNullException(nameof(player));
+
+            // Without a spawner an npc block stays a template, which is fine for a log
+            // under test but leaves every combat objective unreachable in a running
+            // game - so default to one whenever the player knows the galaxy.
+            _npcs = npcs ?? (player.Data is null ? null : new NpcSpawner(player.Data));
         }
 
         public IReadOnlyList<ActiveMission> Active => _active;
@@ -127,6 +148,17 @@ namespace EndlessSky.Sim
 
             taken.PassengersCarried = mission.Passengers;
 
+            // Built here, once, rather than on every system entry. Upstream does the
+            // same, and it is why a bounty left half-finished stays half-finished.
+            if (_npcs != null && mission.Npcs.Count > 0)
+            {
+                StarSystem? destination = mission.Destination is null
+                    ? null
+                    : FindSystemOf(mission.Destination);
+
+                taken.Npcs.AddRange(_npcs.Place(mission, _player.CurrentSystem, destination));
+            }
+
             _player.AddCredits(mission.Fire(MissionTrigger.Accept, _player.Conditions));
             _active.Add(taken);
 
@@ -168,6 +200,11 @@ namespace EndlessSky.Sim
                 return false;
             }
 
+            // Real hulls whenever there are any: objectives are per-ship, so a bounty
+            // on three raiders is not settled by one kill.
+            if (taken.Npcs.Count > 0)
+                return taken.Npcs.All(n => n.HasSucceeded(_player.CurrentSystem));
+
             return taken.Mission.NpcObjectivesMet(npc =>
                 taken.NpcEvents.TryGetValue(npc, out ShipEvent happened) ? happened : ShipEvent.None);
         }
@@ -205,6 +242,13 @@ namespace EndlessSky.Sim
         /// <summary>
         /// Records something that happened to one of a mission's NPCs.
         /// </summary>
+        /// <remarks>
+        /// This records the event against the NPC BLOCK, so it lands on every hull the
+        /// block placed. That is the right granularity for a restored save, where the
+        /// ships have been rebuilt but the record of what happened to each was kept at
+        /// block level; <see cref="ReportShipEvent"/> is the per-hull path the running
+        /// game uses.
+        /// </remarks>
         public void RecordNpcEvent(ActiveMission taken, MissionNpc npc, ShipEvent happened)
         {
             if (taken is null || npc is null)
@@ -212,6 +256,105 @@ namespace EndlessSky.Sim
 
             taken.NpcEvents.TryGetValue(npc, out ShipEvent already);
             taken.NpcEvents[npc] = already | happened;
+
+            foreach (NpcInstance instance in taken.Npcs)
+            {
+                if (!ReferenceEquals(instance.Template, npc))
+                    continue;
+
+                foreach (Ship ship in instance.Ships)
+                    instance.Record(ship, happened);
+            }
+        }
+
+        /// <summary>
+        /// Reports something that happened to a ship in the world, routing it to
+        /// whichever mission owns that hull.
+        /// </summary>
+        /// <remarks>
+        /// This is the wire between combat and the mission log. Without it a mission
+        /// can place its raiders and the player can destroy them and nothing ever
+        /// notices, which is how every bounty in the game used to end.
+        /// </remarks>
+        /// <returns>The missions that took note.</returns>
+        public IReadOnlyList<ActiveMission> ReportShipEvent(Ship? ship, ShipEvent happened)
+        {
+            var touched = new List<ActiveMission>();
+            if (ship is null || happened == ShipEvent.None)
+                return touched;
+
+            foreach (ActiveMission taken in _active)
+            {
+                bool changed = false;
+                foreach (NpcInstance npc in taken.Npcs)
+                    changed |= npc.Record(ship, happened);
+
+                if (changed)
+                    touched.Add(taken);
+            }
+
+            return touched;
+        }
+
+        /// <summary>
+        /// Takes accompanying NPCs along when the player jumps.
+        /// </summary>
+        /// <remarks>
+        /// An escort mission asks that its convoy ARRIVE with the player, so the
+        /// convoy has to be able to travel. Upstream gets this from escort-personality
+        /// AI flying its own jump; until that exists, moving them with the flagship is
+        /// the same observable outcome and keeps escort jobs completable rather than
+        /// failing the instant the player leaves the system.
+        ///
+        /// A ship that is disabled or destroyed is left behind, which is what makes
+        /// losing one during the run actually cost the mission.
+        /// </remarks>
+        /// <returns>The ships that made the jump.</returns>
+        public IReadOnlyList<Ship> CarryAccompanying(StarSystem? from, StarSystem? to)
+        {
+            var moved = new List<Ship>();
+
+            foreach (ActiveMission taken in _active)
+                foreach (NpcInstance npc in taken.Npcs)
+                {
+                    if (!npc.Template.MustAccompany)
+                        continue;
+
+                    foreach (Ship ship in npc.Ships)
+                    {
+                        if (ship.IsDestroyed || ship.IsDisabled)
+                            continue;
+
+                        if (!ReferenceEquals(ship.CurrentSystem, from))
+                            continue;
+
+                        ship.CurrentSystem = to;
+                        moved.Add(ship);
+                    }
+                }
+
+            return moved;
+        }
+
+        /// <summary>The NPC ships of every active mission that are in a system.</summary>
+        public IEnumerable<Ship> NpcShipsIn(StarSystem? system) =>
+            _active.SelectMany(m => m.ShipsIn(system));
+
+        /// <summary>Whichever active mission owns this hull, if any does.</summary>
+        public ActiveMission? MissionOwning(Ship? ship) =>
+            ship is null ? null : _active.FirstOrDefault(m => m.Npcs.Any(n => n.Owns(ship)));
+
+        /// <summary>The system a named world is in, for resolving NPC placement.</summary>
+        private StarSystem? FindSystemOf(string planetName)
+        {
+            if (_player.Data is null)
+                return null;
+
+            foreach (StarSystem system in _player.Data.Systems.Values)
+                if (system.Objects.Any(o => o.PlanetName == planetName))
+                    return system;
+
+            return null;
         }
 
         /// <summary>
@@ -227,8 +370,11 @@ namespace EndlessSky.Sim
             {
                 bool overdue = taken.IsOverdue(_player.Date);
                 bool failed = taken.Mission.HasFailed(_player.Conditions);
-                bool npcLost = taken.Mission.Npcs.Any(npc =>
-                    taken.NpcEvents.TryGetValue(npc, out ShipEvent happened) && npc.HasFailed(happened));
+                bool npcLost = taken.Npcs.Count > 0
+                    ? taken.Npcs.Any(n => n.HasFailed())
+                    : taken.Mission.Npcs.Any(npc =>
+                        taken.NpcEvents.TryGetValue(npc, out ShipEvent happened) &&
+                        npc.HasFailed(happened));
 
                 if (!overdue && !failed && !npcLost)
                     continue;

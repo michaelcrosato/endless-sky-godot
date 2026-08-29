@@ -158,7 +158,13 @@ def build_outfits() -> List[Outfit]:
                 int(34_000 * price * race.cost),
                 {"mass": 18 * power, "outfit space": -(16 * power),
                  "engine capacity": -(16 * power),
-                 "thrust": round(9.5 * power * race.speed, 3),
+                 # Measured against upstream: generated hulls massed about the same
+                 # as human ones but carried a quarter of the thrust and a ninth of
+                 # the turn, so nothing could come about inside a dogfight and two
+                 # ships that passed each other simply drifted apart. Output is now
+                 # scaled to upstream's band; the energy and heat per unit of output
+                 # match its engines rather than being made free.
+                 "thrust": round(38.0 * power * race.speed, 3),
                  "thrusting energy": round(0.55 * power, 3),
                  "thrusting heat": round(1.15 * power, 3)},
                 description="Forward. Everything else is a negotiation with momentum.",
@@ -168,9 +174,9 @@ def build_outfits() -> List[Outfit]:
                 int(26_000 * price * race.cost),
                 {"mass": 13 * power, "outfit space": -(12 * power),
                  "engine capacity": -(12 * power),
-                 "turn": round(115 * power * race.agility, 2),
-                 "turning energy": round(0.38 * power, 3),
-                 "turning heat": round(0.8 * power, 3)},
+                 "turn": round(1035 * power * race.agility, 2),
+                 "turning energy": round(2.4 * power, 3),
+                 "turning heat": round(3.9 * power, 3)},
                 description="How quickly an argument can be pointed somewhere else.",
             ))
 

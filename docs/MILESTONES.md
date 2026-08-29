@@ -58,6 +58,51 @@ and asteroids, governments, events, conversations, starts — are now in.
 - Key bindings are hardcoded polls (W/A/S/D + arrows); Godot InputMap
   remapping is UI-milestone work.
 
+## Gauntlet pass: combat and mission NPCs (2026-08-28)
+
+The universe generator had produced a thousand jobs, and 429 of them placed NPCs
+that nothing ever built. Chasing that down found the larger problem underneath.
+
+**Found by running the game, not by testing it.** All 657 sim tests passed
+throughout; none of these were visible from inside the simulation layer.
+
+| Defect | Effect on the player | Fix |
+|---|---|---|
+| The projectile field was created only behind `--combat-demo` | A normal game had **no combat at all** — nothing could shoot or be shot | `BuildCombat` runs in every flight; `StepCombat` steps the field each frame |
+| `BuildMounts()` was never called on the player's ship | The player's hull carried **no hardpoints at all**, so it could never fire or be armed at an outfitter | Built in `BuildCombat`, and again for any hull bought at a shipyard |
+| The player had no government | Hostility is reputation-driven for the player; with no flag, raiders ignored a defenceless freighter | A `Player` government, marked `IsPlayer`, plus `"player reputation"` on every generated faction |
+| `npc` blocks were parsed but never instantiated | Every bounty, escort and salvage job could be accepted and never finished | `NpcSpawner` + `NpcInstance`, built at accept time as upstream does |
+| Nothing reported combat back to the mission log | A bounty target could be destroyed and the job stayed open | `MissionLog.ReportShipEvent`, wired from `HitReport` |
+| `ship "Model" 3` in a generated npc block | The count was read as the ship's NAME, placing one hull where three were meant | One `ship` line per hull |
+| `system destination` read as a system literally named "destination" | Bounties were placed where the job was taken, not where its text pointed | `IsAtDestination`, resolved per instance |
+| Bounty targets drawn from any faction of an enemy race | Peoples with no raiders (the Orokh field only a navy and a corporation) produced bounties on friendly ships that never fought back | Targets are picked faction-first, from `fringe`/`zealot` only |
+| Objectives were satisfied in aggregate | A bounty on three raiders paid out on the first kill | Per-ship events, as upstream: every hull must meet the objective |
+| Escorts could not travel | An `accompany` objective failed the moment the player jumped | `MissionLog.CarryAccompanying`, called on arrival |
+| Weapons aimed at where a target *was* | Two evenly matched hulls traded shots forever and never landed one | `ShipAi.RendezvousTime`/`AimPoint`, ported from upstream `AI::RendezvousTime` |
+| `AI::MoveToAttack`'s second thrust clause was missing | Ships that passed each other coasted apart forever, full energy, out of range, closing on nothing | Thrust also when velocity carries the ship away from its target |
+| Generated engines were far weaker than upstream's | Median turn **0.30°/frame against upstream's 2.68**; 83 of 100 hulls turned slower than 1°/frame, so nothing could come about in a dogfight | Engine output rescaled; the fleet now measures 2.69°/frame and 0.097px/f² against upstream's 2.68 and 0.098 |
+
+Verified in a real engine process, not only under test: `pwsh tools/run.ps1
+-Headless -Frames 20000 -UserArgs '--mission-smoke'` takes a bounty, flies to
+where the job points, fights it, and reports whether the objective was met.
+Before this pass the fight never resolved; it now ends in 500–2800 frames, and
+the player — in the cheapest hull the starting world sells — wins some of them.
+
+### Still incomplete here (tracked, not deleted)
+
+- **Nothing boards a disabled hull.** Upstream stops attacking a crippled ship
+  and boards it, to capture or to strip it. `CaptureOdds` exists in the sim and
+  is not wired to anything, so a crippled ship is neither captured nor finished,
+  and a fight between two ships that both end up disabled simply stops. The
+  smoke run names this explicitly when it happens rather than reporting a stall.
+- **Mission NPCs never despawn**, and the template's `to spawn` condition gate is
+  parsed but not consulted.
+- **NPC ships do not jump under their own power.** Escorts are carried with the
+  flagship, which is the same observable outcome for an `accompany` objective but
+  is not the upstream mechanism (escort-personality AI flying its own jump).
+- **Boarding, capture and plunder are unreachable from the cockpit**, so a
+  `board` objective — every salvage job — can only be satisfied programmatically.
+
 ## The gauntlet (per directive)
 
 IMPLEMENT → BUILD → RUN → TEST → CAPTURE → CRITIQUE → FIX → REPEAT, with

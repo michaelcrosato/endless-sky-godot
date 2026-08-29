@@ -20,14 +20,19 @@ namespace EndlessSky.Sim
     /// evade and accompany are separate booleans because they are about where a ship
     /// ends up rather than what was done to it.
     ///
+    /// This type is the TEMPLATE. One accepted mission turns it into an
+    /// <see cref="NpcInstance"/> carrying the actual hulls and their per-ship event
+    /// record, because upstream's objectives are per-ship: "kill" is satisfied only
+    /// when EVERY ship in the block is dead, not the first of them.
+    ///
     /// INCOMPLETE, tracked rather than dropped: conversations and dialogs attached to
-    /// an NPC, per-NPC cargo settings, "on" action triggers, uuid identity across a
-    /// save, and actually spawning these ships into a running system. Placement is
-    /// recorded here; nothing yet reads it to populate a system.
+    /// an NPC, per-NPC cargo settings, "on" action triggers, and uuid identity across
+    /// a save.
     /// </remarks>
     public class MissionNpc
     {
         private readonly List<string> _shipNames = new List<string>();
+        private readonly List<string?> _givenNames = new List<string?>();
         private readonly List<string> _personality = new List<string>();
 
         /// <summary>Events that satisfy this NPC's objective.</summary>
@@ -52,6 +57,24 @@ namespace EndlessSky.Sim
 
         /// <summary>Explicitly named ship models.</summary>
         public IReadOnlyList<string> ShipNames => _shipNames;
+
+        /// <summary>
+        /// The individual name given to each entry of <see cref="ShipNames"/>, where
+        /// content supplied one. Parallel to that list; null where it did not.
+        /// </summary>
+        public IReadOnlyList<string?> GivenNames => _givenNames;
+
+        /// <summary>Placement is wherever the mission is going, not a fixed system.</summary>
+        public bool IsAtDestination { get; private set; }
+
+        /// <summary>Placement is anywhere matching this filter, when one is given.</summary>
+        public LocationFilter? Location { get; private set; }
+
+        /// <summary>These ships start out immobile and unmanned.</summary>
+        public bool IsDerelict => _personality.Contains("derelict");
+
+        /// <summary>These ships arrive from the system edge rather than being present.</summary>
+        public bool IsEntering => _personality.Contains("entering");
 
         /// <summary>An inline fleet definition, when the NPC is described as one.</summary>
         public Fleet? Fleet { get; private set; }
@@ -78,8 +101,22 @@ namespace EndlessSky.Sim
                         Government = child.Token(1);
                         break;
 
+                    // `system destination` does not name a system called
+                    // "destination": it defers placement to wherever the mission is
+                    // going, which is only known once the mission is instantiated.
+                    case "system" when hasValue && child.Token(1) == "destination":
+                        IsAtDestination = true;
+                        break;
+
                     case "system" when hasValue:
                         System = child.Token(1);
+                        break;
+
+                    // A bare `system` carrying children is a location filter, and is
+                    // how content says "somewhere within three jumps" rather than
+                    // naming one place.
+                    case "system":
+                        Location = LocationFilter.Load(child);
                         break;
 
                     case "planet" when hasValue:
@@ -113,8 +150,12 @@ namespace EndlessSky.Sim
                                     _personality.Add(trait.Token(i));
                         break;
 
+                    // `ship <model> [given name]`. The second token names the
+                    // individual, not a count - a count here would silently become
+                    // the ship's name and place one hull where content asked for six.
                     case "ship" when hasValue:
                         _shipNames.Add(child.Token(1));
+                        _givenNames.Add(child.Size >= 3 ? child.Token(2) : null);
                         break;
 
                     case "fleet":

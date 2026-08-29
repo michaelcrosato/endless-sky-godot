@@ -233,7 +233,7 @@ outfit "Terran Thruster Mk I"
 	mass 18
 	"outfit space" -16
 	"engine capacity" -16
-	thrust 9.5
+	thrust 38
 	"thrusting energy" 0.55
 	"thrusting heat" 1.15
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -244,9 +244,9 @@ outfit "Terran Steering Mk I"
 	mass 13
 	"outfit space" -12
 	"engine capacity" -12
-	turn 115
-	"turning energy" 0.38
-	"turning heat" 0.8
+	turn 1035
+	"turning energy" 2.4
+	"turning heat" 3.9
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Terran Thruster Mk II"
@@ -255,7 +255,7 @@ outfit "Terran Thruster Mk II"
 	mass 24.3
 	"outfit space" -21.6
 	"engine capacity" -21.6
-	thrust 12.825
+	thrust 51.3
 	"thrusting energy" 0.743
 	"thrusting heat" 1.552
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -266,9 +266,9 @@ outfit "Terran Steering Mk II"
 	mass 17.55
 	"outfit space" -16.2
 	"engine capacity" -16.2
-	turn 155.25
-	"turning energy" 0.513
-	"turning heat" 1.08
+	turn 1397.25
+	"turning energy" 3.24
+	"turning heat" 5.265
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Terran Thruster Mk III"
@@ -277,7 +277,7 @@ outfit "Terran Thruster Mk III"
 	mass 32.4
 	"outfit space" -28.8
 	"engine capacity" -28.8
-	thrust 17.1
+	thrust 68.4
 	"thrusting energy" 0.99
 	"thrusting heat" 2.07
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -288,9 +288,9 @@ outfit "Terran Steering Mk III"
 	mass 23.4
 	"outfit space" -21.6
 	"engine capacity" -21.6
-	turn 207
-	"turning energy" 0.684
-	"turning heat" 1.44
+	turn 1863
+	"turning energy" 4.32
+	"turning heat" 7.02
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Terran Thruster Mk IV"
@@ -299,7 +299,7 @@ outfit "Terran Thruster Mk IV"
 	mass 43.2
 	"outfit space" -38.4
 	"engine capacity" -38.4
-	thrust 22.8
+	thrust 91.2
 	"thrusting energy" 1.32
 	"thrusting heat" 2.76
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -310,9 +310,9 @@ outfit "Terran Steering Mk IV"
 	mass 31.2
 	"outfit space" -28.8
 	"engine capacity" -28.8
-	turn 276
-	"turning energy" 0.912
-	"turning heat" 1.92
+	turn 2484
+	"turning energy" 5.76
+	"turning heat" 9.36
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Terran Thruster Mk V"
@@ -321,7 +321,7 @@ outfit "Terran Thruster Mk V"
 	mass 57.6
 	"outfit space" -51.2
 	"engine capacity" -51.2
-	thrust 30.4
+	thrust 121.6
 	"thrusting energy" 1.76
 	"thrusting heat" 3.68
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -332,9 +332,9 @@ outfit "Terran Steering Mk V"
 	mass 41.6
 	"outfit space" -38.4
 	"engine capacity" -38.4
-	turn 368
-	"turning energy" 1.216
-	"turning heat" 2.56
+	turn 3312
+	"turning energy" 7.68
+	"turning heat" 12.48
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Terran Radiator Mk I"
@@ -783,7 +783,7 @@ outfit "Vashari Thruster Mk I"
 	mass 18
 	"outfit space" -16
 	"engine capacity" -16
-	thrust 9.975
+	thrust 39.9
 	"thrusting energy" 0.55
 	"thrusting heat" 1.15
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -794,9 +794,9 @@ outfit "Vashari Steering Mk I"
 	mass 13
 	"outfit space" -12
 	"engine capacity" -12
-	turn 126.5
-	"turning energy" 0.38
-	"turning heat" 0.8
+	turn 1138.5
+	"turning energy" 2.4
+	"turning heat" 3.9
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Vashari Thruster Mk II"
@@ -805,7 +805,7 @@ outfit "Vashari Thruster Mk II"
 	mass 24.3
 	"outfit space" -21.6
 	"engine capacity" -21.6
-	thrust 13.466
+	thrust 53.865
 	"thrusting energy" 0.743
 	"thrusting heat" 1.552
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -816,9 +816,9 @@ outfit "Vashari Steering Mk II"
 	mass 17.55
 	"outfit space" -16.2
 	"engine capacity" -16.2
-	turn 170.78
-	"turning energy" 0.513
-	"turning heat" 1.08
+	turn 1536.98
+	"turning energy" 3.24
+	"turning heat" 5.265
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Vashari Thruster Mk III"
@@ -827,7 +827,7 @@ outfit "Vashari Thruster Mk III"
 	mass 32.4
 	"outfit space" -28.8
 	"engine capacity" -28.8
-	thrust 17.955
+	thrust 71.82
 	"thrusting energy" 0.99
 	"thrusting heat" 2.07
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -838,9 +838,9 @@ outfit "Vashari Steering Mk III"
 	mass 23.4
 	"outfit space" -21.6
 	"engine capacity" -21.6
-	turn 227.7
-	"turning energy" 0.684
-	"turning heat" 1.44
+	turn 2049.3
+	"turning energy" 4.32
+	"turning heat" 7.02
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Vashari Thruster Mk IV"
@@ -849,7 +849,7 @@ outfit "Vashari Thruster Mk IV"
 	mass 43.2
 	"outfit space" -38.4
 	"engine capacity" -38.4
-	thrust 23.94
+	thrust 95.76
 	"thrusting energy" 1.32
 	"thrusting heat" 2.76
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -860,9 +860,9 @@ outfit "Vashari Steering Mk IV"
 	mass 31.2
 	"outfit space" -28.8
 	"engine capacity" -28.8
-	turn 303.6
-	"turning energy" 0.912
-	"turning heat" 1.92
+	turn 2732.4
+	"turning energy" 5.76
+	"turning heat" 9.36
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Vashari Thruster Mk V"
@@ -871,7 +871,7 @@ outfit "Vashari Thruster Mk V"
 	mass 57.6
 	"outfit space" -51.2
 	"engine capacity" -51.2
-	thrust 31.92
+	thrust 127.68
 	"thrusting energy" 1.76
 	"thrusting heat" 3.68
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -882,9 +882,9 @@ outfit "Vashari Steering Mk V"
 	mass 41.6
 	"outfit space" -38.4
 	"engine capacity" -38.4
-	turn 404.8
-	"turning energy" 1.216
-	"turning heat" 2.56
+	turn 3643.2
+	"turning energy" 7.68
+	"turning heat" 12.48
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Vashari Radiator Mk I"
@@ -1343,7 +1343,7 @@ outfit "Kel'Toth Thruster Mk I"
 	mass 18
 	"outfit space" -16
 	"engine capacity" -16
-	thrust 12.825
+	thrust 51.3
 	"thrusting energy" 0.55
 	"thrusting heat" 1.15
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -1354,9 +1354,9 @@ outfit "Kel'Toth Steering Mk I"
 	mass 13
 	"outfit space" -12
 	"engine capacity" -12
-	turn 166.75
-	"turning energy" 0.38
-	"turning heat" 0.8
+	turn 1500.75
+	"turning energy" 2.4
+	"turning heat" 3.9
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Kel'Toth Thruster Mk II"
@@ -1365,7 +1365,7 @@ outfit "Kel'Toth Thruster Mk II"
 	mass 24.3
 	"outfit space" -21.6
 	"engine capacity" -21.6
-	thrust 17.314
+	thrust 69.255
 	"thrusting energy" 0.743
 	"thrusting heat" 1.552
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -1376,9 +1376,9 @@ outfit "Kel'Toth Steering Mk II"
 	mass 17.55
 	"outfit space" -16.2
 	"engine capacity" -16.2
-	turn 225.11
-	"turning energy" 0.513
-	"turning heat" 1.08
+	turn 2026.01
+	"turning energy" 3.24
+	"turning heat" 5.265
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Kel'Toth Thruster Mk III"
@@ -1387,7 +1387,7 @@ outfit "Kel'Toth Thruster Mk III"
 	mass 32.4
 	"outfit space" -28.8
 	"engine capacity" -28.8
-	thrust 23.085
+	thrust 92.34
 	"thrusting energy" 0.99
 	"thrusting heat" 2.07
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -1398,9 +1398,9 @@ outfit "Kel'Toth Steering Mk III"
 	mass 23.4
 	"outfit space" -21.6
 	"engine capacity" -21.6
-	turn 300.15
-	"turning energy" 0.684
-	"turning heat" 1.44
+	turn 2701.35
+	"turning energy" 4.32
+	"turning heat" 7.02
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Kel'Toth Thruster Mk IV"
@@ -1409,7 +1409,7 @@ outfit "Kel'Toth Thruster Mk IV"
 	mass 43.2
 	"outfit space" -38.4
 	"engine capacity" -38.4
-	thrust 30.78
+	thrust 123.12
 	"thrusting energy" 1.32
 	"thrusting heat" 2.76
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -1420,9 +1420,9 @@ outfit "Kel'Toth Steering Mk IV"
 	mass 31.2
 	"outfit space" -28.8
 	"engine capacity" -28.8
-	turn 400.2
-	"turning energy" 0.912
-	"turning heat" 1.92
+	turn 3601.8
+	"turning energy" 5.76
+	"turning heat" 9.36
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Kel'Toth Thruster Mk V"
@@ -1431,7 +1431,7 @@ outfit "Kel'Toth Thruster Mk V"
 	mass 57.6
 	"outfit space" -51.2
 	"engine capacity" -51.2
-	thrust 41.04
+	thrust 164.16
 	"thrusting energy" 1.76
 	"thrusting heat" 3.68
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -1442,9 +1442,9 @@ outfit "Kel'Toth Steering Mk V"
 	mass 41.6
 	"outfit space" -38.4
 	"engine capacity" -38.4
-	turn 533.6
-	"turning energy" 1.216
-	"turning heat" 2.56
+	turn 4802.4
+	"turning energy" 7.68
+	"turning heat" 12.48
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Kel'Toth Radiator Mk I"
@@ -1893,7 +1893,7 @@ outfit "Morrow Thruster Mk I"
 	mass 18
 	"outfit space" -16
 	"engine capacity" -16
-	thrust 7.6
+	thrust 30.4
 	"thrusting energy" 0.55
 	"thrusting heat" 1.15
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -1904,9 +1904,9 @@ outfit "Morrow Steering Mk I"
 	mass 13
 	"outfit space" -12
 	"engine capacity" -12
-	turn 80.5
-	"turning energy" 0.38
-	"turning heat" 0.8
+	turn 724.5
+	"turning energy" 2.4
+	"turning heat" 3.9
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Morrow Thruster Mk II"
@@ -1915,7 +1915,7 @@ outfit "Morrow Thruster Mk II"
 	mass 24.3
 	"outfit space" -21.6
 	"engine capacity" -21.6
-	thrust 10.26
+	thrust 41.04
 	"thrusting energy" 0.743
 	"thrusting heat" 1.552
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -1926,9 +1926,9 @@ outfit "Morrow Steering Mk II"
 	mass 17.55
 	"outfit space" -16.2
 	"engine capacity" -16.2
-	turn 108.67
-	"turning energy" 0.513
-	"turning heat" 1.08
+	turn 978.07
+	"turning energy" 3.24
+	"turning heat" 5.265
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Morrow Thruster Mk III"
@@ -1937,7 +1937,7 @@ outfit "Morrow Thruster Mk III"
 	mass 32.4
 	"outfit space" -28.8
 	"engine capacity" -28.8
-	thrust 13.68
+	thrust 54.72
 	"thrusting energy" 0.99
 	"thrusting heat" 2.07
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -1948,9 +1948,9 @@ outfit "Morrow Steering Mk III"
 	mass 23.4
 	"outfit space" -21.6
 	"engine capacity" -21.6
-	turn 144.9
-	"turning energy" 0.684
-	"turning heat" 1.44
+	turn 1304.1
+	"turning energy" 4.32
+	"turning heat" 7.02
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Morrow Thruster Mk IV"
@@ -1959,7 +1959,7 @@ outfit "Morrow Thruster Mk IV"
 	mass 43.2
 	"outfit space" -38.4
 	"engine capacity" -38.4
-	thrust 18.24
+	thrust 72.96
 	"thrusting energy" 1.32
 	"thrusting heat" 2.76
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -1970,9 +1970,9 @@ outfit "Morrow Steering Mk IV"
 	mass 31.2
 	"outfit space" -28.8
 	"engine capacity" -28.8
-	turn 193.2
-	"turning energy" 0.912
-	"turning heat" 1.92
+	turn 1738.8
+	"turning energy" 5.76
+	"turning heat" 9.36
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Morrow Thruster Mk V"
@@ -1981,7 +1981,7 @@ outfit "Morrow Thruster Mk V"
 	mass 57.6
 	"outfit space" -51.2
 	"engine capacity" -51.2
-	thrust 24.32
+	thrust 97.28
 	"thrusting energy" 1.76
 	"thrusting heat" 3.68
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -1992,9 +1992,9 @@ outfit "Morrow Steering Mk V"
 	mass 41.6
 	"outfit space" -38.4
 	"engine capacity" -38.4
-	turn 257.6
-	"turning energy" 1.216
-	"turning heat" 2.56
+	turn 2318.4
+	"turning energy" 7.68
+	"turning heat" 12.48
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Morrow Radiator Mk I"
@@ -2443,7 +2443,7 @@ outfit "Ixil Thruster Mk I"
 	mass 18
 	"outfit space" -16
 	"engine capacity" -16
-	thrust 10.45
+	thrust 41.8
 	"thrusting energy" 0.55
 	"thrusting heat" 1.15
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -2454,9 +2454,9 @@ outfit "Ixil Steering Mk I"
 	mass 13
 	"outfit space" -12
 	"engine capacity" -12
-	turn 109.25
-	"turning energy" 0.38
-	"turning heat" 0.8
+	turn 983.25
+	"turning energy" 2.4
+	"turning heat" 3.9
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Ixil Thruster Mk II"
@@ -2465,7 +2465,7 @@ outfit "Ixil Thruster Mk II"
 	mass 24.3
 	"outfit space" -21.6
 	"engine capacity" -21.6
-	thrust 14.108
+	thrust 56.43
 	"thrusting energy" 0.743
 	"thrusting heat" 1.552
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -2476,9 +2476,9 @@ outfit "Ixil Steering Mk II"
 	mass 17.55
 	"outfit space" -16.2
 	"engine capacity" -16.2
-	turn 147.49
-	"turning energy" 0.513
-	"turning heat" 1.08
+	turn 1327.39
+	"turning energy" 3.24
+	"turning heat" 5.265
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Ixil Thruster Mk III"
@@ -2487,7 +2487,7 @@ outfit "Ixil Thruster Mk III"
 	mass 32.4
 	"outfit space" -28.8
 	"engine capacity" -28.8
-	thrust 18.81
+	thrust 75.24
 	"thrusting energy" 0.99
 	"thrusting heat" 2.07
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -2498,9 +2498,9 @@ outfit "Ixil Steering Mk III"
 	mass 23.4
 	"outfit space" -21.6
 	"engine capacity" -21.6
-	turn 196.65
-	"turning energy" 0.684
-	"turning heat" 1.44
+	turn 1769.85
+	"turning energy" 4.32
+	"turning heat" 7.02
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Ixil Thruster Mk IV"
@@ -2509,7 +2509,7 @@ outfit "Ixil Thruster Mk IV"
 	mass 43.2
 	"outfit space" -38.4
 	"engine capacity" -38.4
-	thrust 25.08
+	thrust 100.32
 	"thrusting energy" 1.32
 	"thrusting heat" 2.76
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -2520,9 +2520,9 @@ outfit "Ixil Steering Mk IV"
 	mass 31.2
 	"outfit space" -28.8
 	"engine capacity" -28.8
-	turn 262.2
-	"turning energy" 0.912
-	"turning heat" 1.92
+	turn 2359.8
+	"turning energy" 5.76
+	"turning heat" 9.36
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Ixil Thruster Mk V"
@@ -2531,7 +2531,7 @@ outfit "Ixil Thruster Mk V"
 	mass 57.6
 	"outfit space" -51.2
 	"engine capacity" -51.2
-	thrust 33.44
+	thrust 133.76
 	"thrusting energy" 1.76
 	"thrusting heat" 3.68
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -2542,9 +2542,9 @@ outfit "Ixil Steering Mk V"
 	mass 41.6
 	"outfit space" -38.4
 	"engine capacity" -38.4
-	turn 349.6
-	"turning energy" 1.216
-	"turning heat" 2.56
+	turn 3146.4
+	"turning energy" 7.68
+	"turning heat" 12.48
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Ixil Radiator Mk I"
@@ -3003,7 +3003,7 @@ outfit "Sarn Thruster Mk I"
 	mass 18
 	"outfit space" -16
 	"engine capacity" -16
-	thrust 8.55
+	thrust 34.2
 	"thrusting energy" 0.55
 	"thrusting heat" 1.15
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -3014,9 +3014,9 @@ outfit "Sarn Steering Mk I"
 	mass 13
 	"outfit space" -12
 	"engine capacity" -12
-	turn 97.75
-	"turning energy" 0.38
-	"turning heat" 0.8
+	turn 879.75
+	"turning energy" 2.4
+	"turning heat" 3.9
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Sarn Thruster Mk II"
@@ -3025,7 +3025,7 @@ outfit "Sarn Thruster Mk II"
 	mass 24.3
 	"outfit space" -21.6
 	"engine capacity" -21.6
-	thrust 11.543
+	thrust 46.17
 	"thrusting energy" 0.743
 	"thrusting heat" 1.552
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -3036,9 +3036,9 @@ outfit "Sarn Steering Mk II"
 	mass 17.55
 	"outfit space" -16.2
 	"engine capacity" -16.2
-	turn 131.96
-	"turning energy" 0.513
-	"turning heat" 1.08
+	turn 1187.66
+	"turning energy" 3.24
+	"turning heat" 5.265
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Sarn Thruster Mk III"
@@ -3047,7 +3047,7 @@ outfit "Sarn Thruster Mk III"
 	mass 32.4
 	"outfit space" -28.8
 	"engine capacity" -28.8
-	thrust 15.39
+	thrust 61.56
 	"thrusting energy" 0.99
 	"thrusting heat" 2.07
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -3058,9 +3058,9 @@ outfit "Sarn Steering Mk III"
 	mass 23.4
 	"outfit space" -21.6
 	"engine capacity" -21.6
-	turn 175.95
-	"turning energy" 0.684
-	"turning heat" 1.44
+	turn 1583.55
+	"turning energy" 4.32
+	"turning heat" 7.02
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Sarn Thruster Mk IV"
@@ -3069,7 +3069,7 @@ outfit "Sarn Thruster Mk IV"
 	mass 43.2
 	"outfit space" -38.4
 	"engine capacity" -38.4
-	thrust 20.52
+	thrust 82.08
 	"thrusting energy" 1.32
 	"thrusting heat" 2.76
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -3080,9 +3080,9 @@ outfit "Sarn Steering Mk IV"
 	mass 31.2
 	"outfit space" -28.8
 	"engine capacity" -28.8
-	turn 234.6
-	"turning energy" 0.912
-	"turning heat" 1.92
+	turn 2111.4
+	"turning energy" 5.76
+	"turning heat" 9.36
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Sarn Thruster Mk V"
@@ -3091,7 +3091,7 @@ outfit "Sarn Thruster Mk V"
 	mass 57.6
 	"outfit space" -51.2
 	"engine capacity" -51.2
-	thrust 27.36
+	thrust 109.44
 	"thrusting energy" 1.76
 	"thrusting heat" 3.68
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -3102,9 +3102,9 @@ outfit "Sarn Steering Mk V"
 	mass 41.6
 	"outfit space" -38.4
 	"engine capacity" -38.4
-	turn 312.8
-	"turning energy" 1.216
-	"turning heat" 2.56
+	turn 2815.2
+	"turning energy" 7.68
+	"turning heat" 12.48
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Sarn Radiator Mk I"
@@ -3553,7 +3553,7 @@ outfit "Ythera Thruster Mk I"
 	mass 18
 	"outfit space" -16
 	"engine capacity" -16
-	thrust 9.025
+	thrust 36.1
 	"thrusting energy" 0.55
 	"thrusting heat" 1.15
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -3564,9 +3564,9 @@ outfit "Ythera Steering Mk I"
 	mass 13
 	"outfit space" -12
 	"engine capacity" -12
-	turn 115
-	"turning energy" 0.38
-	"turning heat" 0.8
+	turn 1035
+	"turning energy" 2.4
+	"turning heat" 3.9
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Ythera Thruster Mk II"
@@ -3575,7 +3575,7 @@ outfit "Ythera Thruster Mk II"
 	mass 24.3
 	"outfit space" -21.6
 	"engine capacity" -21.6
-	thrust 12.184
+	thrust 48.735
 	"thrusting energy" 0.743
 	"thrusting heat" 1.552
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -3586,9 +3586,9 @@ outfit "Ythera Steering Mk II"
 	mass 17.55
 	"outfit space" -16.2
 	"engine capacity" -16.2
-	turn 155.25
-	"turning energy" 0.513
-	"turning heat" 1.08
+	turn 1397.25
+	"turning energy" 3.24
+	"turning heat" 5.265
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Ythera Thruster Mk III"
@@ -3597,7 +3597,7 @@ outfit "Ythera Thruster Mk III"
 	mass 32.4
 	"outfit space" -28.8
 	"engine capacity" -28.8
-	thrust 16.245
+	thrust 64.98
 	"thrusting energy" 0.99
 	"thrusting heat" 2.07
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -3608,9 +3608,9 @@ outfit "Ythera Steering Mk III"
 	mass 23.4
 	"outfit space" -21.6
 	"engine capacity" -21.6
-	turn 207
-	"turning energy" 0.684
-	"turning heat" 1.44
+	turn 1863
+	"turning energy" 4.32
+	"turning heat" 7.02
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Ythera Thruster Mk IV"
@@ -3619,7 +3619,7 @@ outfit "Ythera Thruster Mk IV"
 	mass 43.2
 	"outfit space" -38.4
 	"engine capacity" -38.4
-	thrust 21.66
+	thrust 86.64
 	"thrusting energy" 1.32
 	"thrusting heat" 2.76
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -3630,9 +3630,9 @@ outfit "Ythera Steering Mk IV"
 	mass 31.2
 	"outfit space" -28.8
 	"engine capacity" -28.8
-	turn 276
-	"turning energy" 0.912
-	"turning heat" 1.92
+	turn 2484
+	"turning energy" 5.76
+	"turning heat" 9.36
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Ythera Thruster Mk V"
@@ -3641,7 +3641,7 @@ outfit "Ythera Thruster Mk V"
 	mass 57.6
 	"outfit space" -51.2
 	"engine capacity" -51.2
-	thrust 28.88
+	thrust 115.52
 	"thrusting energy" 1.76
 	"thrusting heat" 3.68
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -3652,9 +3652,9 @@ outfit "Ythera Steering Mk V"
 	mass 41.6
 	"outfit space" -38.4
 	"engine capacity" -38.4
-	turn 368
-	"turning energy" 1.216
-	"turning heat" 2.56
+	turn 3312
+	"turning energy" 7.68
+	"turning heat" 12.48
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Ythera Radiator Mk I"
@@ -4113,7 +4113,7 @@ outfit "Drell Thruster Mk I"
 	mass 18
 	"outfit space" -16
 	"engine capacity" -16
-	thrust 11.875
+	thrust 47.5
 	"thrusting energy" 0.55
 	"thrusting heat" 1.15
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -4124,9 +4124,9 @@ outfit "Drell Steering Mk I"
 	mass 13
 	"outfit space" -12
 	"engine capacity" -12
-	turn 132.25
-	"turning energy" 0.38
-	"turning heat" 0.8
+	turn 1190.25
+	"turning energy" 2.4
+	"turning heat" 3.9
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Drell Thruster Mk II"
@@ -4135,7 +4135,7 @@ outfit "Drell Thruster Mk II"
 	mass 24.3
 	"outfit space" -21.6
 	"engine capacity" -21.6
-	thrust 16.031
+	thrust 64.125
 	"thrusting energy" 0.743
 	"thrusting heat" 1.552
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -4146,9 +4146,9 @@ outfit "Drell Steering Mk II"
 	mass 17.55
 	"outfit space" -16.2
 	"engine capacity" -16.2
-	turn 178.54
-	"turning energy" 0.513
-	"turning heat" 1.08
+	turn 1606.84
+	"turning energy" 3.24
+	"turning heat" 5.265
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Drell Thruster Mk III"
@@ -4157,7 +4157,7 @@ outfit "Drell Thruster Mk III"
 	mass 32.4
 	"outfit space" -28.8
 	"engine capacity" -28.8
-	thrust 21.375
+	thrust 85.5
 	"thrusting energy" 0.99
 	"thrusting heat" 2.07
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -4168,9 +4168,9 @@ outfit "Drell Steering Mk III"
 	mass 23.4
 	"outfit space" -21.6
 	"engine capacity" -21.6
-	turn 238.05
-	"turning energy" 0.684
-	"turning heat" 1.44
+	turn 2142.45
+	"turning energy" 4.32
+	"turning heat" 7.02
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Drell Thruster Mk IV"
@@ -4179,7 +4179,7 @@ outfit "Drell Thruster Mk IV"
 	mass 43.2
 	"outfit space" -38.4
 	"engine capacity" -38.4
-	thrust 28.5
+	thrust 114
 	"thrusting energy" 1.32
 	"thrusting heat" 2.76
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -4190,9 +4190,9 @@ outfit "Drell Steering Mk IV"
 	mass 31.2
 	"outfit space" -28.8
 	"engine capacity" -28.8
-	turn 317.4
-	"turning energy" 0.912
-	"turning heat" 1.92
+	turn 2856.6
+	"turning energy" 5.76
+	"turning heat" 9.36
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Drell Thruster Mk V"
@@ -4201,7 +4201,7 @@ outfit "Drell Thruster Mk V"
 	mass 57.6
 	"outfit space" -51.2
 	"engine capacity" -51.2
-	thrust 38
+	thrust 152
 	"thrusting energy" 1.76
 	"thrusting heat" 3.68
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -4212,9 +4212,9 @@ outfit "Drell Steering Mk V"
 	mass 41.6
 	"outfit space" -38.4
 	"engine capacity" -38.4
-	turn 423.2
-	"turning energy" 1.216
-	"turning heat" 2.56
+	turn 3808.8
+	"turning energy" 7.68
+	"turning heat" 12.48
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Drell Radiator Mk I"
@@ -4663,7 +4663,7 @@ outfit "Orokh Thruster Mk I"
 	mass 18
 	"outfit space" -16
 	"engine capacity" -16
-	thrust 9.025
+	thrust 36.1
 	"thrusting energy" 0.55
 	"thrusting heat" 1.15
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -4674,9 +4674,9 @@ outfit "Orokh Steering Mk I"
 	mass 13
 	"outfit space" -12
 	"engine capacity" -12
-	turn 103.5
-	"turning energy" 0.38
-	"turning heat" 0.8
+	turn 931.5
+	"turning energy" 2.4
+	"turning heat" 3.9
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Orokh Thruster Mk II"
@@ -4685,7 +4685,7 @@ outfit "Orokh Thruster Mk II"
 	mass 24.3
 	"outfit space" -21.6
 	"engine capacity" -21.6
-	thrust 12.184
+	thrust 48.735
 	"thrusting energy" 0.743
 	"thrusting heat" 1.552
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -4696,9 +4696,9 @@ outfit "Orokh Steering Mk II"
 	mass 17.55
 	"outfit space" -16.2
 	"engine capacity" -16.2
-	turn 139.72
-	"turning energy" 0.513
-	"turning heat" 1.08
+	turn 1257.53
+	"turning energy" 3.24
+	"turning heat" 5.265
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Orokh Thruster Mk III"
@@ -4707,7 +4707,7 @@ outfit "Orokh Thruster Mk III"
 	mass 32.4
 	"outfit space" -28.8
 	"engine capacity" -28.8
-	thrust 16.245
+	thrust 64.98
 	"thrusting energy" 0.99
 	"thrusting heat" 2.07
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -4718,9 +4718,9 @@ outfit "Orokh Steering Mk III"
 	mass 23.4
 	"outfit space" -21.6
 	"engine capacity" -21.6
-	turn 186.3
-	"turning energy" 0.684
-	"turning heat" 1.44
+	turn 1676.7
+	"turning energy" 4.32
+	"turning heat" 7.02
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Orokh Thruster Mk IV"
@@ -4729,7 +4729,7 @@ outfit "Orokh Thruster Mk IV"
 	mass 43.2
 	"outfit space" -38.4
 	"engine capacity" -38.4
-	thrust 21.66
+	thrust 86.64
 	"thrusting energy" 1.32
 	"thrusting heat" 2.76
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -4740,9 +4740,9 @@ outfit "Orokh Steering Mk IV"
 	mass 31.2
 	"outfit space" -28.8
 	"engine capacity" -28.8
-	turn 248.4
-	"turning energy" 0.912
-	"turning heat" 1.92
+	turn 2235.6
+	"turning energy" 5.76
+	"turning heat" 9.36
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Orokh Thruster Mk V"
@@ -4751,7 +4751,7 @@ outfit "Orokh Thruster Mk V"
 	mass 57.6
 	"outfit space" -51.2
 	"engine capacity" -51.2
-	thrust 28.88
+	thrust 115.52
 	"thrusting energy" 1.76
 	"thrusting heat" 3.68
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -4762,9 +4762,9 @@ outfit "Orokh Steering Mk V"
 	mass 41.6
 	"outfit space" -38.4
 	"engine capacity" -38.4
-	turn 331.2
-	"turning energy" 1.216
-	"turning heat" 2.56
+	turn 2980.8
+	"turning energy" 7.68
+	"turning heat" 12.48
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Orokh Radiator Mk I"
@@ -5213,7 +5213,7 @@ outfit "Lumen Thruster Mk I"
 	mass 18
 	"outfit space" -16
 	"engine capacity" -16
-	thrust 14.25
+	thrust 57
 	"thrusting energy" 0.55
 	"thrusting heat" 1.15
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -5224,9 +5224,9 @@ outfit "Lumen Steering Mk I"
 	mass 13
 	"outfit space" -12
 	"engine capacity" -12
-	turn 161
-	"turning energy" 0.38
-	"turning heat" 0.8
+	turn 1449
+	"turning energy" 2.4
+	"turning heat" 3.9
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Lumen Thruster Mk II"
@@ -5235,7 +5235,7 @@ outfit "Lumen Thruster Mk II"
 	mass 24.3
 	"outfit space" -21.6
 	"engine capacity" -21.6
-	thrust 19.238
+	thrust 76.95
 	"thrusting energy" 0.743
 	"thrusting heat" 1.552
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -5246,9 +5246,9 @@ outfit "Lumen Steering Mk II"
 	mass 17.55
 	"outfit space" -16.2
 	"engine capacity" -16.2
-	turn 217.35
-	"turning energy" 0.513
-	"turning heat" 1.08
+	turn 1956.15
+	"turning energy" 3.24
+	"turning heat" 5.265
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Lumen Thruster Mk III"
@@ -5257,7 +5257,7 @@ outfit "Lumen Thruster Mk III"
 	mass 32.4
 	"outfit space" -28.8
 	"engine capacity" -28.8
-	thrust 25.65
+	thrust 102.6
 	"thrusting energy" 0.99
 	"thrusting heat" 2.07
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -5268,9 +5268,9 @@ outfit "Lumen Steering Mk III"
 	mass 23.4
 	"outfit space" -21.6
 	"engine capacity" -21.6
-	turn 289.8
-	"turning energy" 0.684
-	"turning heat" 1.44
+	turn 2608.2
+	"turning energy" 4.32
+	"turning heat" 7.02
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Lumen Thruster Mk IV"
@@ -5279,7 +5279,7 @@ outfit "Lumen Thruster Mk IV"
 	mass 43.2
 	"outfit space" -38.4
 	"engine capacity" -38.4
-	thrust 34.2
+	thrust 136.8
 	"thrusting energy" 1.32
 	"thrusting heat" 2.76
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -5290,9 +5290,9 @@ outfit "Lumen Steering Mk IV"
 	mass 31.2
 	"outfit space" -28.8
 	"engine capacity" -28.8
-	turn 386.4
-	"turning energy" 0.912
-	"turning heat" 1.92
+	turn 3477.6
+	"turning energy" 5.76
+	"turning heat" 9.36
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Lumen Thruster Mk V"
@@ -5301,7 +5301,7 @@ outfit "Lumen Thruster Mk V"
 	mass 57.6
 	"outfit space" -51.2
 	"engine capacity" -51.2
-	thrust 45.6
+	thrust 182.4
 	"thrusting energy" 1.76
 	"thrusting heat" 3.68
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -5312,9 +5312,9 @@ outfit "Lumen Steering Mk V"
 	mass 41.6
 	"outfit space" -38.4
 	"engine capacity" -38.4
-	turn 515.2
-	"turning energy" 1.216
-	"turning heat" 2.56
+	turn 4636.8
+	"turning energy" 7.68
+	"turning heat" 12.48
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Lumen Radiator Mk I"
@@ -5773,7 +5773,7 @@ outfit "Grask Thruster Mk I"
 	mass 18
 	"outfit space" -16
 	"engine capacity" -16
-	thrust 9.5
+	thrust 38
 	"thrusting energy" 0.55
 	"thrusting heat" 1.15
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -5784,9 +5784,9 @@ outfit "Grask Steering Mk I"
 	mass 13
 	"outfit space" -12
 	"engine capacity" -12
-	turn 115
-	"turning energy" 0.38
-	"turning heat" 0.8
+	turn 1035
+	"turning energy" 2.4
+	"turning heat" 3.9
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Grask Thruster Mk II"
@@ -5795,7 +5795,7 @@ outfit "Grask Thruster Mk II"
 	mass 24.3
 	"outfit space" -21.6
 	"engine capacity" -21.6
-	thrust 12.825
+	thrust 51.3
 	"thrusting energy" 0.743
 	"thrusting heat" 1.552
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -5806,9 +5806,9 @@ outfit "Grask Steering Mk II"
 	mass 17.55
 	"outfit space" -16.2
 	"engine capacity" -16.2
-	turn 155.25
-	"turning energy" 0.513
-	"turning heat" 1.08
+	turn 1397.25
+	"turning energy" 3.24
+	"turning heat" 5.265
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Grask Thruster Mk III"
@@ -5817,7 +5817,7 @@ outfit "Grask Thruster Mk III"
 	mass 32.4
 	"outfit space" -28.8
 	"engine capacity" -28.8
-	thrust 17.1
+	thrust 68.4
 	"thrusting energy" 0.99
 	"thrusting heat" 2.07
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -5828,9 +5828,9 @@ outfit "Grask Steering Mk III"
 	mass 23.4
 	"outfit space" -21.6
 	"engine capacity" -21.6
-	turn 207
-	"turning energy" 0.684
-	"turning heat" 1.44
+	turn 1863
+	"turning energy" 4.32
+	"turning heat" 7.02
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Grask Thruster Mk IV"
@@ -5839,7 +5839,7 @@ outfit "Grask Thruster Mk IV"
 	mass 43.2
 	"outfit space" -38.4
 	"engine capacity" -38.4
-	thrust 22.8
+	thrust 91.2
 	"thrusting energy" 1.32
 	"thrusting heat" 2.76
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -5850,9 +5850,9 @@ outfit "Grask Steering Mk IV"
 	mass 31.2
 	"outfit space" -28.8
 	"engine capacity" -28.8
-	turn 276
-	"turning energy" 0.912
-	"turning heat" 1.92
+	turn 2484
+	"turning energy" 5.76
+	"turning heat" 9.36
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Grask Thruster Mk V"
@@ -5861,7 +5861,7 @@ outfit "Grask Thruster Mk V"
 	mass 57.6
 	"outfit space" -51.2
 	"engine capacity" -51.2
-	thrust 30.4
+	thrust 121.6
 	"thrusting energy" 1.76
 	"thrusting heat" 3.68
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -5872,9 +5872,9 @@ outfit "Grask Steering Mk V"
 	mass 41.6
 	"outfit space" -38.4
 	"engine capacity" -38.4
-	turn 368
-	"turning energy" 1.216
-	"turning heat" 2.56
+	turn 3312
+	"turning energy" 7.68
+	"turning heat" 12.48
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Grask Radiator Mk I"
@@ -6323,7 +6323,7 @@ outfit "Tessarai Thruster Mk I"
 	mass 18
 	"outfit space" -16
 	"engine capacity" -16
-	thrust 9.975
+	thrust 39.9
 	"thrusting energy" 0.55
 	"thrusting heat" 1.15
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -6334,9 +6334,9 @@ outfit "Tessarai Steering Mk I"
 	mass 13
 	"outfit space" -12
 	"engine capacity" -12
-	turn 120.75
-	"turning energy" 0.38
-	"turning heat" 0.8
+	turn 1086.75
+	"turning energy" 2.4
+	"turning heat" 3.9
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Tessarai Thruster Mk II"
@@ -6345,7 +6345,7 @@ outfit "Tessarai Thruster Mk II"
 	mass 24.3
 	"outfit space" -21.6
 	"engine capacity" -21.6
-	thrust 13.466
+	thrust 53.865
 	"thrusting energy" 0.743
 	"thrusting heat" 1.552
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -6356,9 +6356,9 @@ outfit "Tessarai Steering Mk II"
 	mass 17.55
 	"outfit space" -16.2
 	"engine capacity" -16.2
-	turn 163.01
-	"turning energy" 0.513
-	"turning heat" 1.08
+	turn 1467.11
+	"turning energy" 3.24
+	"turning heat" 5.265
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Tessarai Thruster Mk III"
@@ -6367,7 +6367,7 @@ outfit "Tessarai Thruster Mk III"
 	mass 32.4
 	"outfit space" -28.8
 	"engine capacity" -28.8
-	thrust 17.955
+	thrust 71.82
 	"thrusting energy" 0.99
 	"thrusting heat" 2.07
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -6378,9 +6378,9 @@ outfit "Tessarai Steering Mk III"
 	mass 23.4
 	"outfit space" -21.6
 	"engine capacity" -21.6
-	turn 217.35
-	"turning energy" 0.684
-	"turning heat" 1.44
+	turn 1956.15
+	"turning energy" 4.32
+	"turning heat" 7.02
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Tessarai Thruster Mk IV"
@@ -6389,7 +6389,7 @@ outfit "Tessarai Thruster Mk IV"
 	mass 43.2
 	"outfit space" -38.4
 	"engine capacity" -38.4
-	thrust 23.94
+	thrust 95.76
 	"thrusting energy" 1.32
 	"thrusting heat" 2.76
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -6400,9 +6400,9 @@ outfit "Tessarai Steering Mk IV"
 	mass 31.2
 	"outfit space" -28.8
 	"engine capacity" -28.8
-	turn 289.8
-	"turning energy" 0.912
-	"turning heat" 1.92
+	turn 2608.2
+	"turning energy" 5.76
+	"turning heat" 9.36
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Tessarai Thruster Mk V"
@@ -6411,7 +6411,7 @@ outfit "Tessarai Thruster Mk V"
 	mass 57.6
 	"outfit space" -51.2
 	"engine capacity" -51.2
-	thrust 31.92
+	thrust 127.68
 	"thrusting energy" 1.76
 	"thrusting heat" 3.68
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -6422,9 +6422,9 @@ outfit "Tessarai Steering Mk V"
 	mass 41.6
 	"outfit space" -38.4
 	"engine capacity" -38.4
-	turn 386.4
-	"turning energy" 1.216
-	"turning heat" 2.56
+	turn 3477.6
+	"turning energy" 7.68
+	"turning heat" 12.48
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Tessarai Radiator Mk I"
@@ -6883,7 +6883,7 @@ outfit "Voth Thruster Mk I"
 	mass 18
 	"outfit space" -16
 	"engine capacity" -16
-	thrust 6.65
+	thrust 26.6
 	"thrusting energy" 0.55
 	"thrusting heat" 1.15
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -6894,9 +6894,9 @@ outfit "Voth Steering Mk I"
 	mass 13
 	"outfit space" -12
 	"engine capacity" -12
-	turn 69
-	"turning energy" 0.38
-	"turning heat" 0.8
+	turn 621
+	"turning energy" 2.4
+	"turning heat" 3.9
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Voth Thruster Mk II"
@@ -6905,7 +6905,7 @@ outfit "Voth Thruster Mk II"
 	mass 24.3
 	"outfit space" -21.6
 	"engine capacity" -21.6
-	thrust 8.978
+	thrust 35.91
 	"thrusting energy" 0.743
 	"thrusting heat" 1.552
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -6916,9 +6916,9 @@ outfit "Voth Steering Mk II"
 	mass 17.55
 	"outfit space" -16.2
 	"engine capacity" -16.2
-	turn 93.15
-	"turning energy" 0.513
-	"turning heat" 1.08
+	turn 838.35
+	"turning energy" 3.24
+	"turning heat" 5.265
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Voth Thruster Mk III"
@@ -6927,7 +6927,7 @@ outfit "Voth Thruster Mk III"
 	mass 32.4
 	"outfit space" -28.8
 	"engine capacity" -28.8
-	thrust 11.97
+	thrust 47.88
 	"thrusting energy" 0.99
 	"thrusting heat" 2.07
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -6938,9 +6938,9 @@ outfit "Voth Steering Mk III"
 	mass 23.4
 	"outfit space" -21.6
 	"engine capacity" -21.6
-	turn 124.2
-	"turning energy" 0.684
-	"turning heat" 1.44
+	turn 1117.8
+	"turning energy" 4.32
+	"turning heat" 7.02
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Voth Thruster Mk IV"
@@ -6949,7 +6949,7 @@ outfit "Voth Thruster Mk IV"
 	mass 43.2
 	"outfit space" -38.4
 	"engine capacity" -38.4
-	thrust 15.96
+	thrust 63.84
 	"thrusting energy" 1.32
 	"thrusting heat" 2.76
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -6960,9 +6960,9 @@ outfit "Voth Steering Mk IV"
 	mass 31.2
 	"outfit space" -28.8
 	"engine capacity" -28.8
-	turn 165.6
-	"turning energy" 0.912
-	"turning heat" 1.92
+	turn 1490.4
+	"turning energy" 5.76
+	"turning heat" 9.36
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Voth Thruster Mk V"
@@ -6971,7 +6971,7 @@ outfit "Voth Thruster Mk V"
 	mass 57.6
 	"outfit space" -51.2
 	"engine capacity" -51.2
-	thrust 21.28
+	thrust 85.12
 	"thrusting energy" 1.76
 	"thrusting heat" 3.68
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -6982,9 +6982,9 @@ outfit "Voth Steering Mk V"
 	mass 41.6
 	"outfit space" -38.4
 	"engine capacity" -38.4
-	turn 220.8
-	"turning energy" 1.216
-	"turning heat" 2.56
+	turn 1987.2
+	"turning energy" 7.68
+	"turning heat" 12.48
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Voth Radiator Mk I"
@@ -7443,7 +7443,7 @@ outfit "Ceph Thruster Mk I"
 	mass 18
 	"outfit space" -16
 	"engine capacity" -16
-	thrust 8.55
+	thrust 34.2
 	"thrusting energy" 0.55
 	"thrusting heat" 1.15
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -7454,9 +7454,9 @@ outfit "Ceph Steering Mk I"
 	mass 13
 	"outfit space" -12
 	"engine capacity" -12
-	turn 126.5
-	"turning energy" 0.38
-	"turning heat" 0.8
+	turn 1138.5
+	"turning energy" 2.4
+	"turning heat" 3.9
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Ceph Thruster Mk II"
@@ -7465,7 +7465,7 @@ outfit "Ceph Thruster Mk II"
 	mass 24.3
 	"outfit space" -21.6
 	"engine capacity" -21.6
-	thrust 11.543
+	thrust 46.17
 	"thrusting energy" 0.743
 	"thrusting heat" 1.552
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -7476,9 +7476,9 @@ outfit "Ceph Steering Mk II"
 	mass 17.55
 	"outfit space" -16.2
 	"engine capacity" -16.2
-	turn 170.78
-	"turning energy" 0.513
-	"turning heat" 1.08
+	turn 1536.98
+	"turning energy" 3.24
+	"turning heat" 5.265
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Ceph Thruster Mk III"
@@ -7487,7 +7487,7 @@ outfit "Ceph Thruster Mk III"
 	mass 32.4
 	"outfit space" -28.8
 	"engine capacity" -28.8
-	thrust 15.39
+	thrust 61.56
 	"thrusting energy" 0.99
 	"thrusting heat" 2.07
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -7498,9 +7498,9 @@ outfit "Ceph Steering Mk III"
 	mass 23.4
 	"outfit space" -21.6
 	"engine capacity" -21.6
-	turn 227.7
-	"turning energy" 0.684
-	"turning heat" 1.44
+	turn 2049.3
+	"turning energy" 4.32
+	"turning heat" 7.02
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Ceph Thruster Mk IV"
@@ -7509,7 +7509,7 @@ outfit "Ceph Thruster Mk IV"
 	mass 43.2
 	"outfit space" -38.4
 	"engine capacity" -38.4
-	thrust 20.52
+	thrust 82.08
 	"thrusting energy" 1.32
 	"thrusting heat" 2.76
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -7520,9 +7520,9 @@ outfit "Ceph Steering Mk IV"
 	mass 31.2
 	"outfit space" -28.8
 	"engine capacity" -28.8
-	turn 303.6
-	"turning energy" 0.912
-	"turning heat" 1.92
+	turn 2732.4
+	"turning energy" 5.76
+	"turning heat" 9.36
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Ceph Thruster Mk V"
@@ -7531,7 +7531,7 @@ outfit "Ceph Thruster Mk V"
 	mass 57.6
 	"outfit space" -51.2
 	"engine capacity" -51.2
-	thrust 27.36
+	thrust 109.44
 	"thrusting energy" 1.76
 	"thrusting heat" 3.68
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -7542,9 +7542,9 @@ outfit "Ceph Steering Mk V"
 	mass 41.6
 	"outfit space" -38.4
 	"engine capacity" -38.4
-	turn 404.8
-	"turning energy" 1.216
-	"turning heat" 2.56
+	turn 3643.2
+	"turning energy" 7.68
+	"turning heat" 12.48
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Ceph Radiator Mk I"
@@ -8003,7 +8003,7 @@ outfit "Karn Thruster Mk I"
 	mass 18
 	"outfit space" -16
 	"engine capacity" -16
-	thrust 10.45
+	thrust 41.8
 	"thrusting energy" 0.55
 	"thrusting heat" 1.15
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -8014,9 +8014,9 @@ outfit "Karn Steering Mk I"
 	mass 13
 	"outfit space" -12
 	"engine capacity" -12
-	turn 132.25
-	"turning energy" 0.38
-	"turning heat" 0.8
+	turn 1190.25
+	"turning energy" 2.4
+	"turning heat" 3.9
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Karn Thruster Mk II"
@@ -8025,7 +8025,7 @@ outfit "Karn Thruster Mk II"
 	mass 24.3
 	"outfit space" -21.6
 	"engine capacity" -21.6
-	thrust 14.108
+	thrust 56.43
 	"thrusting energy" 0.743
 	"thrusting heat" 1.552
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -8036,9 +8036,9 @@ outfit "Karn Steering Mk II"
 	mass 17.55
 	"outfit space" -16.2
 	"engine capacity" -16.2
-	turn 178.54
-	"turning energy" 0.513
-	"turning heat" 1.08
+	turn 1606.84
+	"turning energy" 3.24
+	"turning heat" 5.265
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Karn Thruster Mk III"
@@ -8047,7 +8047,7 @@ outfit "Karn Thruster Mk III"
 	mass 32.4
 	"outfit space" -28.8
 	"engine capacity" -28.8
-	thrust 18.81
+	thrust 75.24
 	"thrusting energy" 0.99
 	"thrusting heat" 2.07
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -8058,9 +8058,9 @@ outfit "Karn Steering Mk III"
 	mass 23.4
 	"outfit space" -21.6
 	"engine capacity" -21.6
-	turn 238.05
-	"turning energy" 0.684
-	"turning heat" 1.44
+	turn 2142.45
+	"turning energy" 4.32
+	"turning heat" 7.02
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Karn Thruster Mk IV"
@@ -8069,7 +8069,7 @@ outfit "Karn Thruster Mk IV"
 	mass 43.2
 	"outfit space" -38.4
 	"engine capacity" -38.4
-	thrust 25.08
+	thrust 100.32
 	"thrusting energy" 1.32
 	"thrusting heat" 2.76
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -8080,9 +8080,9 @@ outfit "Karn Steering Mk IV"
 	mass 31.2
 	"outfit space" -28.8
 	"engine capacity" -28.8
-	turn 317.4
-	"turning energy" 0.912
-	"turning heat" 1.92
+	turn 2856.6
+	"turning energy" 5.76
+	"turning heat" 9.36
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Karn Thruster Mk V"
@@ -8091,7 +8091,7 @@ outfit "Karn Thruster Mk V"
 	mass 57.6
 	"outfit space" -51.2
 	"engine capacity" -51.2
-	thrust 33.44
+	thrust 133.76
 	"thrusting energy" 1.76
 	"thrusting heat" 3.68
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -8102,9 +8102,9 @@ outfit "Karn Steering Mk V"
 	mass 41.6
 	"outfit space" -38.4
 	"engine capacity" -38.4
-	turn 423.2
-	"turning energy" 1.216
-	"turning heat" 2.56
+	turn 3808.8
+	"turning energy" 7.68
+	"turning heat" 12.48
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Karn Radiator Mk I"
@@ -8553,7 +8553,7 @@ outfit "Silane Thruster Mk I"
 	mass 18
 	"outfit space" -16
 	"engine capacity" -16
-	thrust 10.925
+	thrust 43.7
 	"thrusting energy" 0.55
 	"thrusting heat" 1.15
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -8564,9 +8564,9 @@ outfit "Silane Steering Mk I"
 	mass 13
 	"outfit space" -12
 	"engine capacity" -12
-	turn 115
-	"turning energy" 0.38
-	"turning heat" 0.8
+	turn 1035
+	"turning energy" 2.4
+	"turning heat" 3.9
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Silane Thruster Mk II"
@@ -8575,7 +8575,7 @@ outfit "Silane Thruster Mk II"
 	mass 24.3
 	"outfit space" -21.6
 	"engine capacity" -21.6
-	thrust 14.749
+	thrust 58.995
 	"thrusting energy" 0.743
 	"thrusting heat" 1.552
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -8586,9 +8586,9 @@ outfit "Silane Steering Mk II"
 	mass 17.55
 	"outfit space" -16.2
 	"engine capacity" -16.2
-	turn 155.25
-	"turning energy" 0.513
-	"turning heat" 1.08
+	turn 1397.25
+	"turning energy" 3.24
+	"turning heat" 5.265
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Silane Thruster Mk III"
@@ -8597,7 +8597,7 @@ outfit "Silane Thruster Mk III"
 	mass 32.4
 	"outfit space" -28.8
 	"engine capacity" -28.8
-	thrust 19.665
+	thrust 78.66
 	"thrusting energy" 0.99
 	"thrusting heat" 2.07
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -8608,9 +8608,9 @@ outfit "Silane Steering Mk III"
 	mass 23.4
 	"outfit space" -21.6
 	"engine capacity" -21.6
-	turn 207
-	"turning energy" 0.684
-	"turning heat" 1.44
+	turn 1863
+	"turning energy" 4.32
+	"turning heat" 7.02
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Silane Thruster Mk IV"
@@ -8619,7 +8619,7 @@ outfit "Silane Thruster Mk IV"
 	mass 43.2
 	"outfit space" -38.4
 	"engine capacity" -38.4
-	thrust 26.22
+	thrust 104.88
 	"thrusting energy" 1.32
 	"thrusting heat" 2.76
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -8630,9 +8630,9 @@ outfit "Silane Steering Mk IV"
 	mass 31.2
 	"outfit space" -28.8
 	"engine capacity" -28.8
-	turn 276
-	"turning energy" 0.912
-	"turning heat" 1.92
+	turn 2484
+	"turning energy" 5.76
+	"turning heat" 9.36
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Silane Thruster Mk V"
@@ -8641,7 +8641,7 @@ outfit "Silane Thruster Mk V"
 	mass 57.6
 	"outfit space" -51.2
 	"engine capacity" -51.2
-	thrust 34.96
+	thrust 139.84
 	"thrusting energy" 1.76
 	"thrusting heat" 3.68
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -8652,9 +8652,9 @@ outfit "Silane Steering Mk V"
 	mass 41.6
 	"outfit space" -38.4
 	"engine capacity" -38.4
-	turn 368
-	"turning energy" 1.216
-	"turning heat" 2.56
+	turn 3312
+	"turning energy" 7.68
+	"turning heat" 12.48
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Silane Radiator Mk I"
@@ -9103,7 +9103,7 @@ outfit "Aurei Thruster Mk I"
 	mass 18
 	"outfit space" -16
 	"engine capacity" -16
-	thrust 11.4
+	thrust 45.6
 	"thrusting energy" 0.55
 	"thrusting heat" 1.15
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -9114,9 +9114,9 @@ outfit "Aurei Steering Mk I"
 	mass 13
 	"outfit space" -12
 	"engine capacity" -12
-	turn 115
-	"turning energy" 0.38
-	"turning heat" 0.8
+	turn 1035
+	"turning energy" 2.4
+	"turning heat" 3.9
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Aurei Thruster Mk II"
@@ -9125,7 +9125,7 @@ outfit "Aurei Thruster Mk II"
 	mass 24.3
 	"outfit space" -21.6
 	"engine capacity" -21.6
-	thrust 15.39
+	thrust 61.56
 	"thrusting energy" 0.743
 	"thrusting heat" 1.552
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -9136,9 +9136,9 @@ outfit "Aurei Steering Mk II"
 	mass 17.55
 	"outfit space" -16.2
 	"engine capacity" -16.2
-	turn 155.25
-	"turning energy" 0.513
-	"turning heat" 1.08
+	turn 1397.25
+	"turning energy" 3.24
+	"turning heat" 5.265
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Aurei Thruster Mk III"
@@ -9147,7 +9147,7 @@ outfit "Aurei Thruster Mk III"
 	mass 32.4
 	"outfit space" -28.8
 	"engine capacity" -28.8
-	thrust 20.52
+	thrust 82.08
 	"thrusting energy" 0.99
 	"thrusting heat" 2.07
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -9158,9 +9158,9 @@ outfit "Aurei Steering Mk III"
 	mass 23.4
 	"outfit space" -21.6
 	"engine capacity" -21.6
-	turn 207
-	"turning energy" 0.684
-	"turning heat" 1.44
+	turn 1863
+	"turning energy" 4.32
+	"turning heat" 7.02
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Aurei Thruster Mk IV"
@@ -9169,7 +9169,7 @@ outfit "Aurei Thruster Mk IV"
 	mass 43.2
 	"outfit space" -38.4
 	"engine capacity" -38.4
-	thrust 27.36
+	thrust 109.44
 	"thrusting energy" 1.32
 	"thrusting heat" 2.76
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -9180,9 +9180,9 @@ outfit "Aurei Steering Mk IV"
 	mass 31.2
 	"outfit space" -28.8
 	"engine capacity" -28.8
-	turn 276
-	"turning energy" 0.912
-	"turning heat" 1.92
+	turn 2484
+	"turning energy" 5.76
+	"turning heat" 9.36
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Aurei Thruster Mk V"
@@ -9191,7 +9191,7 @@ outfit "Aurei Thruster Mk V"
 	mass 57.6
 	"outfit space" -51.2
 	"engine capacity" -51.2
-	thrust 36.48
+	thrust 145.92
 	"thrusting energy" 1.76
 	"thrusting heat" 3.68
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -9202,9 +9202,9 @@ outfit "Aurei Steering Mk V"
 	mass 41.6
 	"outfit space" -38.4
 	"engine capacity" -38.4
-	turn 368
-	"turning energy" 1.216
-	"turning heat" 2.56
+	turn 3312
+	"turning energy" 7.68
+	"turning heat" 12.48
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Aurei Radiator Mk I"
@@ -9663,7 +9663,7 @@ outfit "Bracken Thruster Mk I"
 	mass 18
 	"outfit space" -16
 	"engine capacity" -16
-	thrust 8.075
+	thrust 32.3
 	"thrusting energy" 0.55
 	"thrusting heat" 1.15
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -9674,9 +9674,9 @@ outfit "Bracken Steering Mk I"
 	mass 13
 	"outfit space" -12
 	"engine capacity" -12
-	turn 103.5
-	"turning energy" 0.38
-	"turning heat" 0.8
+	turn 931.5
+	"turning energy" 2.4
+	"turning heat" 3.9
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Bracken Thruster Mk II"
@@ -9685,7 +9685,7 @@ outfit "Bracken Thruster Mk II"
 	mass 24.3
 	"outfit space" -21.6
 	"engine capacity" -21.6
-	thrust 10.901
+	thrust 43.605
 	"thrusting energy" 0.743
 	"thrusting heat" 1.552
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -9696,9 +9696,9 @@ outfit "Bracken Steering Mk II"
 	mass 17.55
 	"outfit space" -16.2
 	"engine capacity" -16.2
-	turn 139.72
-	"turning energy" 0.513
-	"turning heat" 1.08
+	turn 1257.53
+	"turning energy" 3.24
+	"turning heat" 5.265
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Bracken Thruster Mk III"
@@ -9707,7 +9707,7 @@ outfit "Bracken Thruster Mk III"
 	mass 32.4
 	"outfit space" -28.8
 	"engine capacity" -28.8
-	thrust 14.535
+	thrust 58.14
 	"thrusting energy" 0.99
 	"thrusting heat" 2.07
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -9718,9 +9718,9 @@ outfit "Bracken Steering Mk III"
 	mass 23.4
 	"outfit space" -21.6
 	"engine capacity" -21.6
-	turn 186.3
-	"turning energy" 0.684
-	"turning heat" 1.44
+	turn 1676.7
+	"turning energy" 4.32
+	"turning heat" 7.02
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Bracken Thruster Mk IV"
@@ -9729,7 +9729,7 @@ outfit "Bracken Thruster Mk IV"
 	mass 43.2
 	"outfit space" -38.4
 	"engine capacity" -38.4
-	thrust 19.38
+	thrust 77.52
 	"thrusting energy" 1.32
 	"thrusting heat" 2.76
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -9740,9 +9740,9 @@ outfit "Bracken Steering Mk IV"
 	mass 31.2
 	"outfit space" -28.8
 	"engine capacity" -28.8
-	turn 248.4
-	"turning energy" 0.912
-	"turning heat" 1.92
+	turn 2235.6
+	"turning energy" 5.76
+	"turning heat" 9.36
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Bracken Thruster Mk V"
@@ -9751,7 +9751,7 @@ outfit "Bracken Thruster Mk V"
 	mass 57.6
 	"outfit space" -51.2
 	"engine capacity" -51.2
-	thrust 25.84
+	thrust 103.36
 	"thrusting energy" 1.76
 	"thrusting heat" 3.68
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -9762,9 +9762,9 @@ outfit "Bracken Steering Mk V"
 	mass 41.6
 	"outfit space" -38.4
 	"engine capacity" -38.4
-	turn 331.2
-	"turning energy" 1.216
-	"turning heat" 2.56
+	turn 2980.8
+	"turning energy" 7.68
+	"turning heat" 12.48
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Bracken Radiator Mk I"
@@ -10223,7 +10223,7 @@ outfit "Nyx Thruster Mk I"
 	mass 18
 	"outfit space" -16
 	"engine capacity" -16
-	thrust 12.35
+	thrust 49.4
 	"thrusting energy" 0.55
 	"thrusting heat" 1.15
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -10234,9 +10234,9 @@ outfit "Nyx Steering Mk I"
 	mass 13
 	"outfit space" -12
 	"engine capacity" -12
-	turn 149.5
-	"turning energy" 0.38
-	"turning heat" 0.8
+	turn 1345.5
+	"turning energy" 2.4
+	"turning heat" 3.9
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Nyx Thruster Mk II"
@@ -10245,7 +10245,7 @@ outfit "Nyx Thruster Mk II"
 	mass 24.3
 	"outfit space" -21.6
 	"engine capacity" -21.6
-	thrust 16.673
+	thrust 66.69
 	"thrusting energy" 0.743
 	"thrusting heat" 1.552
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -10256,9 +10256,9 @@ outfit "Nyx Steering Mk II"
 	mass 17.55
 	"outfit space" -16.2
 	"engine capacity" -16.2
-	turn 201.83
-	"turning energy" 0.513
-	"turning heat" 1.08
+	turn 1816.42
+	"turning energy" 3.24
+	"turning heat" 5.265
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Nyx Thruster Mk III"
@@ -10267,7 +10267,7 @@ outfit "Nyx Thruster Mk III"
 	mass 32.4
 	"outfit space" -28.8
 	"engine capacity" -28.8
-	thrust 22.23
+	thrust 88.92
 	"thrusting energy" 0.99
 	"thrusting heat" 2.07
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -10278,9 +10278,9 @@ outfit "Nyx Steering Mk III"
 	mass 23.4
 	"outfit space" -21.6
 	"engine capacity" -21.6
-	turn 269.1
-	"turning energy" 0.684
-	"turning heat" 1.44
+	turn 2421.9
+	"turning energy" 4.32
+	"turning heat" 7.02
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Nyx Thruster Mk IV"
@@ -10289,7 +10289,7 @@ outfit "Nyx Thruster Mk IV"
 	mass 43.2
 	"outfit space" -38.4
 	"engine capacity" -38.4
-	thrust 29.64
+	thrust 118.56
 	"thrusting energy" 1.32
 	"thrusting heat" 2.76
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -10300,9 +10300,9 @@ outfit "Nyx Steering Mk IV"
 	mass 31.2
 	"outfit space" -28.8
 	"engine capacity" -28.8
-	turn 358.8
-	"turning energy" 0.912
-	"turning heat" 1.92
+	turn 3229.2
+	"turning energy" 5.76
+	"turning heat" 9.36
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Nyx Thruster Mk V"
@@ -10311,7 +10311,7 @@ outfit "Nyx Thruster Mk V"
 	mass 57.6
 	"outfit space" -51.2
 	"engine capacity" -51.2
-	thrust 39.52
+	thrust 158.08
 	"thrusting energy" 1.76
 	"thrusting heat" 3.68
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -10322,9 +10322,9 @@ outfit "Nyx Steering Mk V"
 	mass 41.6
 	"outfit space" -38.4
 	"engine capacity" -38.4
-	turn 478.4
-	"turning energy" 1.216
-	"turning heat" 2.56
+	turn 4305.6
+	"turning energy" 7.68
+	"turning heat" 12.48
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Nyx Radiator Mk I"
@@ -10773,7 +10773,7 @@ outfit "Hollow Thruster Mk I"
 	mass 18
 	"outfit space" -16
 	"engine capacity" -16
-	thrust 9.025
+	thrust 36.1
 	"thrusting energy" 0.55
 	"thrusting heat" 1.15
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -10784,9 +10784,9 @@ outfit "Hollow Steering Mk I"
 	mass 13
 	"outfit space" -12
 	"engine capacity" -12
-	turn 109.25
-	"turning energy" 0.38
-	"turning heat" 0.8
+	turn 983.25
+	"turning energy" 2.4
+	"turning heat" 3.9
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Hollow Thruster Mk II"
@@ -10795,7 +10795,7 @@ outfit "Hollow Thruster Mk II"
 	mass 24.3
 	"outfit space" -21.6
 	"engine capacity" -21.6
-	thrust 12.184
+	thrust 48.735
 	"thrusting energy" 0.743
 	"thrusting heat" 1.552
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -10806,9 +10806,9 @@ outfit "Hollow Steering Mk II"
 	mass 17.55
 	"outfit space" -16.2
 	"engine capacity" -16.2
-	turn 147.49
-	"turning energy" 0.513
-	"turning heat" 1.08
+	turn 1327.39
+	"turning energy" 3.24
+	"turning heat" 5.265
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Hollow Thruster Mk III"
@@ -10817,7 +10817,7 @@ outfit "Hollow Thruster Mk III"
 	mass 32.4
 	"outfit space" -28.8
 	"engine capacity" -28.8
-	thrust 16.245
+	thrust 64.98
 	"thrusting energy" 0.99
 	"thrusting heat" 2.07
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -10828,9 +10828,9 @@ outfit "Hollow Steering Mk III"
 	mass 23.4
 	"outfit space" -21.6
 	"engine capacity" -21.6
-	turn 196.65
-	"turning energy" 0.684
-	"turning heat" 1.44
+	turn 1769.85
+	"turning energy" 4.32
+	"turning heat" 7.02
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Hollow Thruster Mk IV"
@@ -10839,7 +10839,7 @@ outfit "Hollow Thruster Mk IV"
 	mass 43.2
 	"outfit space" -38.4
 	"engine capacity" -38.4
-	thrust 21.66
+	thrust 86.64
 	"thrusting energy" 1.32
 	"thrusting heat" 2.76
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -10850,9 +10850,9 @@ outfit "Hollow Steering Mk IV"
 	mass 31.2
 	"outfit space" -28.8
 	"engine capacity" -28.8
-	turn 262.2
-	"turning energy" 0.912
-	"turning heat" 1.92
+	turn 2359.8
+	"turning energy" 5.76
+	"turning heat" 9.36
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Hollow Thruster Mk V"
@@ -10861,7 +10861,7 @@ outfit "Hollow Thruster Mk V"
 	mass 57.6
 	"outfit space" -51.2
 	"engine capacity" -51.2
-	thrust 28.88
+	thrust 115.52
 	"thrusting energy" 1.76
 	"thrusting heat" 3.68
 	description `Forward. Everything else is a negotiation with momentum.`
@@ -10872,9 +10872,9 @@ outfit "Hollow Steering Mk V"
 	mass 41.6
 	"outfit space" -38.4
 	"engine capacity" -38.4
-	turn 349.6
-	"turning energy" 1.216
-	"turning heat" 2.56
+	turn 3146.4
+	"turning energy" 7.68
+	"turning heat" 12.48
 	description `How quickly an argument can be pointed somewhere else.`
 
 outfit "Hollow Radiator Mk I"

@@ -428,5 +428,147 @@ namespace EndlessSky.Tests
                 (s.MapPosition.X - x) * (s.MapPosition.X - x) +
                 (s.MapPosition.Y - y) * (s.MapPosition.Y - y)));
         }
+
+        // --- Jobs that place ships ------------------------------------------------
+
+        /// <summary>Every job in the universe that places NPCs.</summary>
+        private static List<Mission> NpcJobs() =>
+            Universe.Missions.Values.Where(m => m.Npcs.Count > 0).ToList();
+
+        [Test]
+        public void EveryJobThatPlacesNpcsNamesShipsThatExist()
+        {
+            GameData data = Universe;
+            var missing = new List<string>();
+
+            foreach (Mission mission in NpcJobs())
+                foreach (MissionNpc npc in mission.Npcs)
+                    foreach (string model in npc.ShipNames)
+                        if (!data.Ships.ContainsKey(model))
+                            missing.Add($"{mission.Name} -> {model}");
+
+            Assert.That(missing, Is.Empty,
+                "an npc block naming a hull nobody defined places nothing at all");
+        }
+
+        [Test]
+        public void EveryJobThatPlacesNpcsActuallyProducesHulls()
+        {
+            GameData data = Universe;
+            var spawner = new NpcSpawner(data, random: _ => 0);
+            StarSystem origin = data.Systems.Values.OrderBy(s => s.Name).First();
+            StarSystem destination = data.Systems.Values.OrderBy(s => s.Name).Skip(1).First();
+
+            var empty = new List<string>();
+            int hulls = 0;
+
+            foreach (Mission mission in NpcJobs())
+                foreach (NpcInstance placed in spawner.Place(mission, origin, destination))
+                {
+                    if (placed.Ships.Count == 0)
+                        empty.Add(mission.Name);
+                    else
+                        hulls += placed.Ships.Count;
+                }
+
+            Assert.That(empty, Is.Empty,
+                "a job whose objective needs a ship, and which places none, can never " +
+                "be finished - this was true of 429 of the first thousand");
+            Assert.That(hulls, Is.GreaterThan(NpcJobs().Count),
+                "some jobs ask for more than one hull");
+        }
+
+        [Test]
+        public void ABountyPlacesAsManyHullsAsItsTextClaims()
+        {
+            GameData data = Universe;
+
+            // The generator writes one `ship` line per hull. A count written as the
+            // second token of a `ship` line would silently name one ship "3" instead,
+            // which is how a bounty on three raiders became a bounty on one.
+            List<Mission> multi = NpcJobs()
+                .Where(m => m.Npcs.Any(n => n.ShipNames.Count > 1))
+                .ToList();
+
+            Assert.That(multi, Is.Not.Empty, "the board should carry multi-target bounties");
+
+            foreach (Mission mission in multi.Take(50))
+                foreach (MissionNpc npc in mission.Npcs.Where(n => n.ShipNames.Count > 1))
+                    Assert.That(npc.ShipNames.Distinct().Count(), Is.EqualTo(1),
+                        "a pack of raiders is a pack of the same model");
+        }
+
+        [Test]
+        public void BountyTargetsAreHostileToThePlayer()
+        {
+            GameData data = Universe;
+            var friendly = new List<string>();
+
+            foreach (Mission mission in NpcJobs())
+                foreach (MissionNpc npc in mission.Npcs)
+                {
+                    // Only the ones the player is sent to destroy.
+                    if ((npc.SucceedIf & ShipEvent.Destroy) == 0)
+                        continue;
+
+                    if (npc.Government == null ||
+                        !data.Governments.TryGetValue(npc.Government, out Government? g))
+                    {
+                        friendly.Add($"{mission.Name}: no government");
+                        continue;
+                    }
+
+                    if (!g.IsPlayerEnemy)
+                        friendly.Add($"{mission.Name}: {g.Name} is not hostile");
+                }
+
+            Assert.That(friendly, Is.Empty,
+                "a bounty target that is not hostile to the player never fights back, " +
+                "and hostility to the player is reputation rather than the attitude matrix");
+        }
+
+        [Test]
+        public void SalvageTargetsAreDerelictsAndArriveDisabled()
+        {
+            GameData data = Universe;
+            var spawner = new NpcSpawner(data, random: _ => 0);
+            StarSystem origin = data.Systems.Values.OrderBy(s => s.Name).First();
+
+            List<Mission> salvage = NpcJobs()
+                .Where(m => m.Npcs.Any(n => (n.SucceedIf & ShipEvent.Board) != 0))
+                .ToList();
+
+            Assert.That(salvage, Is.Not.Empty, "the board should carry salvage claims");
+
+            foreach (Mission mission in salvage.Take(25))
+                foreach (NpcInstance placed in spawner.Place(mission, origin, origin))
+                {
+                    if ((placed.Template.SucceedIf & ShipEvent.Board) == 0)
+                        continue;
+
+                    Assert.That(placed.Template.IsDerelict, Is.True,
+                        $"{mission.Name}: something to board is not something to chase");
+
+                    foreach (Ship hull in placed.Ships)
+                        Assert.That(hull.IsDisabled, Is.True);
+                }
+        }
+
+        [Test]
+        public void TheJobBoardDoesNotReadAsOneJobPrintedAThousandTimes()
+        {
+            GameData data = Universe;
+            List<Mission> jobs = data.Missions.Values.Where(m => m.IsJob).ToList();
+
+            int distinct = jobs.Select(m => m.DisplayName).Distinct().Count();
+            int worst = jobs.GroupBy(m => m.DisplayName).Max(g => g.Count());
+
+            // Measured before this was addressed: 39 distinct titles over 1000 jobs,
+            // with "Escort a convoy to <planet>" appearing 143 times.
+            Assert.That(distinct, Is.GreaterThan(150),
+                $"only {distinct} distinct job titles across {jobs.Count} jobs");
+            Assert.That(worst, Is.LessThan(60),
+                $"the most repeated job title appears {worst} times");
+        }
     }
 }

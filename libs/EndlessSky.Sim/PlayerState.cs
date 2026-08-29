@@ -48,6 +48,9 @@ namespace EndlessSky.Sim
             RegisterAutoConditions();
         }
 
+        /// <summary>The galaxy this player is playing in, where one was given.</summary>
+        public GameData? Data => _data;
+
         public Conditions Conditions { get; }
 
         public PlayerFleet Fleet { get; }

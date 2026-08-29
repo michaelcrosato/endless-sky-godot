@@ -109,18 +109,145 @@ def _pay(rng, base: int, distance_hint: int = 3) -> int:
     return int(base * rng.uniform(0.8, 1.35) * (0.7 + 0.42 * distance_hint))
 
 
+#: Several phrasings per archetype. One template per kind of work makes a board
+#: of a hundred jobs read as one job printed a hundred times — measured on the
+#: first pass, a thousand jobs shared thirty-nine display strings, and "Escort a
+#: convoy to <planet>" alone appeared a hundred and forty-three times.
+CARGO_TITLES = [
+    "Deliver {goods} to <planet>", "{tons} of {goods} for <planet>",
+    "Freight run: {goods} to <planet>", "{goods} wanted on <planet>",
+    "Haul {goods} out to <planet>", "Shipment of {goods} for <destination>",
+    "Consignment: {goods} to <planet>", "Carry {goods} as far as <planet>",
+]
+
+CARGO_BODIES = [
+    "A {race} shipper wants <tons> of {goods} taken from <origin> to <destination>. "
+    "Payment is <payment> on delivery.",
+    "<cargo>, loading now at <origin>, bound for <destination>. The broker pays "
+    "<payment> and does not haggle.",
+    "There is <cargo> sitting on a pad at <origin> that somebody on <planet> is "
+    "already paying rent on. <payment> to move it.",
+    "Standing contract: <cargo> from <origin> to <destination>, <payment>. The "
+    "{race} name on the manifest is worth more than the fee.",
+    "Nobody has explained why <cargo> has to reach <destination> rather than "
+    "somewhere nearer. The fee is <payment> and the question is not encouraged.",
+]
+
+PASSAGE_TITLES = [
+    "Carry {who} to <planet>", "Passage for {who} to <planet>",
+    "{count} berths wanted for <planet>", "Take {who} as far as <planet>",
+    "{who} looking for a ship to <planet>", "Charter: {who} to <destination>",
+    "Berths to <planet> for {who}",
+]
+
+PASSAGE_BODIES = [
+    "<fare> travelling from <origin> to <destination>: {blurb}. They will pay "
+    "<payment> when they arrive.",
+    "{blurb_cap}. They need <bunks> berths as far as <destination>, and they are "
+    "paying <payment>.",
+    "A group waiting at <origin> for anything headed toward <destination>. "
+    "{blurb_cap}. <payment>, and they keep to themselves.",
+    "<fare> for <destination>. {blurb_cap}. The fare is <payment>, half of it "
+    "already lodged with the port.",
+]
+
+BOUNTY_TITLES = [
+    "Bounty: {target}", "{target} raiders wanted", "Standing bounty on {target}",
+    "Clear {target} hulls near <planet>", "Letters of marque: {target}",
+    "{target} activity near <destination>", "Contract: {target}",
+]
+
+BOUNTY_BODIES = [
+    "{race} authorities are paying for {target} hulls destroyed near "
+    "<destination>. <payment> on proof, and they are not fussy about the proof.",
+    "{count_word} {target} ship{plural} have been working the lanes around "
+    "<destination>. {race} pays <payment> for the wreckage.",
+    "The bounty on {target} near <destination> has been raised twice this month, "
+    "which tells you how the first two attempts went. <payment>.",
+    "{target} took a {race} hauler apart near <destination> last week. The owner, "
+    "not the government, is paying the <payment>.",
+]
+
+ESCORT_TITLES = [
+    "Escort a convoy to <planet>", "Guard {who} to <planet>",
+    "Convoy protection: <origin> to <planet>", "Ride along to <destination>",
+    "Armed escort wanted for <planet>", "See {who} safely to <planet>",
+]
+
+ESCORT_BODIES = [
+    "A {friendly} convoy is running from <origin> to <destination> and would "
+    "rather not do it alone. <payment> if it arrives intact.",
+    "{friendly} lost two hulls on this route last month. They are paying "
+    "<payment> for company as far as <destination>.",
+    "Unarmed {friendly} shipping, <origin> to <destination>. The fee is <payment> "
+    "and it is contingent on everyone arriving.",
+    "The cargo is not the point; the crew is. {friendly} pays <payment> to see "
+    "them reach <destination>.",
+]
+
+SALVAGE_TITLES = [
+    "Recover {what}", "Salvage claim: {what}", "{what_cap} near <planet>",
+    "Board {what} out past <planet>", "Survey {what}",
+]
+
+SALVAGE_BODIES = [
+    "{what_cap} has been logged out past <destination>. {race} salvage rights are "
+    "already sold; the buyer wants it boarded and catalogued. <payment>.",
+    "Something is drifting near <destination> that answers no hail. {race} will "
+    "pay <payment> to know what it is, and the rights are theirs either way.",
+    "{what_cap}, transponder dead, near <destination>. Board it, log what is "
+    "aboard, come back. <payment>, and no questions about the crew.",
+]
+
+COURIER_TITLES = [
+    "Courier run to <planet>", "Urgent packet for <planet>",
+    "{what_cap} to <destination>", "Fast delivery: <planet>",
+    "Sealed run to <planet>", "Priority courier to <planet>",
+]
+
+COURIER_BODIES = [
+    "{what_cap} must reach <destination> by <date>. It masses almost nothing and "
+    "the fee is <payment>, which should tell you something about what is in it.",
+    "A {race} factor is paying <payment> for {what} to be at <destination> before "
+    "<date>. No hold space required, and no delays excused.",
+    "{what_cap}, <origin> to <destination>, by <date>. <payment> on arrival and "
+    "nothing at all if you are late.",
+]
+
+SUPPLY_TITLES = [
+    "Mining supply run to <planet>", "{ore_cap} wanted at <planet>",
+    "Feedstock for <planet>", "{tons} of {ore} for <destination>",
+    "Refinery contract: <planet>",
+]
+
+SUPPLY_BODIES = [
+    "A {race} refinery at <destination> is short of {ore} feedstock and is buying "
+    "<tons> at <payment>. The belts near here are the usual source.",
+    "<cargo> wanted at <destination>. The {race} refinery there has been running "
+    "under capacity for a month. <payment>.",
+    "Standing order at <destination> for {ore}: <tons>, <payment>. They will take "
+    "it as often as you can bring it.",
+]
+
+COUNT_WORDS = {1: "A", 2: "Two", 3: "Three"}
+
+
+def _pick(rng, templates, **fields):
+    return rng.choice(templates).format(**fields)
+
+
 def _cargo(rng, race: Race) -> Job:
     commodity, plain, character = rng.choice(CARGO_KINDS)
     tons = rng.choice([5, 10, 15, 20, 25, 30, 40, 50, 60, 80])
     reach = rng.randint(1, 6)
 
+    fields = {"goods": plain, "tons": f"{tons} tons", "race": race.name}
     urgency = "" if character != "urgent" else " They needed it yesterday."
+
     return Job(
-        name=f"{race.key} cargo {plain} {tons} {rng.randrange(10000)}",
-        display=f"Deliver {plain} to <planet>",
-        description=(
-            f"A {race.name} shipper wants <tons> of {plain} taken from <origin> "
-            f"to <destination>. Payment is <payment> on delivery.{urgency}"),
+        name=f"{race.key} cargo {plain} {tons} {rng.randrange(100000)}",
+        display=_pick(rng, CARGO_TITLES, **fields),
+        description=_pick(rng, CARGO_BODIES, **fields) + urgency,
         archetype="cargo",
         source_filter=_source(race),
         destination_filter={"distance": (1, reach)},
@@ -135,12 +262,13 @@ def _passengers(rng, race: Race) -> Job:
     count = rng.choice([1, 2, 3, 4, 6, 8, 12, 16, 24])
     reach = rng.randint(1, 6)
 
+    fields = {"who": kind, "count": count, "blurb": blurb,
+              "blurb_cap": blurb[0].upper() + blurb[1:], "race": race.name}
+
     return Job(
-        name=f"{race.key} passage {kind} {count} {rng.randrange(10000)}",
-        display=f"Carry {kind} to <planet>",
-        description=(
-            f"<fare> travelling from <origin> to <destination>: {blurb}. "
-            f"They will pay <payment> when they arrive."),
+        name=f"{race.key} passage {kind} {count} {rng.randrange(100000)}",
+        display=_pick(rng, PASSAGE_TITLES, **fields),
+        description=_pick(rng, PASSAGE_BODIES, **fields),
         archetype="passengers",
         source_filter=_source(race),
         destination_filter={"distance": (1, reach)},
@@ -151,20 +279,24 @@ def _passengers(rng, race: Race) -> Job:
 
 
 def _bounty(rng, race: Race) -> Job:
-    # Bounties are posted against somebody, so pick a plausible enemy.
-    enemies = [r for r in RACES if r.key != race.key and
-               r.temperament in ("predatory", "expansionist")]
-    target_race = rng.choice(enemies or [r for r in RACES if r.key != race.key])
-    target = rng.choice([f for f in target_race.factions if f.role in ("fringe", "navy", "zealot")])
+    # Pick the FACTION first, not the race. Choosing a race and then hoping it has
+    # raiders in it lands on peoples who have none - the Orokh field only a navy and
+    # a corporation - and the fallback then puts a bounty on somebody perfectly
+    # friendly, who never fights back and can never be collected on.
+    hostile = [(r, f) for r in RACES if r.key != race.key
+               for f in r.factions if f.role in ("fringe", "zealot")]
+    preying = [(r, f) for r, f in hostile
+               if r.temperament in ("predatory", "expansionist")]
+    target_race, target = rng.choice(preying or hostile)
     count = rng.choice([1, 1, 1, 2, 2, 3])
 
+    fields = {"target": target.name, "race": race.name, "count": count,
+              "count_word": COUNT_WORDS[count], "plural": "" if count == 1 else "s"}
+
     return Job(
-        name=f"{race.key} bounty {target.name} {rng.randrange(10000)}",
-        display=f"Bounty: {target.name}",
-        description=(
-            f"{race.name} authorities are paying for {target.name} hulls destroyed "
-            f"near <destination>. <payment> on proof, and they are not fussy about "
-            f"the proof."),
+        name=f"{race.key} bounty {target.name} {rng.randrange(100000)}",
+        display=_pick(rng, BOUNTY_TITLES, **fields),
+        description=_pick(rng, BOUNTY_BODIES, **fields),
         archetype="bounty",
         source_filter=_source(race),
         destination_filter={"distance": (1, rng.randint(2, 5))},
@@ -172,20 +304,22 @@ def _bounty(rng, race: Race) -> Job:
         payment=_pay(rng, 42_000 * count, 4),
         npc={"objective": "kill", "government": target.name,
              "personality": ["heroic", "vindictive"], "count": count,
-             "race": target_race.key},
+             "race": target_race.key, "at_destination": True},
     )
 
 
 def _escort(rng, race: Race) -> Job:
-    friendly = rng.choice([f for f in race.factions if f.role in ("trade", "corporate")] or
-                          list(race.factions))
+    friendly = rng.choice([f for f in race.factions
+                           if f.role in ("trade", "corporate")] or list(race.factions))
+    who = rng.choice(["a convoy", "a hauler", "a survey team", "a bullion run",
+                      "a relief flight", "a diplomatic barge"])
+
+    fields = {"friendly": friendly.name, "who": who, "race": race.name}
 
     return Job(
-        name=f"{race.key} escort {rng.randrange(10000)}",
-        display="Escort a convoy to <planet>",
-        description=(
-            f"A {friendly.name} convoy is running from <origin> to <destination> "
-            f"and would rather not do it alone. <payment> if it arrives intact."),
+        name=f"{race.key} escort {rng.randrange(100000)}",
+        display=_pick(rng, ESCORT_TITLES, **fields),
+        description=_pick(rng, ESCORT_BODIES, **fields),
         archetype="escort",
         source_filter=_source(race),
         destination_filter={"distance": (2, rng.randint(3, 7))},
@@ -199,14 +333,12 @@ def _escort(rng, race: Race) -> Job:
 
 def _salvage(rng, race: Race) -> Job:
     what, _trait = rng.choice(SALVAGE_KINDS)
+    fields = {"what": what, "what_cap": what[0].upper() + what[1:], "race": race.name}
 
     return Job(
-        name=f"{race.key} salvage {rng.randrange(10000)}",
-        display=f"Recover {what}",
-        description=(
-            f"{what.capitalize()} has been logged out past <destination>. "
-            f"{race.name} salvage rights are already sold; the buyer wants it "
-            f"boarded and catalogued. <payment>, and no questions about the crew."),
+        name=f"{race.key} salvage {rng.randrange(100000)}",
+        display=_pick(rng, SALVAGE_TITLES, **fields),
+        description=_pick(rng, SALVAGE_BODIES, **fields),
         archetype="salvage",
         source_filter=_source(race),
         destination_filter={"distance": (1, rng.randint(2, 6))},
@@ -214,7 +346,7 @@ def _salvage(rng, race: Race) -> Job:
         payment=_pay(rng, 33_000, 4),
         npc={"objective": "board", "government": "Derelict",
              "personality": ["derelict", "uninterested"], "count": 1,
-             "race": rng.choice(RACES).key},
+             "race": rng.choice(RACES).key, "at_destination": True},
     )
 
 
@@ -222,16 +354,15 @@ def _courier(rng, race: Race) -> Job:
     what = rng.choice([
         "a sealed data core", "an unregistered ledger", "a diplomatic packet",
         "a set of survey plates", "a court summons", "an encrypted key",
+        "a medical sample", "a signed writ", "a black-boxed recorder",
     ])
     reach = rng.randint(2, 7)
+    fields = {"what": what, "what_cap": what[0].upper() + what[1:], "race": race.name}
 
     return Job(
-        name=f"{race.key} courier {rng.randrange(10000)}",
-        display="Courier run to <planet>",
-        description=(
-            f"{what.capitalize()} must reach <destination> by <date>. It masses "
-            f"almost nothing and the fee is <payment>, which should tell you "
-            f"something about what is in it."),
+        name=f"{race.key} courier {rng.randrange(100000)}",
+        display=_pick(rng, COURIER_TITLES, **fields),
+        description=_pick(rng, COURIER_BODIES, **fields),
         archetype="courier",
         source_filter=_source(race),
         destination_filter={"distance": (2, reach)},
@@ -245,14 +376,13 @@ def _supply(rng, race: Race) -> Job:
     ore = rng.choice(["iron", "copper", "silver", "gold", "titanium",
                       "uranium", "silicon", "platinum", "iridium", "neodymium"])
     tons = rng.choice([10, 15, 20, 30, 40, 60])
+    fields = {"ore": ore, "ore_cap": ore.capitalize(), "tons": f"{tons} tons",
+              "race": race.name}
 
     return Job(
-        name=f"{race.key} supply {ore} {rng.randrange(10000)}",
-        display=f"Mining supply run to <planet>",
-        description=(
-            f"A {race.name} refinery at <destination> is short of {ore} feedstock "
-            f"and is buying <tons> at <payment>. The belts near here are the "
-            f"usual source."),
+        name=f"{race.key} supply {ore} {rng.randrange(100000)}",
+        display=_pick(rng, SUPPLY_TITLES, **fields),
+        description=_pick(rng, SUPPLY_BODIES, **fields),
         archetype="supply",
         source_filter=_source(race, "mining"),
         destination_filter={"attributes": ["manufacturing", "mining"],

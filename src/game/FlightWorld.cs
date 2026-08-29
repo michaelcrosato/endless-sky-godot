@@ -69,6 +69,19 @@ namespace EndlessSky.Game
         // Live NPC traffic. Systems declare the fleets that frequent them; without a
         // spawner every system in the galaxy is empty no matter what the data says.
         private FleetSpawner _spawner = null!;    // set with _ship
+        private Government? _playerGovernment;
+        private bool _missionSmoke;
+        private bool _smokeFire;
+        private ActiveMission? _smokeJob;
+        private Ship? _smokeTarget;
+        private int _smokeFrames;
+        private bool _fireKeyWasDown;
+
+        // Mission NPCs are held apart from ambient traffic: they are not subject to
+        // the traffic cap or the distance cull, because a bounty target that despawns
+        // for drifting too far is a bounty that can never be collected.
+        private readonly List<(Ship Ship, ShipView View)> _missionShips =
+            new List<(Ship, ShipView)>();
         private readonly List<(Ship Ship, ShipView View)> _traffic =
             new List<(Ship, ShipView)>();
 
@@ -193,6 +206,12 @@ namespace EndlessSky.Game
             AddChild(_camera);
             _camera.Snap(_ship);
 
+            // Combat exists in every flight, not only in the demo. It used to be
+            // built solely behind --combat-demo, which meant a normal game had no
+            // projectile field at all: traffic fired into nothing, the player could
+            // not shoot, and every bounty in the galaxy was unwinnable.
+            BuildCombat(universe);
+
             if (_combatDemo)
             {
                 BuildCombatDemo(universe);
@@ -238,7 +257,7 @@ namespace EndlessSky.Game
 
             // The game opens on its menu. Captures and the landed-at-start path skip
             // it: a screenshot of the menu is not a screenshot of the game.
-            if (_simFrames == 1 && _capturePath == null && !_landAtStart)
+            if (_simFrames == 1 && _capturePath == null && !_landAtStart && !_missionSmoke)
             {
                 _ui?.Show(UiScreen.MainMenu);
                 return;
@@ -328,6 +347,13 @@ namespace EndlessSky.Game
                     command = new Command { Turn = FlightControls.TurnToward(_ship, _ship.JumpDirection) };
                 }
             }
+            else if (_missionSmoke && _smokeTarget != null && !_smokeTarget.IsDestroyed)
+            {
+                // The smoke run has no pilot, so it borrows the one the NPCs use.
+                // Without this the player sits still, the target circles out of arc,
+                // and a fight that works perfectly well never resolves.
+                command = ShipAi.Attack(_ship, _smokeTarget);
+            }
             else if (_autopilot)
             {
                 // Deterministic demo flight for captures: bank through a turn,
@@ -352,6 +378,12 @@ namespace EndlessSky.Game
             _ship.Step(command);
             _asteroidField?.Follow(WorldSpace.ToWorld(_ship.Position));
             StepTraffic();
+            StepMissionShips();
+            if (_missionSmoke)
+            {
+                StepMissionSmoke();
+            }
+            StepPlayerFire();
             if (_jumpAutopilot && _ship.TryCommitJump())
             {
                 _jumpAutopilot = false;
@@ -360,6 +392,9 @@ namespace EndlessSky.Game
 
             _shipView.SyncWith(_ship);
             StepCombatDemo();
+
+            // One field step per frame, after everything that could have fired.
+            StepCombat();
             UpdateHud();
         }
 
@@ -641,6 +676,17 @@ namespace EndlessSky.Game
                 replacement.Position = _ship.Position;
                 replacement.Facing = _ship.Facing;
                 replacement.CurrentSystem = _ship.CurrentSystem;
+                replacement.Government = _playerGovernment;
+
+                // A hull bought at a shipyard arrives with its hardpoints unbuilt and
+                // whatever it came with uninstalled, so a newly bought warship would
+                // fly out of the yard unable to fire.
+                replacement.BuildMounts();
+                foreach (Outfit outfit in replacement.Outfits.Where(o => o.IsWeapon).ToArray())
+                {
+                    replacement.InstallWeapon(outfit);
+                }
+
                 _field?.Remove(_ship);
                 _ship = replacement;
                 _field?.Add(_ship);
@@ -702,6 +748,19 @@ namespace EndlessSky.Game
         private void HandleArrival()
         {
             StarSystem system = _ship!.CurrentSystem!;
+
+            // Escorts jump with the flagship. Without this an accompany objective
+            // fails the moment the player leaves the system the job was taken in,
+            // which made every escort job in the galaxy impossible to finish.
+            if (_missions != null && !ReferenceEquals(_lastSystem, system))
+            {
+                IReadOnlyList<Ship> came = _missions.CarryAccompanying(_lastSystem, system);
+                if (came.Count > 0)
+                {
+                    GD.Print($"[mission] {came.Count} escorted ship(s) followed to {system.Name}");
+                }
+            }
+
             _lastSystem = system;
             _currentDay += 1.0;
             system.SetDate(_currentDay);
@@ -753,7 +812,17 @@ namespace EndlessSky.Game
         /// throwaway placeholder logic; the real engagement behavior is the
         /// targeting AI milestone work in the sim layer.
         /// </summary>
-        private void BuildCombatDemo(GameData universe)
+        /// <summary>
+        /// The projectile field every flight runs in, and the flag the player flies.
+        /// </summary>
+        /// <remarks>
+        /// Hostility is government-driven, and for the player it is reputation-driven
+        /// specifically: a ship with no government is nobody's enemy, so raiders
+        /// ignore it and it can never be attacked. The player therefore needs a
+        /// government of its own, marked as the player's, against which every other
+        /// government's standing is read.
+        /// </remarks>
+        private void BuildCombat(GameData universe)
         {
             _field = new CombatField
             {
@@ -763,12 +832,34 @@ namespace EndlessSky.Game
             };
             _field.Add(_ship!);
 
+            _playerGovernment = new Government("Player") { IsPlayer = true };
+            _ship!.Government = _playerGovernment;
+
+            // The hardpoints the hull was designed with. Without this the player's
+            // ship carries no mounts at all - not empty ones, none - so it can never
+            // fire, never be armed at an outfitter, and never finish a combat job.
+            // Every NPC in the game called this; the player alone never did.
+            _ship.BuildMounts();
+
+            // Weapons carried have to be installed in mounts before any of them can
+            // fire. Snapshot first: InstallWeapon mutates the outfit collection.
+            foreach (Outfit outfit in _ship.Outfits.Where(o => o.IsWeapon).ToArray())
+            {
+                _ship.InstallWeapon(outfit);
+            }
+
+            _ship.SetLevels(energy: _ship.MaxEnergy);
+
+            _effects = new CombatEffects { Name = "CombatEffects" };
+            AddChild(_effects);
+        }
+
+        private void BuildCombatDemo(GameData universe)
+        {
             // Hostility is government-driven with no implicit aggression: both
             // sides need governments and an enmity edge or the AI stays calm.
-            var merchant = new Government("Merchant");
             var raider = new Government("Pirate");
-            raider.Enemies.Add("Merchant");
-            _ship!.Government = merchant;
+            raider.SetReputation(-1000.0);
 
             string droneType = universe.Ships.ContainsKey("Sparrow") ? "Sparrow" : _startShip;
             _drone = universe.BuildShip(droneType);
@@ -780,21 +871,361 @@ namespace EndlessSky.Game
                 _drone.InstallWeapon(outfit);
             }
 
-            _drone.Position = _ship.Position + new Point(190.0, -150.0);
+            _drone.Position = _ship!.Position + new Point(190.0, -150.0);
             _drone.Facing = new Angle(180.0);
-            // Charge both sides' batteries: firing costs stored energy.
+            // Firing costs stored energy, so charge the battery.
             _drone.SetLevels(energy: _drone.MaxEnergy);
-            _ship.SetLevels(energy: _ship.MaxEnergy);
-            _field.Add(_drone);
+            _field!.Add(_drone);
 
             _droneView = new ShipView { Name = "Drone" };
             AddChild(_droneView);
             _droneView.SyncWith(_drone);
 
-            _effects = new CombatEffects { Name = "CombatEffects" };
-            AddChild(_effects);
             GD.Print($"[flight] combat demo: hostile {droneType} with " +
                      $"{_drone.Mounts.Count} mounts engaged");
+        }
+
+        /// <summary>
+        /// Puts the ships that accepted missions placed into the world, and takes them
+        /// out again when they die or the player leaves.
+        /// </summary>
+        /// <remarks>
+        /// Mission NPCs are built once, when the job is taken, and live in the mission
+        /// log from then on. This only decides which of them currently deserve a mesh
+        /// and a slot in the projectile field. Ambient traffic is culled for drifting
+        /// too far; these deliberately are not, because a bounty target that vanishes
+        /// is a job that cannot be finished.
+        /// </remarks>
+        private void StepMissionShips()
+        {
+            if (_ship?.CurrentSystem == null || _missions == null)
+            {
+                return;
+            }
+
+            for (int i = _missionShips.Count - 1; i >= 0; i--)
+            {
+                (Ship npc, ShipView view) = _missionShips[i];
+                if (!npc.IsDestroyed && ReferenceEquals(npc.CurrentSystem, _ship.CurrentSystem))
+                {
+                    continue;
+                }
+
+                if (npc.IsDestroyed)
+                {
+                    _effects?.SpawnExplosion(npc.Position, 4.5f);
+                }
+
+                view.QueueFree();
+                _field?.Remove(npc);
+                _missionShips.RemoveAt(i);
+            }
+
+            foreach (Ship npc in _missions.NpcShipsIn(_ship.CurrentSystem))
+            {
+                if (_missionShips.Any(m => ReferenceEquals(m.Ship, npc)))
+                {
+                    continue;
+                }
+
+                var view = new ShipView { Name = $"MissionNpc{_missionShips.Count}" };
+                AddChild(view);
+                view.SyncWith(npc);
+                _missionShips.Add((npc, view));
+                _field?.Add(npc);
+
+                ActiveMission? owner = _missions.MissionOwning(npc);
+                GD.Print($"[mission] {npc.Definition.DisplayName} " +
+                         $"({npc.Government?.Name ?? "unaligned"}) on station in " +
+                         $"{_ship.CurrentSystem.Name} for \"{owner?.Mission.DisplayName}\"");
+            }
+
+            // Fly them. A disabled hull - a derelict waiting to be boarded - has no
+            // say in where it goes, which is what makes it something to catch rather
+            // than something to chase.
+            foreach ((Ship npc, ShipView view) in _missionShips)
+            {
+                if (!npc.IsDisabled)
+                {
+                    IEnumerable<Ship> around = _traffic.Select(t => t.Ship)
+                        .Concat(_missionShips.Select(m => m.Ship))
+                        .Append(_ship);
+
+                    Ship? target = ShipAi.FindTarget(npc, around);
+                    npc.Step(target != null
+                        ? ShipAi.Attack(npc, target)
+                        : FleetOrders.MoveTo(npc, Point.Zero, Point.Zero, 400.0, 1.0));
+
+                    if (target != null)
+                    {
+                        _field?.Add(ShipAi.AutoFire(npc, target));
+                    }
+                }
+
+                view.SyncWith(npc);
+            }
+        }
+
+        /// <summary>
+        /// The player's guns. Space fires everything that will bear on the current
+        /// target, or straight ahead when nothing is selected.
+        /// </summary>
+        /// <remarks>
+        /// Held down rather than tapped: reload clocks already gate the rate inside
+        /// <c>Ship.Step</c>, so a held key fires as fast as the hardware allows and no
+        /// faster, which is how upstream reads its primary-fire command.
+        /// </remarks>
+        private void StepPlayerFire()
+        {
+            if (_field == null || _ship == null)
+            {
+                return;
+            }
+
+            bool firing = _smokeFire ||
+                          Input.IsPhysicalKeyPressed(Key.Space) ||
+                          Input.IsMouseButtonPressed(MouseButton.Left);
+
+            _fireKeyWasDown = firing;
+            if (!firing)
+            {
+                return;
+            }
+
+            // A person can always keep shooting a crippled hull - FireAll does not ask.
+            // The smoke pilot fires through the AI, which by default leaves disabled
+            // ships alone, so it is told not to: finishing the kill is the job.
+            Ship? target = ShipAi.FindTarget(
+                _ship,
+                _traffic.Select(t => t.Ship).Concat(_missionShips.Select(m => m.Ship)),
+                attackDisabled: _smokeFire);
+
+            // A person holding the key fires everything, aimed or not - that is what
+            // the key means, and aiming is their job. The smoke run has no person, so
+            // it fires the way an NPC pilot does: only what will actually bear.
+            _field.Add(_smokeFire && !Input.IsPhysicalKeyPressed(Key.Space)
+                ? ShipAi.AutoFire(_ship, target)
+                : _ship.FireAll(target, _ship.Government));
+        }
+
+        /// <summary>
+        /// Advances every projectile in flight and turns what they hit into damage,
+        /// explosions and mission progress.
+        /// </summary>
+        /// <remarks>
+        /// The last of those is the wire that was missing: a bounty target could be
+        /// destroyed and nothing told the mission log, so the job stayed open forever.
+        /// </remarks>
+        private void StepCombat()
+        {
+            if (_field == null || _ship == null)
+            {
+                return;
+            }
+
+            foreach (HitReport report in _field.Step())
+            {
+                Node3D? targetView = ViewOf(report.Target);
+
+                if (report.Events.HasFlag(ShipEvent.Destroy))
+                {
+                    _effects?.SpawnExplosion(report.Target.Position, 3.5f);
+                    if (targetView != null)
+                    {
+                        targetView.Visible = false;
+                    }
+                }
+                else if (report.Target.Shields > 0.0 && targetView != null)
+                {
+                    CombatEffects.FlashShields(targetView);
+                }
+                else
+                {
+                    _effects?.SpawnExplosion(report.Projectile.Position, 1f);
+                }
+
+                // Anything the player did to a mission ship is mission progress.
+                if (report.Events != ShipEvent.None)
+                {
+                    ReportMissionEvent(report.Target, report.Events);
+                }
+            }
+
+            _effects?.SyncProjectiles(_field.Projectiles);
+        }
+
+        /// <summary>Tells the mission log what happened, and says so on screen.</summary>
+        private void ReportMissionEvent(Ship target, ShipEvent happened)
+        {
+            if (_missions == null)
+            {
+                return;
+            }
+
+            foreach (ActiveMission touched in _missions.ReportShipEvent(target, happened))
+            {
+                GD.Print($"[mission] {happened} on {target.Definition.DisplayName} " +
+                         $"advances \"{touched.Mission.DisplayName}\"");
+            }
+        }
+
+        /// <summary>The mesh standing in for a ship, if it has one on screen.</summary>
+        private Node3D? ViewOf(Ship ship)
+        {
+            if (ReferenceEquals(ship, _ship))
+            {
+                return _shipView;
+            }
+
+            if (_drone != null && ReferenceEquals(ship, _drone))
+            {
+                return _droneView;
+            }
+
+            foreach ((Ship other, ShipView view) in _traffic)
+            {
+                if (ReferenceEquals(other, ship))
+                {
+                    return view;
+                }
+            }
+
+            foreach ((Ship other, ShipView view) in _missionShips)
+            {
+                if (ReferenceEquals(other, ship))
+                {
+                    return view;
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Flies the demo drone. Stepping the projectile field is no longer this
+        /// method's job - <see cref="StepCombat"/> does it for every flight, and
+        /// doing it here as well would advance every shot twice per frame.
+        /// </summary>
+        /// <summary>
+        /// --mission-smoke: take a bounty, fly to it, and shoot it, with no keyboard.
+        /// </summary>
+        /// <remarks>
+        /// Every part of this chain has unit coverage, and the chain still has to be
+        /// watched end to end in a real engine process, because the parts that connect
+        /// it are the ones tests do not see: whether the projectile field exists in a
+        /// normal flight at all, whether placed hulls get a mesh, whether a kill
+        /// reaches the mission log. Combat used to exist only behind --combat-demo, and
+        /// nothing failed - the game simply had no weapons.
+        ///
+        /// The jump itself is skipped rather than flown. Hyperspace is covered
+        /// elsewhere and takes hundreds of frames; what is under test here is what
+        /// happens once the player arrives.
+        /// </remarks>
+        private void StepMissionSmoke()
+        {
+            if (_ship == null || _missions == null || _universe == null)
+            {
+                return;
+            }
+
+            _smokeFrames++;
+
+            if (_smokeJob == null)
+            {
+                if (_smokeFrames < 3)
+                {
+                    return;
+                }
+
+                Mission? job = _universe.Missions.Values.FirstOrDefault(m =>
+                    m.IsJob && m.Npcs.Any(n => (n.SucceedIf & ShipEvent.Destroy) != 0));
+
+                if (job == null)
+                {
+                    GD.Print("[smoke] FAIL: no bounty job in the dataset");
+                    GetTree().Quit(1);
+                    return;
+                }
+
+                _smokeJob = _missions.Accept(job);
+                if (_smokeJob == null || _smokeJob.Npcs.Count == 0)
+                {
+                    GD.Print($"[smoke] FAIL: accepting \"{job.DisplayName}\" placed nothing");
+                    GetTree().Quit(1);
+                    return;
+                }
+
+                NpcInstance npc = _smokeJob.Npcs[0];
+                int armed = npc.Ships[0].Mounts.Count(m => !m.IsEmpty);
+                GD.Print($"[smoke] took \"{job.DisplayName}\": {npc.Ships.Count} hull(s) " +
+                         $"of {npc.Ships[0].Definition.DisplayName} " +
+                         $"({npc.Ships[0].Government?.Name}) in {npc.System?.Name}; " +
+                         $"target carries {armed}/{npc.Ships[0].Mounts.Count} armed mounts, " +
+                         $"hostile to player = {npc.Ships[0].Government?.IsEnemy(_ship.Government)}");
+
+                // Stand where the job sent us, close enough to shoot.
+                if (npc.System != null)
+                {
+                    _ship.CurrentSystem = npc.System;
+                    _player.EnterSystem(npc.System);
+                    HandleArrival();
+                }
+
+                _ship.Position = npc.Ships[0].Position + new Point(320.0, 0.0);
+                _ship.Velocity = Point.Zero;
+                _ship.Facing = Angle.FromPoint(npc.Ships[0].Position - _ship.Position);
+                _smokeFire = true;
+                GD.Print($"[smoke] player {_ship.Definition.DisplayName}: " +
+                         $"{_ship.Mounts.Count(m => !m.IsEmpty)}/{_ship.Mounts.Count} armed, " +
+                         $"range {ShipAi.ShortestWeaponRange(_ship):0} vs target " +
+                         $"{ShipAi.ShortestWeaponRange(npc.Ships[0]):0}");
+                return;
+            }
+
+            NpcInstance target = _smokeJob.Npcs[0];
+            int alive = target.Survivors.Count();
+            _smokeTarget = target.Survivors.FirstOrDefault();
+
+            if (_smokeFrames % 60 == 0)
+            {
+                Ship? enemy = _smokeTarget;
+                double gap = enemy is null ? 0.0 : (enemy.Position - _ship.Position).Length;
+                GD.Print($"[smoke] frame {_smokeFrames}: {alive} alive | " +
+                         $"player {_ship.Shields:0}s/{_ship.Hull:0}h/{_ship.Energy:0}e | " +
+                         $"target {enemy?.Shields ?? 0:0}s/{enemy?.Hull ?? 0:0}h/" +
+                         $"{enemy?.Energy ?? 0:0}e | gap {gap:0} | " +
+                         $"{_field?.Projectiles.Count ?? 0} in flight");
+            }
+
+            if (target.HasSucceeded(_ship.CurrentSystem))
+            {
+                GD.Print($"[smoke] PASS: objective met after {_smokeFrames} frames; " +
+                         $"player hull {_ship.Hull:0}/{_ship.MaxHull:0}; " +
+                         $"mission still open pending hand-in at " +
+                         $"{_smokeJob.Mission.Destination ?? "(nowhere)"}");
+                GetTree().Quit(0);
+                return;
+            }
+
+            if (_ship.IsDestroyed || _ship.IsDisabled)
+            {
+                // Disabled counts as resolved. Upstream stops attacking a crippled
+                // hull and boards it instead - to capture it, or to strip it - and
+                // that endgame is not modelled yet, so the fight would otherwise sit
+                // frozen forever with neither side able to end it.
+                string how = _ship.IsDestroyed ? "destroyed" : "disabled";
+                GD.Print($"[smoke] fight resolved after {_smokeFrames} frames: " +
+                         $"player {how}. INCOMPLETE: nothing boards a disabled hull, " +
+                         $"so a crippled ship is neither captured nor finished.");
+                GetTree().Quit(0);
+                return;
+            }
+
+            if (_smokeFrames > 5400)
+            {
+                GD.Print($"[smoke] FAIL: {alive} target(s) still alive after {_smokeFrames} frames");
+                GetTree().Quit(1);
+            }
         }
 
         private void StepCombatDemo()
@@ -805,7 +1236,7 @@ namespace EndlessSky.Game
             }
 
             // Sim-owned engagement, in the agreed frame order:
-            // target → steer → fire → field.Step. Reload clocks now advance inside
+            // target -> steer -> fire -> field.Step. Reload clocks advance inside
             // Ship.Step, so stepping them here as well would reload at double rate.
             Ship? target = ShipAi.FindTarget(_drone, _field.Ships);
             _drone.Step(target is null ? Command.None : ShipAi.Attack(_drone, target));
@@ -814,26 +1245,6 @@ namespace EndlessSky.Game
             {
                 _field.Add(ShipAi.AutoFire(_drone, target));
             }
-
-            foreach (HitReport report in _field.Step())
-            {
-                Node3D targetView = report.Target == _ship ? _shipView : _droneView;
-                if (report.Events.HasFlag(ShipEvent.Destroy))
-                {
-                    _effects.SpawnExplosion(report.Target.Position, 3.5f);
-                    targetView.Visible = false;
-                }
-                else if (report.Target.Shields > 0.0)
-                {
-                    CombatEffects.FlashShields(targetView);
-                }
-                else
-                {
-                    _effects.SpawnExplosion(report.Projectile.Position, 1f);
-                }
-            }
-
-            _effects.SyncProjectiles(_field.Projectiles);
         }
 
         private static StyleBoxFlat HudPanelStyle()
@@ -957,6 +1368,10 @@ namespace EndlessSky.Game
                 else if (arg == "--combat-demo")
                 {
                     _combatDemo = true;
+                }
+                else if (arg == "--mission-smoke")
+                {
+                    _missionSmoke = true;
                 }
                 else if (arg == "--land-at-start")
                 {

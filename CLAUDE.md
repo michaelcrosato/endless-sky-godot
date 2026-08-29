@@ -33,6 +33,7 @@ owned by a different session. This repo is the Godot arm of that comparison.
 | Presentation tests | `pwsh tools/test.ps1 -Suite godot` |
 | Run the game | `pwsh tools/run.ps1` |
 | Headless smoke | `pwsh tools/run.ps1 -Headless` |
+| Mission/combat smoke | `pwsh tools/run.ps1 -Headless -Frames 20000 -UserArgs '--mission-smoke'` |
 | Open the editor | `pwsh tools/editor.ps1` |
 | Export a build | `pwsh tools/export.ps1 -Preset "Windows Desktop" -Release` |
 | Clickable build (exe + dataset) | `pwsh tools/package.ps1` |

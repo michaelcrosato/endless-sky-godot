@@ -16,6 +16,8 @@
 [CmdletBinding()]
 param(
     [switch]$Headless,
+    # Passed through to the game after `--`, e.g. -UserArgs '--mission-smoke'.
+    [string[]]$UserArgs = @(),
     [string]$Scene,
     [int]$Frames = 5,
     [switch]$NoBuild
@@ -35,6 +37,8 @@ if (-not $NoBuild) {
 $godotArgs = @('--path', '.')
 if ($Headless) { $godotArgs += @('--headless', '--quit-after', $Frames) }
 if ($Scene)    { $godotArgs += $Scene }
+# Everything after `--` reaches the game as OS.GetCmdlineUserArgs().
+if ($UserArgs.Count) { $godotArgs += @('--') + $UserArgs }
 
 Write-Host "[run] $script:GodotBin $($godotArgs -join ' ')"
 & $script:GodotBin @godotArgs

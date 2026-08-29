@@ -61,6 +61,13 @@ namespace EndlessSky.Sim
 
         public bool IsDisabled { get; set; }
 
+        /// <summary>
+        /// This individual hull's name, where content gave it one. Upstream's
+        /// <c>Ship::SetGivenName</c>: a mission that names its target is naming
+        /// the ship, not the model, and the player is told which one to look for.
+        /// </summary>
+        public string? GivenName { get; set; }
+
         /// <summary>Set each step; true while forward thrust was actually applied (drives engine flares).</summary>
         public bool IsThrusting { get; private set; }
 

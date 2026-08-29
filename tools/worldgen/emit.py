@@ -96,6 +96,18 @@ def governments(root: str) -> int:
         default = -0.2 if race.temperament in ("predatory", "expansionist") else 0.0
         w.line(1, quote("default attitude"), number(default))
 
+        # Hostility toward the PLAYER is reputation, not the attitude matrix -
+        # upstream scopes the matrix to government-vs-government and asks standing
+        # for anything involving the player. Without this every raider in the Reach
+        # flies past a defenceless freighter without a second look, and no bounty
+        # is ever a fight.
+        if faction.role == "fringe":
+            w.line(1, quote("player reputation"), number(-1000))
+        elif faction.role == "zealot":
+            w.line(1, quote("player reputation"), number(-50))
+        else:
+            w.line(1, quote("player reputation"), number(1))
+
         w.line(1, quote("attitude toward"))
         for other_race, other in pairs:
             value = attitude(race, faction, other_race, other)
@@ -375,10 +387,21 @@ def missions(root: str, work: List[Job], fleet: List[Ship]) -> int:
             if personality:
                 w.line(2, "personality", *[quote(p) for p in personality])  # type: ignore[union-attr]
 
+            # `system destination` is a keyword, not a system name: it defers
+            # placement to wherever the job sends the player. Bounties and salvage
+            # both read "near <destination>", so that is where the hulls belong.
+            # An escort travels WITH the player, so it starts where they do.
+            if npc.get("at_destination"):
+                w.line(2, "system", "destination")
+
+            # One `ship` line per hull. The second token of a `ship` line is the
+            # individual name, not a count - a number there names one ship "3" and
+            # silently places a single hull where three were meant.
             pool = by_race.get(str(npc.get("race")), fleet)
             picked = pool[hash(job.name) % len(pool)] if pool else None
             if picked is not None:
-                w.line(2, "ship", quote(picked.name), number(int(npc.get("count", 1))))
+                for _ in range(max(1, int(npc.get("count", 1)))):
+                    w.line(2, "ship", quote(picked.name))
 
         w.line(1, "on", "complete")
         w.line(2, "payment", number(job.payment))

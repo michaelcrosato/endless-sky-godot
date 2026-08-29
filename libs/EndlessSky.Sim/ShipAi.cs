@@ -169,12 +169,30 @@ namespace EndlessSky.Sim
             // which silenced its fixed guns for the whole braking phase - upstream
             // never does this for an ordinary ship. Only artillery and blast-radius
             // carriers back off, and those are not modelled yet.
+            double standoff = ShortestWeaponRange(self);
+            bool inRange = standoff > 0.0 && distance < standoff;
+
+            // In range, aim where the target WILL BE: fixed guns fire along the hull,
+            // so a ship nosed at where its target is can only hit one that is not
+            // moving across it, and two evenly matched hulls trade shots forever
+            // without either losing a point.
+            //
+            // Out of range, aim at the target itself. Leading from far away points the
+            // nose off to one side, and the thrust gate below - which asks whether the
+            // ship is facing what it is chasing - then never opens, so the pursuit
+            // never closes and the fight never starts.
+            Point aim = toTarget;
+            if (inRange)
+            {
+                Point lead = AimPoint(self, target, PrimaryWeapon(self));
+                if (lead.Length > 0.0)
+                    aim = lead;
+            }
+
             var command = new Command
             {
-                Turn = FlightControls.TurnToward(self, toTarget),
+                Turn = FlightControls.TurnToward(self, aim),
             };
-
-            double standoff = ShortestWeaponRange(self);
 
             // Inside firing range, upstream's AimToAttack only aims: it applies no
             // thrust, so the ship coasts through and past its target and comes round
@@ -197,7 +215,22 @@ namespace EndlessSky.Sim
                 turningDiameter = Math.Max(200.0, circumference / Math.PI);
             }
 
-            command.Forward = facing >= 0.0 && distance > turningDiameter;
+            // Two clauses, and the second is the one that is easy to leave out and
+            // fatal without it: a ship whose velocity is carrying it AWAY from its
+            // target thrusts even inside its own turning circle. Without that, two
+            // ships that pass each other at speed coast apart forever - full energy,
+            // full shields, out of weapon range, closing on nothing - and the fight
+            // simply stops rather than ending.
+            bool farEnoughToTurnInto = facing >= 0.0 && distance > turningDiameter;
+            bool driftingAway = self.Velocity.Dot(toTarget) < 0.0 && facing >= 0.9;
+
+            command.Forward = farEnoughToTurnInto || driftingAway;
+
+            // Reverse thrusters, where the hull has them, close on a target that has
+            // ended up behind it faster than turning right around would.
+            if (!command.Forward && facing < -0.75 && self.ReverseAcceleration > 0.0)
+                command.Back = true;
+
             return command;
         }
 
@@ -209,6 +242,96 @@ namespace EndlessSky.Sim
         /// Half-angle of the firing cone in degrees. Upstream derives this per weapon
         /// from projectile speed and target size; a fixed cone stands in for now.
         /// </param>
+        /// <summary>
+        /// How many frames a projectile of speed <paramref name="projectileSpeed"/>
+        /// takes to reach a target that is at <paramref name="offset"/> and moving at
+        /// <paramref name="relativeVelocity"/>. Port of upstream
+        /// <c>AI::RendezvousTime</c>.
+        /// </summary>
+        /// <remarks>
+        /// Solves for the time at which a shot leaving now and the target arrive at the
+        /// same place:
+        /// <c>(p.x + v.x*t)^2 + (p.y + v.y*t)^2 = vp^2 * t^2</c>.
+        ///
+        /// Returns NaN when there is no such time - a target running away faster than
+        /// the shot can fly cannot be hit at all, and the caller has to decide what to
+        /// do about that rather than being handed a plausible-looking wrong number.
+        /// </remarks>
+        public static double RendezvousTime(Point offset, Point relativeVelocity,
+                                            double projectileSpeed)
+        {
+            double a = relativeVelocity.Dot(relativeVelocity) - projectileSpeed * projectileSpeed;
+            double b = 2.0 * offset.Dot(relativeVelocity);
+            double c = offset.Dot(offset);
+
+            double discriminant = b * b - 4.0 * a * c;
+            if (discriminant < 0.0)
+                return double.NaN;
+
+            discriminant = Math.Sqrt(discriminant);
+
+            // Two roots; a negative one is a rendezvous in the past.
+            double first = (-b + discriminant) / (2.0 * a);
+            double second = (-b - discriminant) / (2.0 * a);
+
+            if (first >= 0.0 && second >= 0.0)
+                return Math.Min(first, second);
+            if (first >= 0.0 || second >= 0.0)
+                return Math.Max(first, second);
+
+            return double.NaN;
+        }
+
+        /// <summary>
+        /// Where to point in order to hit a moving target with a given weapon.
+        /// </summary>
+        /// <remarks>
+        /// Aiming at where a ship IS only works against one that is standing still.
+        /// Two ships circling each other at combat speed will trade shots for as long
+        /// as their reactors hold out and never land one, which is what a fight
+        /// between evenly matched hulls looked like before this existed: shots in
+        /// flight every frame, and neither hull losing a point.
+        ///
+        /// Falls back to the target's present position when no intercept exists, so a
+        /// ship that cannot be caught is still shot at rather than ignored.
+        /// </remarks>
+        public static Point AimPoint(Ship self, Ship target, Weapon? weapon)
+        {
+            Point offset = target.Position - self.Position;
+
+            double speed = weapon?.Velocity ?? 0.0;
+            if (speed <= 0.0)
+                return offset;
+
+            // Relative to the shooter: a projectile inherits the firing ship's motion
+            // upstream, so the closing rate is what matters, not ground speed.
+            Point relative = target.Velocity - self.Velocity;
+
+            double time = RendezvousTime(offset, relative, speed);
+            if (double.IsNaN(time) || time < 0.0)
+                return offset;
+
+            // Upstream caps the lead at the same 600 frames it uses when closing.
+            time = Math.Min(time, 600.0);
+            return offset + relative * time;
+        }
+
+        /// <summary>The fastest weapon the ship can currently fire, for steering.</summary>
+        private static Weapon? PrimaryWeapon(Ship self)
+        {
+            Weapon? best = null;
+            foreach (WeaponMount mount in self.Mounts)
+            {
+                if (mount.IsEmpty || mount.Weapon is null || mount.Weapon.IsSpecial)
+                    continue;
+
+                if (best is null || mount.Weapon.Velocity > best.Velocity)
+                    best = mount.Weapon;
+            }
+
+            return best;
+        }
+
         public static bool ShouldFire(Ship? self, Ship? target, Weapon? weapon, double aimTolerance = 10.0)
         {
             if (self is null || target is null || weapon is null || !weapon.IsWeapon)
@@ -233,7 +356,9 @@ namespace EndlessSky.Sim
             Point toTarget = target.Position - self.Position;
             double distance = toTarget.Length;
 
-            // Out of reach: firing would only waste ammunition and energy.
+            // Out of reach: firing would only waste ammunition and energy. Range is
+            // measured to where the target IS, since that is what the weapon has to
+            // cover; the cone below is measured to where it WILL BE.
             double range = weapon.Range;
             if (range > 0.0 && distance > range + target.CollisionRadius)
                 return false;
@@ -245,10 +370,17 @@ namespace EndlessSky.Sim
             if (distance <= 0.0)
                 return true;
 
+            // Aim where the target will be when the shot arrives. Testing the cone
+            // against its present position means a crossing target is fired at
+            // constantly and hit almost never.
+            Point aim = AimPoint(self, target, weapon);
+            if (aim.Length <= 0.0)
+                return true;
+
             // Widen the cone for nearby targets: a ship a few units away subtends a
             // large angle, and upstream fires whenever the shot would actually connect.
             double angularRadius = Math.Atan2(target.CollisionRadius, distance) * (180.0 / Math.PI);
-            double cosine = self.Facing.Unit().Dot(toTarget.Unit());
+            double cosine = self.Facing.Unit().Dot(aim.Unit());
             double offBy = Math.Acos(Math.Clamp(cosine, -1.0, 1.0)) * (180.0 / Math.PI);
 
             return offBy <= aimTolerance + angularRadius;

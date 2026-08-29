@@ -4,10 +4,10 @@
 # the starting scenario
 start reach
 	name "The Reach"
-	description `You begin on Araivorquonum, in the Araivoraraiath VII system, under Tessarai Enumeration. The Reach is twenty peoples deep and nobody has mapped all of it.`
+	description `You begin on Holpsalmhol, in the Cantholoss Deep system, under Hollow Choir. The Reach is twenty peoples deep and nobody has mapped all of it.`
 	date 16 11 3013
-	system "Araivoraraiath VII"
-	planet Araivorquonum
+	system "Cantholoss Deep"
+	planet Holpsalmhol
 	account
 		credits 480000
 	set "start: reach"
