@@ -246,6 +246,15 @@ namespace EndlessSky.Sim
                 return false;
             }
 
+            // Power, cooling, repair and reload keep running through a jump. Upstream
+            // calls DoGeneration (Ship.cpp:1660) BEFORE DoHyperspaceLogic (:1679), and
+            // it is load-bearing pacing rather than a detail: you break off a fight,
+            // jump, and arrive with your shields back. This method owns the whole frame
+            // — the flight loop returns as soon as it reports true — so with the call
+            // missing here, a jump froze every ship in exactly the state it left in.
+            StepResources();
+            StepArmament();
+
             int direction = HyperspaceSystem != null ? 1 : -1;
             HyperspaceCount += direction;
             if (HyperspaceSystem != null)

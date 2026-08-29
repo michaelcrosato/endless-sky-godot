@@ -201,8 +201,18 @@ namespace EndlessSky.Sim
                 // at a FRACTION of its rate rather than not at all, which is upstream's
                 // FractionalUsage: the ship stays controllable as its reactor browns
                 // out instead of locking solid.
-                turn *= AffordableFraction(
+                //
+                // CLAMPED, not scaled. Upstream takes
+                // copysign(min(|turn|, maxThrottle), turn) (Ship.cpp:4909), so a ship
+                // that can afford 56% of a full-rate turn still executes a commanded
+                // 30% turn at the full 30%. Multiplying gave 30% x 56% = 17% and made
+                // every partial command quietly weaker than asked for. Upstream
+                // multiplies only for THRUST (Ship.cpp:4928), which is why the two
+                // forms look interchangeable and are not.
+                double throttle = AffordableFraction(
                     Attributes.Get("turning energy"), Attributes.Get("turning heat"));
+
+                turn = Math.Sign(turn) * Math.Min(Math.Abs(turn), throttle);
 
                 if (turn != 0.0)
                 {

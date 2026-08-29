@@ -14,6 +14,14 @@ namespace EndlessSky.Sim
         Fail,
         Visit,
         Defer,
+
+        /// <summary>
+        /// The player gave the mission up, as distinct from failing it. Upstream lists
+        /// it separately (Mission.cpp:360-371) and only falls back to
+        /// <see cref="Fail"/> when a mission defines no abort action — content uses the
+        /// difference to refund a change of mind while penalising a botched job.
+        /// </summary>
+        Abort,
     }
 
     /// <summary>
@@ -398,6 +406,7 @@ namespace EndlessSky.Sim
                 case "fail": trigger = MissionTrigger.Fail; return true;
                 case "visit": trigger = MissionTrigger.Visit; return true;
                 case "defer": trigger = MissionTrigger.Defer; return true;
+                case "abort": trigger = MissionTrigger.Abort; return true;
                 default: trigger = default; return false;
             }
         }

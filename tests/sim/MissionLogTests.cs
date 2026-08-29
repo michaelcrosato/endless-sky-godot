@@ -51,6 +51,52 @@ namespace EndlessSky.Tests
             return new MissionLog(player);
         }
 
+        // --- Abort is its own trigger ---------------------------------------------
+
+        [Test]
+        public void AbandoningAMissionFiresItsAbortActionRatherThanItsFailOne()
+        {
+            // Mission.cpp:360-371 lists abort as its own trigger, and upstream only
+            // falls back to fail when no abort action exists. Hard-coding fail means a
+            // mission that distinguishes "the player gave up" from "the player blew it"
+            // -- a refund on one and a reputation hit on the other -- gets the wrong
+            // one every time.
+            var data = new GameData();
+            data.LoadText(Universe + string.Join("\n",
+                "mission \"Fussy Parcel\"",
+                "\tname `Fussy Parcel`",
+                "\tdestination \"Away\"",
+                "\tto offer",
+                "\t\thas \"flagship landed\"",
+                "\ton abort",
+                "\t\tset \"gave up\"",
+                "\ton fail",
+                "\t\tset \"blew it\"") + "\n");
+
+            var player = new PlayerState(data);
+            Ship hauler = data.BuildShip("Hauler");
+            player.Fleet.Add(hauler);
+            player.Fleet.SetFlagship(hauler);
+            player.EnterSystem(data.Systems["Sol"]);
+            player.Land(data.Planets["Home"]);
+
+            var log = new MissionLog(player);
+            log.Abort(log.Accept(data.Missions["Fussy Parcel"])!);
+
+            Assert.AreEqual(1, player.Conditions.Get("gave up"), "the abort action fired");
+            Assert.AreEqual(0, player.Conditions.Get("blew it"), "and the fail action did not");
+        }
+
+        [Test]
+        public void AMissionWithNoAbortActionStillFallsBackToItsFailOne()
+        {
+            // Upstream's fallback, kept: most content defines only `on fail`.
+            MissionLog log = Start(out PlayerState player, out GameData data);
+            log.Abort(log.Accept(data.Missions["Urgent Parcel"])!);
+
+            Assert.AreEqual(1, player.Conditions.Get("parcel lost"));
+        }
+
         // --- Progress conditions --------------------------------------------------
 
         [Test]

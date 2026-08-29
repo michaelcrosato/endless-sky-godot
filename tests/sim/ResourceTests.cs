@@ -26,6 +26,40 @@ namespace EndlessSky.Tests
             return ship;
         }
 
+        [Test]
+        public void APartialTurnCommandIsClampedByTheThrottleRatherThanScaledByIt()
+        {
+            // Ship.cpp:4909 clamps: copysign(min(|turn|, maxTurnThrottle), turn). A
+            // ship that can afford 56% of a full-rate turn still executes a commanded
+            // 30% turn at the full 30%. Multiplying instead gave 30% x 56% = 17%, so
+            // every partial command was quietly weaker than asked for -- and upstream
+            // multiplies only for THRUST (Ship.cpp:4928), which is why the two look
+            // interchangeable and are not.
+            Ship ship = Make("\"turn\" 200", "\"turning energy\" 10", "\"energy capacity\" 100");
+            ship.SetLevels(energy: 5.6);   // 56% of one full-rate turn
+
+            double before = ship.Facing.Degrees;
+            ship.Step(new Command { Turn = 0.3 });
+
+            Assert.AreEqual(0.3 * ship.TurnRate, ship.Facing.Degrees - before, 0.01,
+                "the command is under the throttle, so it goes through in full");
+            Assert.AreEqual(5.6 - 3.0, ship.Energy, 1e-9,
+                "and it costs the fraction actually turned");
+        }
+
+        [Test]
+        public void ATurnCommandBeyondTheThrottleIsCutToIt()
+        {
+            Ship ship = Make("\"turn\" 200", "\"turning energy\" 10", "\"energy capacity\" 100");
+            ship.SetLevels(energy: 4.0);   // 40% of one full-rate turn
+
+            double before = ship.Facing.Degrees;
+            ship.Step(new Command { Turn = 1.0 });
+
+            Assert.AreEqual(0.4 * ship.TurnRate, ship.Facing.Degrees - before, 0.01,
+                "asked for everything, gets what it can pay for");
+        }
+
         // --- Landing and taking off -----------------------------------------------
 
         [Test]

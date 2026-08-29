@@ -280,7 +280,16 @@ namespace EndlessSky.Sim
             if (taken.CargoLoaded > 0 && taken.Mission.CargoType != null)
                 _player.Fleet.UnloadCargo(taken.Mission.CargoType, taken.CargoLoaded);
 
-            _player.AddCredits(taken.Mission.Fire(MissionTrigger.Fail, _player.Conditions));
+            // Giving up is not the same as failing. Upstream fires ABORT and only falls
+            // back to FAIL when the mission defines no abort action
+            // (Mission.cpp:360-371); content uses the difference to refund a change of
+            // mind while penalising a botched job. Hard-coding FAIL gave the wrong one
+            // to every mission that bothered to tell them apart.
+            MissionTrigger trigger = taken.Mission.Action(MissionTrigger.Abort) != null
+                ? MissionTrigger.Abort
+                : MissionTrigger.Fail;
+
+            _player.AddCredits(taken.Mission.Fire(trigger, _player.Conditions));
             Finish(taken, MissionOutcome.Aborted);
         }
 

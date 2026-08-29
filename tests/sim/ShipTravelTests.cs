@@ -19,6 +19,12 @@ namespace EndlessSky.Tests
             "\t\t\"mass\" 192\n" +
             "\t\t\"drag\" 1.8\n" +
             "\t\t\"fuel capacity\" 400\n" +
+            // Shields and a reactor, so "does a jump recharge?" is a question this
+            // fixture can answer at all.
+            "\t\t\"shields\" 400\n" +
+            "\t\t\"shield generation\" 2\n" +
+            "\t\t\"energy capacity\" 200\n" +
+            "\t\t\"energy generation\" 3\n" +
             "\toutfits\n" +
             "\t\t\"Fixture Drive\"\n" +
             "\t\t\"Fixture Hyperdrive\"\n" +
@@ -158,6 +164,28 @@ namespace EndlessSky.Tests
             ship.Facing = Angle.FromPoint(ship.JumpDirection);
             ship.Velocity = Point.Zero;
             Assert.IsFalse(ship.IsReadyToJump(), "an empty tank grounds the ship");
+        }
+
+        [Test]
+        public void AShipRechargesWhileItIsInHyperspace()
+        {
+            // Ship::Move calls DoGeneration (Ship.cpp:1660) BEFORE DoHyperspaceLogic
+            // (:1679), so a ship recharges across the ~200 frames of a jump. That is
+            // load-bearing pacing: you break off a fight, jump, and arrive with your
+            // shields back. StepHyperspace owned the whole frame here and skipped
+            // StepResources entirely, so a jump froze every ship in the state it left in.
+            (Ship ship, _, _) = MakeFixture();
+            ship.SetLevels(shields: 0.0, energy: 0.0);
+
+            Assert.IsTrue(ship.TryCommitJump(), "the jump starts");
+
+            for (int frame = 0; frame < 60; frame++)
+            {
+                ship.StepHyperspace();
+            }
+
+            Assert.Greater(ship.Shields, 0.0, "shields come back during the jump");
+            Assert.Greater(ship.Energy, 0.0, "and so does power");
         }
     }
 }
