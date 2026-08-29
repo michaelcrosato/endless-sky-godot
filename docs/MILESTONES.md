@@ -9,8 +9,8 @@ here is quietly dropped — incomplete systems stay listed as incomplete.
 | **M1 Flight** | **Done through gauntlet round 1** | Sim port verified exact by the gameplay critic (epoch math, quantized angles, coasting rule); visual critic's six corrections landed (key light, framing, bloom, silhouette, plume, HUD) plus the retrograde-brake input translation with hand-derived tests. Evidence: `reports/m1_flight_v3.png` — note that `reports/` is gitignored, so the gauntlet captures live only on the machine that took them and are not evidence anyone else can check. |
 | M2 Combat | **Sim complete; views wired; gauntlet run** | Weapons/damage/projectiles/governments/firing/collision/targeting-AI in `libs/EndlessSky.Sim` (shields-block-entirely, 0.25 hull epsilon, valueless flags pinned by tests); `CombatEffects`/`ProjectileView`/`ExplosionView`/`ShieldImpactView` + the `--combat-demo` hostile drone driven by `ShipAi`. Combat gauntlet round (bolt/flash captures) pending. |
 | M3 Travel | **Sim complete; view wired** | `Ship.Travel.cs` ports IsReadyToJump/DoHyperspaceLogic (hyperdrive path) with hand-derived tests (exact 100-frame phases, fuel drain, 4-jump tank); FlightWorld: J-key best-aligned-link targeting, brake-and-face autopilot, arrival advances the date and rebuilds the system. Full protocol: docs/upstream-reference.md §jump. |
-| M4 Landing economy | **Playable; the debt half is not built** | Commodity/TradeData/CargoHold/Outfitting, `Trading` (buy/sell ships and outfits with upstream's `Depreciation`), a moving economy (`StepEconomy`), and a landed screen with trade, shipyard, outfitter and job counters. |
-| M5 Missions | **Lifecycle done; offer conversations and events not fired** | Parsing, conditions, conversations (inline and top-level), events (416, incl. universe patching), NPC entities (1,186 across 587 missions), the full accept/carry/complete/fail lifecycle with deadlines, and text substitution so jobs read as prose rather than templates. |
+| M4 Landing economy | **Playable; the opening debt is not built** | Commodity/TradeData/CargoHold/Outfitting, `Trading` (buy/sell ships and outfits with upstream's `Depreciation`), a moving economy (`StepEconomy`), and a landed screen with trade, shipyard, outfitter and job counters. |
+| M5 Missions | **Done** | Parsing, conditions, conversations (inline and top-level), events (416, incl. universe patching), NPC entities (1,186 across 587 missions), the full accept/carry/complete/fail lifecycle with deadlines, and text substitution so jobs read as prose rather than templates. |
 | M6 Fleet gameplay | **Done in the sim; boarding is unreachable from the cockpit** | Multiple owned ships, escorts, fleet commands (escort/gather/hold/attack on upstream's `MoveTo` + `StoppingPoint`), salaries, cargo distribution, boarding, capturing, parking and flagship selection. |
 | M7 Content compatibility | **Ahead of schedule** | The loader already ingests the FULL upstream dataset (902 ships / 920 outfits / 694 systems, zero parse diagnostics) — M7's "progressively larger portions" started at 100% for parsing; behavior coverage still tracks the other milestones. `GameData.UnhandledNodes` counts what the model doesn't yet understand. |
 | M8 Visual production | Done | Hulls generated per ship from ShipAppearance; faction plating from fleets/shipyards. See `docs/art-direction.md`. |
@@ -122,8 +122,10 @@ independent critic contexts; the builder never grades its own output.
 ## Full repository audit (2026-08-28)
 
 Seventeen agents over eight dimensions, every finding sent to an adversarial
-verifier told to refute it: 72 raised, 5 refuted, 67 confirmed. The report is
-at <https://claude.ai/code/artifact/65b6e714-bb73-4d7d-b33f-b2ed92301e3e>.
+verifier told to refute it: 72 raised, 5 refuted, 67 confirmed. **All 67 are
+now resolved** — 64 fixed test-first across 29 commits, 3 recorded in the source
+as deliberate divergences rather than changed. The report is at
+<https://claude.ai/code/artifact/65b6e714-bb73-4d7d-b33f-b2ed92301e3e>.
 
 **The pattern was worth more than any single finding.** Correct, tested code in
 `libs/` was repeatedly wired to nothing. `SaveGame`, `MissionLog.Step`,
@@ -154,6 +156,19 @@ player cannot reach — and why the statuses above now distinguish the two.
 | Landing repaired nothing and refuelled only the flagship | `PlayerState.TakeOff` services the fleet, skipping parked and crippled hulls |
 | Reputation never moved | `Politics` ports upstream's propagation across every government |
 | `universe/jobs.txt` could not be regenerated — salted `hash()` | CRC32; CI regenerates and diffs on every push |
+| No mission ever spoke: the `on offer` trigger was never fired | 1,392 upstream missions show their dialogue, and the answer decides |
+| 416 events were parsed and nothing fired one | A dated queue on the player, fired by the day tick and saved with the game |
+| 260 `fail` clauses did nothing | A bare `fail` ends the mission; `fail "<name>"` ends another |
+| Turrets fired along the hull, like fixed guns | Each traverses at its own rate, aimed by the AI at the lead point |
+| A jump drive flew the hyperdrive's protocol | Its own: no facing gate, a random bearing close in, no deceleration run |
+| A hold order accelerated the escort away | Thrust waits until the ship is pointed retrograde, as upstream's does |
+| Cluster rounds landed as one shot | The parent's impulse is redirected along each child's heading, plus its own spread |
+| Systems appended on redefinition | Upstream's replace-on-first-occurrence, with `add` and `remove` |
+| Plugins could not override a definition | The root `overwrite` node resets the next one |
+| The landing rule lived in the view layer with invented constants | `Ship.CanLandOn`, upstream's speed and the object's own radius |
+| `random` was always 0, so `random < N` was always true | Registered, in upstream's [0, 100), with `roll:` alongside |
+| Conversation options ignored their `to display` gates | Hidden options stay hidden |
+| A browned-out ship coasted forever | `NeedsEnergy` widens the drag-only branch, as upstream's does |
 
 ### Still incomplete, and now listed where a reader will find it
 
@@ -165,20 +180,22 @@ The ones a player would notice first:
   a crippled ship is neither captured nor finished and a fight between two
   ships that both end up disabled simply stops. Every salvage job's `board`
   objective is unreachable from the cockpit.
-- **No conversation is ever shown**, so a mission's `on offer` dialogue and the
-  opening conversation that upstream uses to sell the player their first ship —
-  on credit, which is why the classic start begins in debt — do not happen.
-  `StartScenario.MortgagePrincipal` is parsed and never applied: the player
-  starts with 480,000 credits and no debt where upstream gives both.
-- **Events never fire.** 416 are parsed and nothing schedules them.
+- **The opening conversation still does not grant a ship.** Missions show their
+  offer dialogue now, but `StartScenario.MortgagePrincipal` is parsed and never
+  applied: the player starts with 480,000 credits and no debt where upstream
+  gives both, and picks a starting hull by other means because upstream's
+  opening conversation is what sells it to them on credit.
 - **The Reach defines no events, conversations or wormholes at all**, so those
   three subsystems have no content to act on in the shipped game whatever the
-  engine supports. They are exercised only against upstream's dataset, by tests.
+  engine supports. They are exercised against upstream's dataset, by tests.
 - **Mission NPCs never despawn**, and the template's `to spawn` gate is parsed
   and not consulted.
 - **NPC ships do not jump under their own power.** Escorts are carried with the
   flagship, which is the same observable outcome for an `accompany` objective
   but is not upstream's mechanism.
-- **Turrets do not traverse**: every mount fires along the ship's facing.
+- **Turret firing ARCS are not modelled**: every turret traverses, but as though
+  it were omnidirectional, so one mounted behind a hull can still bear forward.
+- **Planet::CanLand's licence, government-access and "requires" gates** are not
+  modelled, so any world with a landing site accepts anyone.
 - **No audio at all**, and no input remapping — every control is a hard-coded
   key poll rather than an `InputMap` action.
