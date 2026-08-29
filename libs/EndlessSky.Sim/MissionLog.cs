@@ -162,15 +162,38 @@ namespace EndlessSky.Sim
             _player.AddCredits(mission.Fire(MissionTrigger.Accept, _player.Conditions));
             _active.Add(taken);
 
-            // Upstream tracks an accepted mission as a condition so content can gate on
-            // it without holding a reference.
-            _player.Conditions.Set($"mission: {mission.Name}", 1);
+            RecordProgress(mission, "offered", 1);
+            RecordProgress(mission, "active", 1);
             return taken;
         }
 
         /// <summary>Declines an offer, firing its decline action.</summary>
-        public void Decline(Mission mission) =>
-            _player.AddCredits(mission?.Fire(MissionTrigger.Decline, _player.Conditions) ?? 0);
+        public void Decline(Mission mission)
+        {
+            if (mission is null)
+                return;
+
+            _player.AddCredits(mission.Fire(MissionTrigger.Decline, _player.Conditions));
+            RecordProgress(mission, "offered", 1);
+            RecordProgress(mission, "declined", 1);
+        }
+
+        /// <summary>
+        /// Moves one of a mission's six progress counters.
+        /// </summary>
+        /// <remarks>
+        /// These are the keys content actually gates on: upstream keys them on the
+        /// mission's true name with the suffixes <c>offered</c>, <c>active</c>,
+        /// <c>declined</c>, <c>done</c>, <c>failed</c> and <c>aborted</c>
+        /// (<c>Mission.cpp:1281-1316</c>). The upstream dataset references them 1,966
+        /// times -- <c>": done"</c> alone 1,156 -- so a port that invents its own
+        /// spelling leaves every one of those gates reading zero for the whole game.
+        ///
+        /// They are counters, not flags, because a repeatable job is taken many times
+        /// and content asks how often.
+        /// </remarks>
+        private void RecordProgress(Mission mission, string suffix, long delta) =>
+            _player.Conditions.Add($"{mission.Name}: {suffix}", delta);
 
         /// <summary>
         /// Whether this mission can be handed in right now.
@@ -425,8 +448,11 @@ namespace EndlessSky.Sim
                 CargoLoaded = cargo,
             };
 
+            // No progress counters here on purpose: this is the load path, and the
+            // condition store is saved and restored whole, so the counters come back
+            // with it. Re-incrementing would double every mission the player has taken
+            // each time the game is loaded.
             _active.Add(taken);
-            _player.Conditions.Set($"mission: {mission.Name}", 1);
             return taken;
         }
 
@@ -447,10 +473,28 @@ namespace EndlessSky.Sim
             taken.Outcome = outcome;
             _active.Remove(taken);
             _finished.Add(taken);
-            _player.Conditions.Set($"mission: {taken.Mission.Name}", 0);
 
-            if (outcome == MissionOutcome.Completed)
-                _player.Conditions.Set($"mission completed: {taken.Mission.Name}", 1);
+            Mission mission = taken.Mission;
+            RecordProgress(mission, "active", -1);
+
+            switch (outcome)
+            {
+                case MissionOutcome.Completed:
+                    RecordProgress(mission, "done", 1);
+                    break;
+
+                case MissionOutcome.Failed:
+                    RecordProgress(mission, "failed", 1);
+                    break;
+
+                case MissionOutcome.Aborted:
+                    // Upstream raises "failed" alongside "aborted" for backwards
+                    // compatibility with content written before abort existed
+                    // (Mission.cpp:1289-1292).
+                    RecordProgress(mission, "aborted", 1);
+                    RecordProgress(mission, "failed", 1);
+                    break;
+            }
         }
     }
 }

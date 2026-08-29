@@ -57,6 +57,43 @@ namespace EndlessSky.Tests
             return player;
         }
 
+        // --- The two shapes of "not" ----------------------------------------------
+
+        [Test]
+        public void AnInlineNotExcludesOnlyWhatItNames()
+        {
+            // Upstream reads `not` two ways (LocationFilter.cpp:184-190): alone on a
+            // line it opens a nested block, but with tokens after it the rest of that
+            // same line IS the negated term. Taking the block path for both built an
+            // exclusion with no terms, and an empty filter matches everything -- so a
+            // filter carrying an inline `not` rejected every place in the galaxy. The
+            // dataset uses the inline form 676 times against 31 blocks.
+            var filter = LocationFilter.Load(new EndlessSky.Data.DataFile(
+                string.Join("\n", "destination", "\tnot attributes industrial") + "\n",
+                "test.txt").Nodes[0]);
+
+            GameData data = Load();
+
+            Assert.IsTrue(filter.Matches(data.Planets["Farmworld"], "Home", data, "Home"),
+                "a farming world is not industrial, so it passes");
+            Assert.IsFalse(filter.Matches(data.Planets["Foundry"], "Home", data, "Home"),
+                "the industrial world is the one thing excluded");
+        }
+
+        [Test]
+        public void ANotBlockStillExcludesEverythingInsideIt()
+        {
+            // The block form has to keep working: `not` alone, terms indented under it.
+            var filter = LocationFilter.Load(new EndlessSky.Data.DataFile(
+                string.Join("\n", "destination", "\tnot", "\t\tattributes industrial") + "\n",
+                "test.txt").Nodes[0]);
+
+            GameData data = Load();
+
+            Assert.IsTrue(filter.Matches(data.Planets["Farmworld"], "Home", data, "Home"));
+            Assert.IsFalse(filter.Matches(data.Planets["Foundry"], "Home", data, "Home"));
+        }
+
         // --- Where a mission is offered -------------------------------------------
 
         [Test]

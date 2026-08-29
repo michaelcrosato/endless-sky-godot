@@ -102,74 +102,105 @@ namespace EndlessSky.Sim
         {
             foreach (DataNode child in node.Children)
             {
-                string key = child.Token(0);
-
-                switch (key)
+                // `not` has two shapes, and reading only the first is what made most
+                // filters in the dataset match nothing. Upstream
+                // (LocationFilter.cpp:184-190): alone on its line it opens a nested
+                // block; with tokens after it, the REST OF THAT LINE is the negated
+                // term. Treating the inline form as a block produced an exclusion with
+                // no terms in it, and an empty filter matches everything -- so the
+                // parent rejected every place in the galaxy. The dataset uses the
+                // inline form 676 times against 31 blocks.
+                if (child.Token(0) == "not")
                 {
-                    case "not":
-                        // A nested filter that must NOT match.
-                        _notFilters.Add(Load(child));
-                        break;
+                    var exclusion = new LocationFilter();
+                    if (child.Size == 1)
+                        exclusion.LoadInto(child);
+                    else
+                        exclusion.LoadTerm(child, keyIndex: 1);
 
-                    case "planet":
-                        Collect(child, _planets);
-                        break;
-
-                    case "system":
-                        Collect(child, _systems);
-                        break;
-
-                    case "government":
-                        Collect(child, _governments);
-                        break;
-
-                    case "attributes":
-                        {
-                            var set = new HashSet<string>(StringComparer.Ordinal);
-                            Collect(child, set);
-                            // Upstream drops an empty set rather than matching nothing;
-                            // it is almost always a typo.
-                            if (set.Count > 0)
-                                _attributeSets.Add(set);
-                            break;
-                        }
-
-                    case "distance" when child.Size >= 2 && child.IsNumber(1):
-                        // "distance <max>" or "distance <min> <max>", in JUMPS from
-                        // wherever the mission is being offered.
-                        if (child.Size >= 3 && child.IsNumber(2))
-                        {
-                            OriginMinJumps = (int)child.Value(1);
-                            OriginMaxJumps = (int)child.Value(2);
-                        }
-                        else
-                        {
-                            OriginMinJumps = 0;
-                            OriginMaxJumps = (int)child.Value(1);
-                        }
-                        break;
-
-                    case "near" when child.Size >= 2:
-                        // "near <system> [<min>] <max>" - the same test, but around a
-                        // named system rather than around the player.
-                        CenterSystem = child.Token(1);
-                        if (child.Size >= 4 && child.IsNumber(2) && child.IsNumber(3))
-                        {
-                            CenterMinJumps = (int)child.Value(2);
-                            CenterMaxJumps = (int)child.Value(3);
-                        }
-                        else if (child.Size >= 3 && child.IsNumber(2))
-                        {
-                            CenterMinJumps = 0;
-                            CenterMaxJumps = (int)child.Value(2);
-                        }
-                        break;
-
-                    default:
-                        if (!string.IsNullOrEmpty(key))
-                            _unmodelled.Add(key);
-                        break;
+                    _notFilters.Add(exclusion);
+                    continue;
                 }
+
+                LoadTerm(child, keyIndex: 0);
+            }
+        }
+
+        /// <summary>
+        /// Reads one term of a filter from a line, where the key sits at
+        /// <paramref name="keyIndex"/> and its values follow it.
+        /// </summary>
+        /// <remarks>
+        /// The index is a parameter because upstream's <c>LoadChild</c> reads the same
+        /// grammar at an offset when the line begins with <c>not</c> or
+        /// <c>neighbor</c> -- its <c>valueIndex = 1 + isNot</c>
+        /// (<c>LocationFilter.cpp:533-534</c>).
+        /// </remarks>
+        private void LoadTerm(DataNode child, int keyIndex)
+        {
+            string key = child.Token(keyIndex);
+            int first = keyIndex + 1;
+
+            switch (key)
+            {
+                case "planet":
+                    Collect(child, _planets, first);
+                    break;
+
+                case "system":
+                    Collect(child, _systems, first);
+                    break;
+
+                case "government":
+                    Collect(child, _governments, first);
+                    break;
+
+                case "attributes":
+                    {
+                        var set = new HashSet<string>(StringComparer.Ordinal);
+                        Collect(child, set, first);
+                        // Upstream drops an empty set rather than matching nothing;
+                        // it is almost always a typo.
+                        if (set.Count > 0)
+                            _attributeSets.Add(set);
+                        break;
+                    }
+
+                case "distance" when child.Size > first && child.IsNumber(first):
+                    // "distance <max>" or "distance <min> <max>", in JUMPS from
+                    // wherever the mission is being offered.
+                    if (child.Size > first + 1 && child.IsNumber(first + 1))
+                    {
+                        OriginMinJumps = (int)child.Value(first);
+                        OriginMaxJumps = (int)child.Value(first + 1);
+                    }
+                    else
+                    {
+                        OriginMinJumps = 0;
+                        OriginMaxJumps = (int)child.Value(first);
+                    }
+                    break;
+
+                case "near" when child.Size > first:
+                    // "near <system> [<min>] <max>" - the same test, but around a
+                    // named system rather than around the player.
+                    CenterSystem = child.Token(first);
+                    if (child.Size > first + 2 && child.IsNumber(first + 1) && child.IsNumber(first + 2))
+                    {
+                        CenterMinJumps = (int)child.Value(first + 1);
+                        CenterMaxJumps = (int)child.Value(first + 2);
+                    }
+                    else if (child.Size > first + 1 && child.IsNumber(first + 1))
+                    {
+                        CenterMinJumps = 0;
+                        CenterMaxJumps = (int)child.Value(first + 1);
+                    }
+                    break;
+
+                default:
+                    if (!string.IsNullOrEmpty(key))
+                        _unmodelled.Add(key);
+                    break;
             }
         }
 
@@ -178,9 +209,9 @@ namespace EndlessSky.Sim
         /// so both of these mean the same thing upstream:
         /// <c>attributes a b</c> and <c>attributes</c> with children <c>a</c>, <c>b</c>.
         /// </summary>
-        private static void Collect(DataNode node, HashSet<string> into)
+        private static void Collect(DataNode node, HashSet<string> into, int first = 1)
         {
-            for (int i = 1; i < node.Size; i++)
+            for (int i = first; i < node.Size; i++)
                 into.Add(node.Token(i));
 
             foreach (DataNode grand in node.Children)

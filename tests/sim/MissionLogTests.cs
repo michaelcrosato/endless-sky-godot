@@ -51,6 +51,71 @@ namespace EndlessSky.Tests
             return new MissionLog(player);
         }
 
+        // --- Progress conditions --------------------------------------------------
+
+        [Test]
+        public void AcceptingAMissionRaisesUpstreamsOfferedAndActiveCounters()
+        {
+            // Mission.cpp:1298-1300. Content gates on these six counters and nothing
+            // else: the dataset carries 1,966 references to them (": done" alone 1,156)
+            // and none at all to any other spelling. Inventing our own key scheme left
+            // every one of those gates reading zero forever.
+            MissionLog log = Start(out PlayerState player, out GameData data);
+
+            log.Accept(data.Missions["Deliver Grain"]);
+
+            Assert.AreEqual(1, player.Conditions.Get("Deliver Grain: offered"));
+            Assert.AreEqual(1, player.Conditions.Get("Deliver Grain: active"));
+            Assert.AreEqual(0, player.Conditions.Get("Deliver Grain: done"));
+        }
+
+        [Test]
+        public void CompletingAMissionMovesTheCounterFromActiveToDone()
+        {
+            // Mission.cpp:1313-1316.
+            MissionLog log = Start(out PlayerState player, out GameData data);
+
+            ActiveMission taken = log.Accept(data.Missions["Deliver Grain"]);
+            player.Depart();
+            player.Land(data.Planets["Away"]);
+            Assert.IsTrue(log.Complete(taken), "the delivery can be handed in");
+
+            Assert.AreEqual(0, player.Conditions.Get("Deliver Grain: active"));
+            Assert.AreEqual(1, player.Conditions.Get("Deliver Grain: done"));
+            Assert.AreEqual(1, player.Conditions.Get("Deliver Grain: offered"),
+                "offered counts the taking, and is not undone by finishing");
+        }
+
+        [Test]
+        public void DecliningAMissionCountsAsOfferedAndDeclined()
+        {
+            // Mission.cpp:1308-1311.
+            MissionLog log = Start(out PlayerState player, out GameData data);
+
+            log.Decline(data.Missions["Deliver Grain"]);
+
+            Assert.AreEqual(1, player.Conditions.Get("Deliver Grain: offered"));
+            Assert.AreEqual(1, player.Conditions.Get("Deliver Grain: declined"));
+            Assert.AreEqual(0, player.Conditions.Get("Deliver Grain: active"));
+        }
+
+        [Test]
+        public void AMissionThatRunsOutOfTimeCountsAsFailed()
+        {
+            // Mission.cpp:1281-1284.
+            MissionLog log = Start(out PlayerState player, out GameData data);
+
+            log.Accept(data.Missions["Urgent Parcel"]);
+            for (int day = 0; day < 10; day++)
+            {
+                player.AdvanceDays(1);
+                log.Step();
+            }
+
+            Assert.AreEqual(0, player.Conditions.Get("Urgent Parcel: active"));
+            Assert.AreEqual(1, player.Conditions.Get("Urgent Parcel: failed"));
+        }
+
         // --- Availability ---------------------------------------------------------
 
         [Test]
@@ -101,7 +166,7 @@ namespace EndlessSky.Tests
             Assert.AreEqual(20, taken.CargoLoaded, "the hold should take the whole load");
             Assert.AreEqual(20, player.Fleet.CargoCount("Grain"));
             Assert.AreEqual(11_000, player.Credits, "the advance is paid on acceptance");
-            Assert.AreEqual(1, player.Conditions.Get("mission: Deliver Grain"));
+            Assert.AreEqual(1, player.Conditions.Get("Deliver Grain: active"));
         }
 
         [Test]
@@ -181,8 +246,8 @@ namespace EndlessSky.Tests
             player.Land(data.Planets["Away"]);
             log.Complete(taken);
 
-            Assert.AreEqual(0, player.Conditions.Get("mission: Deliver Grain"));
-            Assert.AreEqual(1, player.Conditions.Get("mission completed: Deliver Grain"));
+            Assert.AreEqual(0, player.Conditions.Get("Deliver Grain: active"));
+            Assert.AreEqual(1, player.Conditions.Get("Deliver Grain: done"));
         }
 
         // --- Deadlines and failure ------------------------------------------------
@@ -228,7 +293,7 @@ namespace EndlessSky.Tests
 
             Assert.AreEqual(MissionOutcome.Aborted, taken.Outcome);
             Assert.AreEqual(0, player.Fleet.CargoCount("Grain"));
-            Assert.AreEqual(0, player.Conditions.Get("mission: Deliver Grain"));
+            Assert.AreEqual(0, player.Conditions.Get("Deliver Grain: active"));
         }
 
         // --- NPC objectives -------------------------------------------------------
@@ -324,7 +389,7 @@ namespace EndlessSky.Tests
             ActiveMission? taken = log.Accept(offers[0]);
             Assert.IsNotNull(taken);
             Assert.AreEqual(1, log.Active.Count);
-            Assert.AreEqual(1, player.Conditions.Get($"mission: {offers[0].Name}"));
+            Assert.AreEqual(1, player.Conditions.Get($"{offers[0].Name}: active"));
         }
     }
 }
