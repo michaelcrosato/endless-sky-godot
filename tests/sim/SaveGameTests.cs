@@ -81,6 +81,22 @@ namespace EndlessSky.Tests
                 "bought on the day the save was taken, so still brand new");
         }
 
+        [Test]
+        public void ScheduledEventsSurviveASave()
+        {
+            // A load that forgets the queue loses every consequence the player has set
+            // in motion but not yet seen.
+            GameData data = Load();
+            PlayerState original = Populated(data);
+            original.ScheduleEvent("something later", original.Date.AddDays(12));
+
+            PlayerState restored = SaveGame.Read(SaveGame.Write(original), data);
+
+            Assert.AreEqual(1, restored.ScheduledEvents.Count);
+            Assert.AreEqual("something later", restored.ScheduledEvents[0].Name);
+            Assert.AreEqual(original.Date.AddDays(12), restored.ScheduledEvents[0].When);
+        }
+
         // --- Restoring the mission log --------------------------------------------
 
         [Test]

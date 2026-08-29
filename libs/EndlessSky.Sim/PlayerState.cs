@@ -143,6 +143,54 @@ namespace EndlessSky.Sim
             Depart();
         }
 
+        // Events waiting for their day, in schedule order.
+        private readonly List<(string Name, DateTime When)> _scheduledEvents =
+            new List<(string, DateTime)>();
+
+        /// <summary>Events scheduled but not yet fired, for saving.</summary>
+        public IReadOnlyList<(string Name, DateTime When)> ScheduledEvents => _scheduledEvents;
+
+        /// <summary>
+        /// Queues a game event to fire on a given day.
+        /// </summary>
+        /// <remarks>
+        /// Events were parsed and nothing ever fired them — no queue, no date check — so
+        /// 416 of them sat in the dataset doing nothing, which is most of how the galaxy
+        /// is supposed to change underneath the player.
+        /// </remarks>
+        public void ScheduleEvent(string name, DateTime when)
+        {
+            if (!string.IsNullOrEmpty(name))
+                _scheduledEvents.Add((name, when));
+        }
+
+        /// <summary>
+        /// Fires every scheduled event whose day has come, and forgets it.
+        /// </summary>
+        /// <returns>The events that fired, in the order they did.</returns>
+        public IReadOnlyList<string> FireDueEvents(GameData? data)
+        {
+            var fired = new List<string>();
+            if (data is null || _scheduledEvents.Count == 0)
+                return fired;
+
+            // Taken by value first: an event that schedules another must not have its
+            // own list mutated underneath the walk.
+            var due = _scheduledEvents.Where(e => e.When <= Date).ToList();
+            _scheduledEvents.RemoveAll(e => e.When <= Date);
+
+            foreach ((string name, _) in due)
+            {
+                if (!data.Events.TryGetValue(name, out GameEvent? evt))
+                    continue;
+
+                evt.Apply(data, this);
+                fired.Add(name);
+            }
+
+            return fired;
+        }
+
         /// <summary>Marks a system visited without moving the player there.</summary>
         public void MarkVisited(StarSystem? system)
         {

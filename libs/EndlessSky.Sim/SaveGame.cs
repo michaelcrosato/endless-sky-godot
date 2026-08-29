@@ -103,6 +103,11 @@ namespace EndlessSky.Sim
                 }
             }
 
+            // Events already scheduled but not yet due. Without these a load loses
+            // every consequence the player has set in motion but not yet seen.
+            foreach ((string name, DateTime when) in player.ScheduledEvents)
+                writer.Write("scheduled event", name, when.Day, when.Month, when.Year);
+
             // When the player bought what they own. Without it a load re-values the
             // whole fleet at the no-record default -- the depreciation floor -- so
             // saving and loading quietly took three quarters off everything.
@@ -233,6 +238,14 @@ namespace EndlessSky.Sim
                             if (child.Token(0) == "commodity" && child.Size >= 3)
                                 player.Fleet.LoadCargo(child.Token(1), (int)child.Value(2));
                         break;
+
+                    case "scheduled event" when node.Size >= 5:
+                        {
+                            DateTime? when = SafeDate(node.Slice(1));
+                            if (when.HasValue)
+                                player.ScheduleEvent(node.Token(1), when.Value);
+                            break;
+                        }
 
                     case "purchases":
                         foreach (DataNode child in node.Children)

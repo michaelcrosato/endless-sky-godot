@@ -60,6 +60,16 @@ namespace EndlessSky.Sim
             public ConditionAssignments? Assignments;
             public ConversationOutcome Outcome;
 
+            /// <summary>
+            /// Choice only: one gate per option, or null where the option is
+            /// unconditional. Upstream tests an option's `to display` set before showing
+            /// it (Conversation.cpp:507-509); ignoring the gate offers the player
+            /// choices the content meant to hide — a bribe they cannot afford, an option
+            /// belonging to a storyline they never joined — and gives away that the
+            /// branch exists at all.
+            /// </summary>
+            internal List<ConditionSet?> OptionGates { get; } = new List<ConditionSet?>();
+
             /// <summary>Choice only: option text, the label it jumps to, and any ending it triggers.</summary>
             public List<(string Text, string? Target, ConversationOutcome Outcome)> Options =
                 new List<(string, string?, ConversationOutcome)>();
@@ -193,7 +203,10 @@ namespace EndlessSky.Sim
             var element = new Element { Kind = Kind.Choice };
 
             foreach (DataNode option in node.Children)
+            {
                 element.Options.Add((option.Token(0), FindGoto(option), FindOutcome(option)));
+                element.OptionGates.Add(FindDisplayGate(option));
+            }
 
             return element;
         }
@@ -214,6 +227,16 @@ namespace EndlessSky.Sim
             "explode" => ConversationOutcome.Explode,
             _ => ConversationOutcome.None,
         };
+
+        /// <summary>The `to display` gate on a node or option, or null when it has none.</summary>
+        private static ConditionSet? FindDisplayGate(DataNode node)
+        {
+            foreach (DataNode child in node.Children)
+                if (child.Token(0) == "to" && child.Size >= 2 && child.Token(1) == "display")
+                    return ConditionSet.Load(child);
+
+            return null;
+        }
 
         /// <summary>An ending declared as a child of a text node or choice option.</summary>
         private static ConversationOutcome FindOutcome(DataNode node)

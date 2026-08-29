@@ -162,8 +162,20 @@ namespace EndlessSky.Sim
                         }
 
                     case Conversation.Kind.Choice:
-                        foreach ((string text, string? target, ConversationOutcome outcome) in element.Options)
+                        for (int option = 0; option < element.Options.Count; option++)
                         {
+                            // An option's `to display` gate decides whether the player
+                            // is even shown it (Conversation.cpp:507-509). Ignoring the
+                            // gate offers choices the content meant to hide, and gives
+                            // away that the branch exists at all.
+                            ConditionSet? gate = option < element.OptionGates.Count
+                                ? element.OptionGates[option]
+                                : null;
+
+                            if (gate != null && !gate.Test(_conditions))
+                                continue;
+
+                            (string text, string? target, ConversationOutcome outcome) = element.Options[option];
                             _choices.Add(text);
                             _pendingOptionTargets.Add(target);
                             _pendingOptionOutcomes.Add(outcome);

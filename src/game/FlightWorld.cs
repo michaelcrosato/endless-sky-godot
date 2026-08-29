@@ -1695,6 +1695,14 @@ namespace EndlessSky.Game
             // look for another. Seeded, so a run stays reproducible.
             _universe?.Trade.StepEconomy(() => _spawnRandom.NextDouble() * 2.0 - 1.0);
 
+            // Events fire on their day. 416 of them were parsed and nothing ever fired
+            // one, which is most of how the galaxy is supposed to change underneath the
+            // player over a long game.
+            foreach (string fired in _player.FireDueEvents(_universe))
+            {
+                GD.Print($"[event] {fired}");
+            }
+
             IReadOnlyList<ActiveMission> ended = _missions?.Step() ?? System.Array.Empty<ActiveMission>();
             foreach (ActiveMission over in ended)
             {

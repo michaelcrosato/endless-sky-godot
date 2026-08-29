@@ -104,10 +104,16 @@ namespace EndlessSky.Sim
         private readonly List<ActiveMission> _finished = new List<ActiveMission>();
         private readonly PlayerState _player;
         private readonly NpcSpawner? _npcs;
+        private readonly Func<int, int> _random;
 
-        public MissionLog(PlayerState player, NpcSpawner? npcs = null)
+        public MissionLog(PlayerState player, NpcSpawner? npcs = null, Func<int, int>? random = null)
         {
             _player = player ?? throw new ArgumentNullException(nameof(player));
+
+            // Injected for the same reason the spawners take one: a scheduled event's
+            // delay is a range, and a test needs to pin which day it lands on.
+            var shared = new Random();
+            _random = random ?? (n => n <= 0 ? 0 : shared.Next(n));
 
             // Without a spawner an npc block stays a template, which is fine for a log
             // under test but leaves every combat objective unreachable in a running
@@ -224,6 +230,15 @@ namespace EndlessSky.Sim
         {
             if (action is null)
                 return;
+
+            // Schedule anything this action sets in motion. The delay is a range, so a
+            // storyline does not fire on a predictable day for every player.
+            foreach (ScheduledEvent scheduled in action.Events)
+            {
+                int span = Math.Max(0, scheduled.MaxDays - scheduled.MinDays);
+                int days = scheduled.MinDays + (span > 0 ? _random(span + 1) : 0);
+                _player.ScheduleEvent(scheduled.Name, _player.Date.AddDays(days));
+            }
 
             foreach (string name in action.FailsMissions)
             {

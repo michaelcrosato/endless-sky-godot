@@ -366,5 +366,54 @@ namespace EndlessSky.Tests
 
             TestContext.WriteLine($"walked {conversations.Count} conversations, {ended} ended explicitly");
         }
+
+        // --- "to display" gates ----------------------------------------------------
+
+        [Test]
+        public void AChoiceIsHiddenWhenItsDisplayConditionFails()
+        {
+            // Conversation.cpp:507-509 tests an option's `to display` set before showing
+            // it. Ignoring the gate offers the player choices the content meant to hide
+            // — a bribe they cannot afford, an option that belongs to a storyline they
+            // never joined — and gives away that the branch exists at all.
+            Conversation talk = Conversation.Load(new EndlessSky.Data.DataFile(string.Join("\n",
+                "conversation \"Gated\"",
+                "\t`Well?`",
+                "\tchoice",
+                "\t\t`Pay the bribe.`",
+                "\t\t\tto display",
+                "\t\t\t\thas \"rich\"",
+                "\t\t\taccept",
+                "\t\t`Walk away.`",
+                "\t\t\tdecline") + "\n", "test.txt").Nodes[0]);
+
+            var poor = new Conditions();
+            var runner = new ConversationRunner(talk, poor);
+
+            CollectionAssert.AreEqual(new[] { "Walk away." }, runner.Choices.ToArray(),
+                "the bribe is not on offer to somebody who cannot pay it");
+        }
+
+        [Test]
+        public void AChoiceIsShownWhenItsDisplayConditionPasses()
+        {
+            Conversation talk = Conversation.Load(new EndlessSky.Data.DataFile(string.Join("\n",
+                "conversation \"Gated\"",
+                "\t`Well?`",
+                "\tchoice",
+                "\t\t`Pay the bribe.`",
+                "\t\t\tto display",
+                "\t\t\t\thas \"rich\"",
+                "\t\t\taccept",
+                "\t\t`Walk away.`",
+                "\t\t\tdecline") + "\n", "test.txt").Nodes[0]);
+
+            var rich = new Conditions();
+            rich.Set("rich", 1);
+
+            var runner = new ConversationRunner(talk, rich);
+
+            Assert.AreEqual(2, runner.Choices.Count, "both options are open to somebody who can pay");
+        }
     }
 }

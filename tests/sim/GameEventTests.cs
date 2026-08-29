@@ -224,5 +224,82 @@ namespace EndlessSky.Tests
             TestContext.WriteLine("stocked with: " +
                                   string.Join(", ", fresh.Shipyards["Kestrel"].Items));
         }
+
+        // --- Events actually firing ------------------------------------------------
+
+        private static (PlayerState player, GameData data) EventFixture()
+        {
+            var data = new GameData();
+            data.LoadText(string.Join("\n",
+                "event \"war breaks out\"",
+                "\tset \"at war\"",
+                "system \"Sol\"",
+                "\tpos 0 0") + "\n");
+
+            var player = new PlayerState(data);
+            player.EnterSystem(data.Systems["Sol"]);
+            return (player, data);
+        }
+
+        [Test]
+        public void AScheduledEventFiresOnItsDayAndNotBefore()
+        {
+            // Events were parsed and nothing ever fired them: no queue, no date check.
+            // 416 of them sat in the dataset doing nothing, which is most of how the
+            // galaxy is supposed to change underneath the player.
+            (PlayerState player, GameData data) = EventFixture();
+
+            player.ScheduleEvent("war breaks out", player.Date.AddDays(3));
+
+            for (int day = 0; day < 2; day++)
+            {
+                player.AdvanceDays(1);
+                player.FireDueEvents(data);
+            }
+
+            Assert.AreEqual(0, player.Conditions.Get("at war"), "not yet");
+
+            player.AdvanceDays(1);
+            player.FireDueEvents(data);
+
+            Assert.AreEqual(1, player.Conditions.Get("at war"), "the day arrives");
+        }
+
+        [Test]
+        public void AnEventFiresOnceAndIsForgotten()
+        {
+            (PlayerState player, GameData data) = EventFixture();
+            player.ScheduleEvent("war breaks out", player.Date);
+
+            player.FireDueEvents(data);
+            player.Conditions.Set("at war", 0);
+
+            player.AdvanceDays(10);
+            player.FireDueEvents(data);
+
+            Assert.AreEqual(0, player.Conditions.Get("at war"), "it does not fire again");
+        }
+
+        [Test]
+        public void AMissionActionCanScheduleAnEvent()
+        {
+            // GameAction.cpp:217-223: `event "<name>" <min> <max>` schedules it that
+            // many days out. Unparsed, a mission that sets the galaxy in motion did
+            // nothing at all.
+            var data = new GameData();
+            data.LoadText(string.Join("\n",
+                "event \"war breaks out\"",
+                "\tset \"at war\"",
+                "mission \"Spark\"",
+                "\ton accept",
+                "\t\tevent \"war breaks out\" 5 5") + "\n");
+
+            MissionAction accept = data.Missions["Spark"].Action(MissionTrigger.Accept)!;
+
+            Assert.AreEqual(1, accept.Events.Count);
+            Assert.AreEqual("war breaks out", accept.Events[0].Name);
+            Assert.AreEqual(5, accept.Events[0].MinDays);
+            Assert.AreEqual(5, accept.Events[0].MaxDays);
+        }
     }
 }

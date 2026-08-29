@@ -47,6 +47,23 @@ namespace EndlessSky.Sim
         Abort,
     }
 
+    /// <summary>A game event an action schedules, and how far out.</summary>
+    public sealed class ScheduledEvent
+    {
+        public ScheduledEvent(string name, int minDays, int maxDays)
+        {
+            Name = name;
+            MinDays = minDays;
+            MaxDays = maxDays;
+        }
+
+        public string Name { get; }
+
+        public int MinDays { get; }
+
+        public int MaxDays { get; }
+    }
+
     /// <summary>
     /// What happens at one point in a mission's life. Port of upstream
     /// <c>MissionAction</c>, reduced to the parts that change player state.
@@ -84,6 +101,9 @@ namespace EndlessSky.Sim
 
         /// <summary>Other missions this action fails by name.</summary>
         public List<string> FailsMissions { get; } = new List<string>();
+
+        /// <summary>Game events this action schedules.</summary>
+        public List<ScheduledEvent> Events { get; } = new List<ScheduledEvent>();
 
         public static MissionAction Load(DataNode node)
         {
@@ -123,6 +143,21 @@ namespace EndlessSky.Sim
                     // job. Neither was parsed, so 197 bare uses and 63 named ones did
                     // nothing at all and a mission that said "you have blown it" quietly
                     // kept running.
+                    // GameAction.cpp:217-223: `event "<name>" [min] [max]` schedules a
+                    // game event that many days out, defaulting to one day and to
+                    // min when max is absent. Unparsed, a mission that sets the galaxy
+                    // in motion did nothing at all.
+                    case "event" when child.Size >= 2:
+                        {
+                            int min = child.Size >= 3 && child.IsNumber(2) ? (int)child.Value(2) : 1;
+                            int max = child.Size >= 4 && child.IsNumber(3) ? (int)child.Value(3) : min;
+                            if (max < min)
+                                (min, max) = (max, min);
+
+                            action.Events.Add(new ScheduledEvent(child.Token(1), min, max));
+                            break;
+                        }
+
                     case "fail" when child.Size >= 2:
                         action.FailsMissions.Add(child.Token(1));
                         break;
