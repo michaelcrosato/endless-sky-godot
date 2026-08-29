@@ -381,5 +381,70 @@ namespace EndlessSky.Tests
             // real data is overwhelmingly inside its bands.
             Assert.Greater(ratio, 0.9, $"only {ratio:P1} of quotes sat inside their commodity band");
         }
+
+        // --- Plugin overrides ------------------------------------------------------
+
+        [Test]
+        public void ASecondDefinitionMergesIntoTheFirstByDefault()
+        {
+            // Merging is the default and is what lets a later file EXTEND an earlier
+            // definition, which is most of what content packs do.
+            var data = new GameData();
+            data.LoadText(string.Join("\n",
+                "outfit \"Widget\"",
+                "\t\"mass\" 10",
+                "\t\"outfit space\" -5",
+                "outfit \"Widget\"",
+                "\t\"mass\" 3") + "\n");
+
+            Outfit widget = data.Outfits["Widget"];
+            Assert.AreEqual(13.0, widget.Attributes.Get("mass"), 1e-9, "the two masses merged");
+            Assert.AreEqual(-5.0, widget.Attributes.Get("outfit space"), 1e-9,
+                "and the first definition's other attributes survived");
+        }
+
+        [Test]
+        public void AnOverwriteNodeReplacesTheNextDefinitionOutright()
+        {
+            // UniverseObjects.cpp:386-405. A bare `overwrite` root node puts the NEXT
+            // definition into replace mode: the stored object is reset before loading,
+            // so a plugin can supersede a vanilla definition rather than adding to it.
+            // Unrecognised, `overwrite` was counted as an unknown root key and the
+            // definition after it merged as usual — which is the difference between a
+            // plugin replacing a ship and doubling its mass.
+            var data = new GameData();
+            data.LoadText(string.Join("\n",
+                "outfit \"Widget\"",
+                "\t\"mass\" 10",
+                "\t\"outfit space\" -5",
+                "overwrite",
+                "outfit \"Widget\"",
+                "\t\"mass\" 3") + "\n");
+
+            Outfit widget = data.Outfits["Widget"];
+            Assert.AreEqual(3.0, widget.Attributes.Get("mass"), 1e-9, "replaced, not added to");
+            Assert.AreEqual(0.0, widget.Attributes.Get("outfit space"), 1e-9,
+                "and the earlier definition is gone entirely");
+            CollectionAssert.DoesNotContain(data.UnhandledNodes.Keys, "overwrite");
+        }
+
+        [Test]
+        public void OverwriteAppliesToOneDefinitionOnly()
+        {
+            // "Overwrite mode is only good for one node at a time"
+            // (UniverseObjects.cpp:727-728).
+            var data = new GameData();
+            data.LoadText(string.Join("\n",
+                "outfit \"Widget\"",
+                "\t\"mass\" 10",
+                "overwrite",
+                "outfit \"Widget\"",
+                "\t\"mass\" 3",
+                "outfit \"Widget\"",
+                "\t\"mass\" 4") + "\n");
+
+            Assert.AreEqual(7.0, data.Outfits["Widget"].Attributes.Get("mass"), 1e-9,
+                "the third definition merges again");
+        }
     }
 }

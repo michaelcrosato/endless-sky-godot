@@ -206,6 +206,11 @@ namespace EndlessSky.Tests
         {
             // Systems that set an arrival distance do it to stop ships dropping in on
             // their worlds. Checked here on real content rather than a fixture.
+            // This scenario used to filter systems on ExtraHyperArrivalDistance > 0 and
+            // then assert, for each one, that ExtraHyperArrivalDistance > 0 — the
+            // predicate it had just filtered on. It made no jump, built no ship and
+            // touched no arrival code. It does now: a real jump into a guarded system,
+            // asserting the ship comes out at least that far from the centre.
             var guarded = Data.Systems.Values
                 .Where(s => s.ExtraHyperArrivalDistance > 0.0)
                 .ToList();
@@ -214,8 +219,50 @@ namespace EndlessSky.Tests
             TestContext.WriteLine($"{guarded.Count} systems hold arrivals at a distance; e.g. " +
                 string.Join(", ", guarded.Take(4).Select(s => $"{s.Name} {s.ExtraHyperArrivalDistance:F0}")));
 
-            foreach (StarSystem system in guarded.Take(20))
-                Assert.Greater(system.ExtraHyperArrivalDistance, 0.0);
+            // A guarded system reachable from somewhere: the jump has to be legal.
+            StarSystem? destination = null;
+            StarSystem? origin = null;
+            foreach (StarSystem candidate in guarded)
+            {
+                foreach (string link in candidate.Links)
+                {
+                    if (Data.Systems.TryGetValue(link, out StarSystem? from))
+                    {
+                        destination = candidate;
+                        origin = from;
+                        break;
+                    }
+                }
+
+                if (destination != null)
+                    break;
+            }
+
+            Assert.IsNotNull(destination, "a guarded system with a link into it");
+
+            foreach (StarSystem system in Data.Systems.Values)
+                system.SetDate(0.0);
+
+            Ship ship = Spawn("Shuttle");
+            ship.CurrentSystem = origin;
+            ship.TargetSystem = destination;
+            ship.Facing = Angle.FromPoint(ship.JumpDirection);
+
+            Assert.IsTrue(ship.TryCommitJump(),
+                $"{origin!.Name} -> {destination!.Name} should be legal");
+
+            // Not `while (IsHyperspacing)`: the count is still zero on the frame the
+            // jump is committed, so that condition exits before it has begun.
+            for (int i = 0; i < 600 && ship.CurrentSystem != destination; i++)
+                ship.StepHyperspace();
+
+            Assert.AreEqual(destination, ship.CurrentSystem, "the jump completed");
+            Assert.GreaterOrEqual(ship.Position.Length, destination.ExtraHyperArrivalDistance,
+                $"{destination.Name} holds arrivals {destination.ExtraHyperArrivalDistance:F0} out, " +
+                $"and the ship came out at {ship.Position.Length:F0}");
+
+            TestContext.WriteLine($"arrived in {destination.Name} at {ship.Position.Length:F0}, " +
+                $"required {destination.ExtraHyperArrivalDistance:F0}");
         }
 
         // --- Economics ------------------------------------------------------------

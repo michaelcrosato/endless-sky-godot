@@ -432,8 +432,29 @@ namespace EndlessSky.Sim
 
         private void LoadNodes(IReadOnlyList<DataNode> nodes)
         {
+            // A bare `overwrite` root node puts the NEXT definition into replace mode
+            // rather than the usual merge (UniverseObjects.cpp:381-405). That is
+            // upstream's mechanism for a plugin to supersede a vanilla definition
+            // instead of adding to it — the difference between replacing a ship and
+            // doubling its mass — and the directive asks this loader to be designed for
+            // plugin overrides. It applies to one definition only (:727-728).
+            bool overwrite = false;
+
             foreach (DataNode node in nodes)
             {
+                if (node.Token(0) == "overwrite")
+                {
+                    overwrite = true;
+                    continue;
+                }
+
+                if (overwrite)
+                {
+                    Forget(node);
+                }
+
+                overwrite = false;
+
                 switch (node.Token(0))
                 {
                     case "ship" when node.Size >= 2:
@@ -517,6 +538,36 @@ namespace EndlessSky.Sim
 
                         break;
                 }
+            }
+        }
+
+        /// <summary>
+        /// Drops any stored definition this node would otherwise merge into, so the
+        /// loader builds a fresh one. This is what <c>overwrite</c> means.
+        /// </summary>
+        private void Forget(DataNode node)
+        {
+            if (node.Size < 2)
+                return;
+
+            string name = node.Token(1);
+
+            switch (node.Token(0))
+            {
+                case "ship": _ships.Remove(node.Size >= 3 ? node.Token(2) : name); break;
+                case "outfit": _outfits.Remove(name); break;
+                case "system": _systems.Remove(name); break;
+                case "planet": _planets.Remove(name); break;
+                case "shipyard": _shipyards.Remove(name); break;
+                case "outfitter": _outfitters.Remove(name); break;
+                case "government": _governments.Remove(name); break;
+                case "fleet": _fleets.Remove(name); break;
+                case "mission": _missions.Remove(name); break;
+                case "event": _events.Remove(name); break;
+                case "conversation": _conversations.Remove(name); break;
+                case "minable": _minables.Remove(name); break;
+                case "start": _starts.Remove(name); break;
+                case "wormhole": _wormholes.Remove(name); break;
             }
         }
 
