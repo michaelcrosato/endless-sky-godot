@@ -218,5 +218,38 @@ namespace EndlessSky.Tests
             Assert.IsNotEmpty(file.Diagnostics);
             Assert.AreEqual("unclosed", file.Nodes[0].Token(1), "the token still ends at the line break");
         }
+
+        [Test]
+        public void ANodeThatCannotConvertAValueSaysSoOnTheFileItCameFrom()
+        {
+            // DataNode.Trace routed both node-level warnings through a STATIC hook that
+            // nothing in the repository ever assigned, so every one of them was dropped
+            // by a null-conditional invoke — while the doc comment above it said the
+            // loader points it at its own collector. Upstream prints these
+            // (DataNode.cpp:125); a parser that swallows them cannot tell you which
+            // line of content is wrong.
+            var file = new DataFile("outfit \"Thing\"" + "\n" + "\t\"mass\" heavy" + "\n", "content.txt");
+
+            double value = file.Nodes[0].Children[0].Value(1);
+
+            Assert.AreEqual(0.0, value, "an unconvertible value reads as zero");
+            Assert.IsNotEmpty(file.Diagnostics, "and the file says which line was wrong");
+            StringAssert.Contains("heavy", file.Diagnostics[0]);
+            StringAssert.Contains("content.txt", file.Diagnostics[0]);
+        }
+
+        [Test]
+        public void AskingForATokenThatIsNotThereIsReported()
+        {
+            var file = new DataFile("outfit \"Thing\"" + "\n", "content.txt");
+
+            // Value, not Token: reading a token that is not there is a legitimate way
+            // to probe a node's shape, but asking for a NUMBER that is not there is a
+            // content error worth reporting.
+            file.Nodes[0].Value(9);
+
+            Assert.IsNotEmpty(file.Diagnostics);
+            StringAssert.Contains("out of bounds", file.Diagnostics[0]);
+        }
     }
 }

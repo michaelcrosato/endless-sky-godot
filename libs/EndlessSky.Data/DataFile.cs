@@ -58,6 +58,10 @@ namespace EndlessSky.Data
 
             _root.SourceFile = sourceName;
 
+            // Every node under this root traces into this file's own collector, which
+            // GameData.LoadFile already drains into its Diagnostics list.
+            _root.Diagnostics = Diagnostics;
+
             // Upstream appends a sentinel newline so every line terminates uniformly.
             if (data.Length == 0 || data[data.Length - 1] != '\n')
             {

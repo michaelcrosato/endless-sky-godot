@@ -240,15 +240,41 @@ namespace EndlessSky.Data
             return true;
         }
 
+        private List<string>? _diagnostics;
+
         /// <summary>
-        /// Diagnostic sink. The loader points this at its own collector so parse warnings
-        /// are surfaced instead of silently swallowed.
+        /// Where this node's parse warnings go: the owning file's collector, inherited
+        /// through <see cref="Parent"/> exactly as <see cref="SourceFile"/> is.
         /// </summary>
-        public static Action<string>? OnDiagnostic;
+        /// <remarks>
+        /// This used to be a public STATIC hook that nothing in the repository ever
+        /// assigned, so every warning it carried was dropped by a null-conditional
+        /// invoke — while the doc comment above it said the loader points it at its own
+        /// collector. A parser that silently swallows "cannot convert value" cannot
+        /// tell anyone which line of content is wrong, which is most of what a parse
+        /// warning is for. Instance-scoped also means two files being read at once
+        /// cannot write into each other's diagnostics.
+        /// </remarks>
+        internal List<string>? Diagnostics
+        {
+            get
+            {
+                for (DataNode? n = this; n != null; n = n.Parent)
+                {
+                    if (n._diagnostics != null)
+                    {
+                        return n._diagnostics;
+                    }
+                }
+
+                return null;
+            }
+            set => _diagnostics = value;
+        }
 
         internal void Trace(string message)
         {
-            OnDiagnostic?.Invoke($"{message} \"{this}\" ({SourceFile ?? "<memory>"}:{LineNumber})");
+            Diagnostics?.Add($"{message} \"{this}\" ({SourceFile ?? "<memory>"}:{LineNumber})");
         }
 
         public override string ToString() => string.Join(" ", _tokens);
