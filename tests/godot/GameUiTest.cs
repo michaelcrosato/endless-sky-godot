@@ -75,7 +75,19 @@ namespace EndlessSky.Tests.Presentation
                     _ => new TutorialScreen(),
                 };
 
-                AssertThat(panel).IsNotNull();
+                // _Ready is where a screen actually builds itself, and building is
+                // where it would reach for player state. Constructing one and freeing
+                // it ran no screen code at all: the assertion could not fail for the
+                // reason the test exists. Godot calls _Ready when a node enters the
+                // tree, so the panel has to enter one.
+                Node root = ((SceneTree)Engine.GetMainLoop()).Root;
+                root.AddChild(panel);
+
+                AssertThat(panel.GetChildCount())
+                    .OverrideFailureMessage($"{screen} built no content in _Ready")
+                    .IsGreater(0);
+
+                root.RemoveChild(panel);
                 panel.Free();
             }
         }

@@ -421,5 +421,65 @@ namespace EndlessSky.Tests
             Assert.IsTrue(victim.IsDisabled, "the attacker should have worn its target down");
             Assert.Less(victim.Shields, 1.0, "shields go first");
         }
+
+        // --- Lead aiming ----------------------------------------------------------
+
+        [Test]
+        public void RendezvousTimeSolvesAHeadOnInterceptByHand()
+        {
+            // A target 100 units directly ahead, closing at 1/frame, against a shot
+            // flying at 9/frame: they meet at 100 / (9 + 1) = 10 frames. Derived from
+            // the geometry, not recorded from a run.
+            double time = ShipAi.RendezvousTime(
+                new Point(0.0, 100.0), new Point(0.0, -1.0), 9.0);
+
+            Assert.AreEqual(10.0, time, 1e-9);
+        }
+
+        [Test]
+        public void RendezvousTimeLeadsACrossingTarget()
+        {
+            // Crossing at right angles: the shot has to be sent ahead of the target,
+            // so the intercept takes longer than the straight-line flight time.
+            double straight = 100.0 / 9.0;
+            double crossing = ShipAi.RendezvousTime(
+                new Point(0.0, 100.0), new Point(3.0, 0.0), 9.0);
+
+            Assert.Greater(crossing, straight, "leading a crosser costs time");
+            Assert.Less(crossing, 2.0 * straight, "but not that much time");
+        }
+
+        [Test]
+        public void ATargetOutrunningTheShotCannotBeIntercepted()
+        {
+            // Upstream returns no solution rather than a plausible-looking wrong one,
+            // so the caller has to decide what to do about a target it cannot hit.
+            double time = ShipAi.RendezvousTime(
+                new Point(0.0, 100.0), new Point(0.0, 20.0), 9.0);
+
+            Assert.IsNaN(time, "running away faster than the shot flies");
+        }
+
+        [Test]
+        public void AimPointLeadsAMovingTargetAndIsWhatMakesTwoEqualShipsResolve()
+        {
+            // The whole reason this exists: fixed guns fire along the hull, so a ship
+            // nosed at where its target IS can only hit one that is not moving across
+            // it — two evenly matched hulls trade shots forever and neither loses a
+            // point. Deleting AimPoint left all 666 tests green, which is how the
+            // audit found it; this is that hole closed.
+            Ship shooter = MakeShip("Shooter", Point.Zero);
+            Ship target = MakeShip("Target", new Point(0.0, 400.0));
+            Weapon gun = MakeGun("Blaster", "\"velocity\" 10", "\"lifetime\" 200",
+                                 "\"reload\" 1").Weapon;
+
+            target.Velocity = new Point(4.0, 0.0);   // crossing to the right
+
+            Point straight = target.Position - shooter.Position;
+            Point led = ShipAi.AimPoint(shooter, target, gun);
+
+            Assert.Greater(led.X, straight.X,
+                "the aim point sits ahead of the target, in the direction it is going");
+        }
     }
 }

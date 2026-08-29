@@ -1688,6 +1688,12 @@ namespace EndlessSky.Game
             _currentDay = DaysSinceEpoch(_player.Date.Year, _player.Date.Month, _player.Date.Day);
             _ship?.CurrentSystem?.SetDate(_currentDay);
 
+            // Prices move with the days. StepEconomy had callers only in tests, so
+            // every world quoted the same number for the whole session: a trade route
+            // found once was the best route always, and there was no reason to ever
+            // look for another. Seeded, so a run stays reproducible.
+            _universe?.Trade.StepEconomy(() => _spawnRandom.NextDouble() * 2.0 - 1.0);
+
             IReadOnlyList<ActiveMission> ended = _missions?.Step() ?? System.Array.Empty<ActiveMission>();
             foreach (ActiveMission over in ended)
             {
