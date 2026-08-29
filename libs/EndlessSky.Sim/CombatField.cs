@@ -169,7 +169,30 @@ namespace EndlessSky.Sim
             return closest;
         }
 
-        private void SpawnSubmunitions(Projectile parent, IReadOnlyList<Submunition>? submunitions,
+        /// <summary>
+        /// Source of randomness for submunition spread, returning [0, 1).
+        /// Replaceable so a test can make a burst deterministic.
+        /// </summary>
+        public Func<double>? RandomSource { get; set; }
+
+        private static readonly Random SharedRandom = new Random();
+
+        /// <summary>
+        /// One child's deflection, in degrees. Triangular, as
+        /// <c>Distribution::GenerateInaccuracy</c> defaults to.
+        /// </summary>
+        private double Inaccuracy(Weapon weapon)
+        {
+            double spread = weapon.Inaccuracy;
+            if (spread <= 0.0)
+                return 0.0;
+
+            double Roll() => RandomSource?.Invoke() ?? SharedRandom.NextDouble();
+            return (Roll() - Roll()) * spread;
+        }
+
+        /// <summary>Builds a burst's children. Public so the spread can be tested directly.</summary>
+        public void SpawnSubmunitions(Projectile parent, IReadOnlyList<Submunition>? submunitions,
                                        List<Projectile> into, DeathType death)
         {
             if (submunitions is null || submunitions.Count == 0)
@@ -187,14 +210,14 @@ namespace EndlessSky.Sim
 
                 for (int i = 0; i < submunition.Count; i++)
                 {
-                    // The declared facing offset is what makes a cluster FAN OUT.
-                    // Without it every child inherits the parent's exact heading and
-                    // the whole cluster flies as a single shot.
-                    Angle heading = parent.Angle + new Angle(submunition.Facing);
-                    Point spawn = parent.Position + parent.Angle.Rotate(submunition.Offset);
+                    // The declared facing offset is what makes a cluster FAN OUT, and
+                    // each child also takes its own inaccuracy roll — upstream applies
+                    // one per submunition (Projectile.cpp:175-177), which is the second
+                    // source of spread and the one that keeps identical fragments from
+                    // flying in perfect formation.
+                    var facing = new Angle(submunition.Facing + Inaccuracy(weapon));
 
-                    into.Add(new Projectile(weapon, spawn, parent.Velocity,
-                                            heading, parent.Target, parent.Government));
+                    into.Add(new Projectile(parent, weapon, submunition.Offset, facing));
                 }
             }
         }

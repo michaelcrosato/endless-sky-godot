@@ -193,5 +193,39 @@ namespace EndlessSky.Tests
             Assert.IsEmpty(fleet.Escorts.ToList());
             Assert.AreEqual(0, FleetOrders.Execute(fleet, FleetOrder.Gather));
         }
+
+        [Test]
+        public void HoldingStationDoesNotFirstAccelerateTheShipAway()
+        {
+            // AI.cpp:2681-2724 sets FORWARD only once the ship is actually pointed
+            // retrograde, gated by a tolerance that tightens as the stop gets shorter.
+            // Burning unconditionally while still turning around means the first thing
+            // a "hold" order does is push the escort further from where it was told to
+            // hold.
+            Ship escort = Make();
+            escort.Velocity = new Point(0.0, 6.0);
+            escort.Facing = Angle.FromPoint(escort.Velocity);   // pointed along the way it is going
+
+            double speedBefore = escort.Velocity.Length;
+
+            escort.Step(FleetOrders.For(FleetOrder.Hold, escort, escort));
+
+            Assert.LessOrEqual(escort.Velocity.Length, speedBefore + 1e-9,
+                "a hold order must never speed the ship up");
+        }
+
+        [Test]
+        public void HoldingStationEventuallyStops()
+        {
+            // The whole order is only worth anything if it converges.
+            Ship escort = Make();
+            escort.Velocity = new Point(0.0, 6.0);
+            escort.Facing = Angle.FromPoint(escort.Velocity);
+
+            for (int frame = 0; frame < 900; frame++)
+                escort.Step(FleetOrders.For(FleetOrder.Hold, escort, escort));
+
+            Assert.Less(escort.Velocity.Length, 0.05, "it comes to rest");
+        }
     }
 }

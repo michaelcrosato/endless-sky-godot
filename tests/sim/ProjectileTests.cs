@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using EndlessSky.Data;
 using EndlessSky.Sim;
@@ -237,6 +238,50 @@ namespace EndlessSky.Tests
             Point resting = shot.Position;
             shot.Step();
             Assert.AreEqual(resting, shot.Position);
+        }
+
+        [Test]
+        public void ASubmunitionFliesAlongItsOwnHeadingNotItsParents()
+        {
+            // Projectile.cpp:119-120 redirects the parent's own impulse along the
+            // child's heading: dV = child.angle.Unit() * (|parent.dV| + child velocity),
+            // then velocity += dV - parent.dV. Handing the child the parent's whole
+            // velocity vector instead made the declared facing offset cosmetic — the
+            // cluster LOOKED like it fanned out and every fragment still travelled the
+            // way the carrier had been going, so a shotgun round landed as one shot.
+            var field = new CombatField();
+
+            var carrier = new Weapon();
+            carrier.Load(new EndlessSky.Data.DataFile(string.Join("\n",
+                "weapon",
+                "\t\"velocity\" 10",
+                "\t\"lifetime\" 1",
+                "\tsubmunition \"Fragment\" 1",
+                "\t\tfacing 90") + "\n", "test.txt").Nodes[0]);
+
+            var fragment = new Weapon();
+            fragment.Load(new EndlessSky.Data.DataFile(string.Join("\n",
+                "weapon",
+                "\t\"velocity\" 0",
+                "\t\"lifetime\" 30") + "\n", "test.txt").Nodes[0]);
+
+            carrier.ResolveSubmunitions(name => name == "Fragment" ? fragment : null);
+
+            // Fired from a ship at rest, heading along +Y, so the parent's whole speed
+            // is its own impulse.
+            var shot = new Projectile(carrier, Point.Zero, Point.Zero, new Angle(0.0));
+            var children = new List<Projectile>();
+            field.SpawnSubmunitions(shot, carrier.Submunitions, children, DeathType.Natural);
+
+            Assert.AreEqual(1, children.Count);
+
+            Point heading = children[0].Angle.Unit();
+            Point velocity = children[0].Velocity;
+
+            Assert.AreEqual(10.0, velocity.Length, 1e-6,
+                "the carrier's speed is carried over, not added to");
+            Assert.AreEqual(10.0, velocity.Dot(heading), 1e-6,
+                "and it travels along its OWN heading");
         }
     }
 }

@@ -41,11 +41,47 @@ namespace EndlessSky.Sim
 
             Position = position;
             Angle = angle;
-            Velocity = parentVelocity + angle.Unit() * weapon.Velocity;
+            Dv = angle.Unit() * weapon.Velocity;
+            Velocity = parentVelocity + Dv;
             Lifetime = (int)weapon.Lifetime;
             Target = target;
             Government = government;
         }
+
+        /// <summary>
+        /// A submunition of <paramref name="parent"/>, bursting on its own heading.
+        /// Port of upstream's submunition constructor (<c>Projectile.cpp:104-125</c>).
+        /// </summary>
+        /// <remarks>
+        /// The redirection is the point. Upstream takes the MAGNITUDE of the parent's
+        /// own impulse and re-applies it along the child's heading —
+        /// <c>dV = angle.Unit() * (|parent.dV| + weapon.Velocity)</c>, then
+        /// <c>velocity += dV - parent.dV</c> — so the parent's speed carries over
+        /// without dragging the child along the parent's direction. Handing a child the
+        /// parent's whole velocity vector instead makes the declared facing offset
+        /// cosmetic: the cluster looks like it fans out and every fragment still travels
+        /// the way the carrier was going, so a shotgun round lands as one shot.
+        /// </remarks>
+        public Projectile(Projectile parent, Weapon weapon, Point offset, Angle facing)
+        {
+            _weapon = weapon ?? throw new ArgumentNullException(nameof(weapon));
+            if (parent is null) throw new ArgumentNullException(nameof(parent));
+
+            Angle = parent.Angle + facing;
+            Position = parent.Position + parent.Velocity + parent.Angle.Rotate(offset);
+            Dv = Angle.Unit() * (parent.Dv.Length + weapon.Velocity);
+            Velocity = parent.Velocity + Dv - parent.Dv;
+            Lifetime = (int)weapon.Lifetime;
+            Target = parent.Target;
+            Government = parent.Government;
+        }
+
+        /// <summary>
+        /// The velocity this shot gave ITSELF, as distinct from what it inherited from
+        /// whatever launched it. A submunition needs the two apart to redirect one
+        /// without the other.
+        /// </summary>
+        public Point Dv { get; private set; }
 
         public Weapon Weapon => _weapon;
 

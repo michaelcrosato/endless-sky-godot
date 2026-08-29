@@ -203,17 +203,65 @@ namespace EndlessSky.Sim
             return self.Position + velocity.Unit() * stopDistance;
         }
 
-        /// <summary>Kills velocity: face retrograde and burn.</summary>
+        /// <summary>
+        /// Kills velocity. Port of upstream <c>AI::Stop</c> (<c>AI.cpp:2670-2726</c>).
+        /// </summary>
+        /// <remarks>
+        /// Thrust waits until the ship is actually pointed the right way. Burning while
+        /// still turning around means the first thing a hold order does is push the
+        /// escort further from where it was told to hold, and — because thrust in the
+        /// wrong direction adds speed faster than the turn can correct — it may never
+        /// converge at all.
+        ///
+        /// The tolerance is upstream's, and it is a fudge factor rather than a
+        /// principle: 0.8 when the stop will take many frames, tightening toward 1 as
+        /// it gets short, so a ship nearly stopped has to be aimed nearly perfectly
+        /// before it spends its last burn.
+        ///
+        /// A reverse thruster is preferred when turning 180 degrees would cost more
+        /// time than braking from where the ship already points.
+        /// </remarks>
         private static Command Stop(Ship self)
         {
-            if (self.Velocity.LengthSquared < 1e-9)
+            double speed = self.Velocity.Length;
+            if (speed <= VelocityZero)
                 return Command.None;
+
+            double acceleration = self.Acceleration;
+            double stopTime = acceleration > 0.0 ? speed / acceleration : double.MaxValue;
+            double limit = 0.8 + 0.2 / (1.0 + stopTime * stopTime * stopTime * 0.001);
+
+            double alignment = self.Velocity.Unit().Dot(self.Facing.Unit());
+
+            if (self.ReverseThrust > 0.0 && self.TurnRate > 0.0 && self.ReverseAcceleration > 0.0)
+            {
+                double degreesToTurn = ToDegrees(Math.Acos(Math.Clamp(-alignment, -1.0, 1.0)));
+                double forwardTime = degreesToTurn / self.TurnRate + stopTime;
+                double reverseTime = (180.0 - degreesToTurn) / self.TurnRate
+                                     + speed / self.ReverseAcceleration;
+
+                if (reverseTime < forwardTime)
+                {
+                    return new Command
+                    {
+                        Turn = FlightControls.TurnToward(self, self.Velocity),
+                        Back = alignment > limit,
+                        Stop = true,
+                    };
+                }
+            }
 
             return new Command
             {
                 Turn = FlightControls.TurnBackward(self),
-                Forward = true,
+                Forward = alignment < -limit,
+                Stop = true,
             };
         }
+
+        /// <summary>Upstream's VELOCITY_ZERO: below this a ship counts as stopped.</summary>
+        private const double VelocityZero = 0.001;
+
+        private static double ToDegrees(double radians) => radians * (180.0 / Math.PI);
     }
 }
