@@ -98,10 +98,43 @@ namespace EndlessSky.Sim
         /// <summary>Whether a condition is non-zero, which is what "has" tests.</summary>
         public bool Has(string name) => Get(name) != 0L;
 
+        /// <summary>
+        /// Registers a prefixed condition content may also assign to.
+        /// </summary>
+        /// <remarks>
+        /// Most provided conditions are derived state and read-only, but a few are
+        /// genuinely two-way: upstream's <c>reputation: </c> both reads a government's
+        /// standing and sets it (<c>PlayerInfo.cpp:4654-4667</c>), because content
+        /// adjusts standing directly as a reward or a penalty.
+        /// </remarks>
+        public void ProvidePrefixed(string prefix, Func<string, long> provider,
+                                    Action<string, long> writer)
+        {
+            if (string.IsNullOrEmpty(prefix) || provider is null || writer is null)
+                return;
+
+            ProvidePrefixed(prefix, provider);
+            _prefixedWriters.RemoveAll(entry => entry.Key == prefix);
+            _prefixedWriters.Add(new KeyValuePair<string, Action<string, long>>(prefix, writer));
+        }
+
+        private readonly List<KeyValuePair<string, Action<string, long>>> _prefixedWriters =
+            new List<KeyValuePair<string, Action<string, long>>>();
+
         public void Set(string name, long value)
         {
             if (string.IsNullOrEmpty(name))
                 return;
+
+            // A few provided conditions are two-way; route those to their writer.
+            foreach (KeyValuePair<string, Action<string, long>> entry in _prefixedWriters)
+            {
+                if (name.StartsWith(entry.Key, StringComparison.Ordinal))
+                {
+                    entry.Value(name[entry.Key.Length..], value);
+                    return;
+                }
+            }
 
             // A provided condition is derived from game state, so writing it would be
             // silently discarded on the next read. Upstream treats these as read-only.

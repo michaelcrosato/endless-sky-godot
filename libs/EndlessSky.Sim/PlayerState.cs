@@ -21,8 +21,8 @@ namespace EndlessSky.Sim
     /// layers able to see the game at all.
     ///
     /// INCOMPLETE, tracked rather than dropped: outfit storage on planets, parked
-    /// ships, carried-fighter bays, per-government reputation, plugin and person
-    /// conditions, and the "previous system/planet" family are not provided yet.
+    /// ships, carried-fighter bays, plugin and person conditions, and the "previous
+    /// system/planet" family are not provided yet.
     /// Reading one returns 0 through the ordinary stored-value path rather than
     /// throwing, which is upstream's behaviour for an unknown condition anyway.
     /// </remarks>
@@ -37,6 +37,10 @@ namespace EndlessSky.Sim
         private readonly HashSet<string> _visitedSystems = new HashSet<string>(StringComparer.Ordinal);
         private readonly HashSet<string> _visitedPlanets = new HashSet<string>(StringComparer.Ordinal);
         private readonly GameData? _data;
+
+        // Seeded from the start date: content that gates on a roll should vary between
+        // gates but not between two runs of the same save.
+        private readonly Random _rolls = new Random(20261116);
 
         public PlayerState(GameData? data = null, Conditions? conditions = null)
         {
@@ -186,6 +190,34 @@ namespace EndlessSky.Sim
                 () => new DateTime(Date.Year, 12, 31).DayOfYear - Date.DayOfYear);
             store.ProvideNamed("days since epoch", () => (long)(Date - Epoch).TotalDays);
             store.ProvideNamed("days since start", () => (long)(Date - StartDate).TotalDays);
+
+            // A roll, in upstream's range [0, 100). Content gates on `random < 40` to
+            // make an outcome happen four times in ten; an unregistered condition reads
+            // 0, so `random < N` was ALWAYS true and every such gate fired every time.
+            // Seeded from the start date rather than the clock, so a run reproduces.
+            store.ProvideNamed("random", () => _rolls.Next(100));
+
+            // "roll: 100", or "roll: max attempts" naming another condition
+            // (PlayerInfo.cpp:4677-4686). Zero for anything at or below 1.
+            store.ProvidePrefixed("roll: ", input =>
+            {
+                long bound = long.TryParse(input, out long literal) ? literal : Conditions.Get(input);
+                return bound <= 1 ? 0 : _rolls.NextInt64(bound);
+            });
+
+            // Government standing, read AND written: content adjusts reputation
+            // directly as a reward or a penalty (PlayerInfo.cpp:4654-4667). Left
+            // unregistered, every `reputation: X` gate read a dead zero however the
+            // player had actually behaved.
+            store.ProvidePrefixed("reputation: ",
+                name => _data != null && _data.Governments.TryGetValue(name, out Government? gov)
+                    ? (long)gov.Reputation
+                    : 0L,
+                (name, value) =>
+                {
+                    if (_data != null && _data.Governments.TryGetValue(name, out Government? gov))
+                        gov.SetReputation(value);
+                });
 
             // Money.
             store.ProvideNamed("credits", () => Credits);

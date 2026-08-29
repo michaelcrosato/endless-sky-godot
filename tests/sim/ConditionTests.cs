@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Linq;
 using EndlessSky.Data;
 using EndlessSky.Sim;
 using NUnit.Framework;
@@ -303,6 +305,53 @@ namespace EndlessSky.Tests
 
             conditions.Set("main plot: failed", 1);
             Assert.IsFalse(Test(text, conditions), "a failure flag locks the mission out");
+        }
+
+        // --- The conditions the engine provides ------------------------------------
+
+        [Test]
+        public void RandomIsARollNotAMissingCondition()
+        {
+            // PlayerInfo.cpp:4670. Content gates on `random < 40` to make an outcome
+            // happen four times in ten. An unregistered condition reads 0, so
+            // `random < N` was ALWAYS true and every such gate fired every time.
+            var data = new GameData();
+            data.LoadText("government \"Navy\"" + "\n");
+            var player = new PlayerState(data);
+
+            var seen = new HashSet<long>();
+            for (int roll = 0; roll < 200; roll++)
+                seen.Add(player.Conditions.Get("random"));
+
+            Assert.Greater(seen.Count, 1, "a roll that never changes is not a roll");
+            Assert.IsTrue(seen.All(v => v >= 0 && v < 100), "upstream's range is [0, 100)");
+        }
+
+        [Test]
+        public void ReputationReadsAndWritesTheGovernmentItNames()
+        {
+            // PlayerInfo.cpp:4654-4667: read AND write, because content adjusts
+            // standing directly. Unregistered, every `reputation: X` gate read a dead
+            // zero however the player had actually behaved.
+            var data = new GameData();
+            data.LoadText("government \"Navy\"" + "\n");
+            var player = new PlayerState(data);
+
+            data.Governments["Navy"].SetReputation(42);
+            Assert.AreEqual(42, player.Conditions.Get("reputation: Navy"));
+
+            player.Conditions.Set("reputation: Navy", -7);
+            Assert.AreEqual(-7.0, data.Governments["Navy"].Reputation, 1e-9,
+                "content that sets standing has to actually set it");
+        }
+
+        [Test]
+        public void ReputationOfAGovernmentNobodyDefinedIsZero()
+        {
+            var data = new GameData();
+            data.LoadText("government \"Navy\"" + "\n");
+
+            Assert.AreEqual(0, new PlayerState(data).Conditions.Get("reputation: Nobody"));
         }
     }
 }
