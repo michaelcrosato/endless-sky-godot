@@ -190,6 +190,16 @@ namespace EndlessSky.Data
             return sign < 0.0 ? -magnitude : magnitude;
         }
 
+        /// <summary>Whether a token parses as a number.</summary>
+        /// <remarks>
+        /// DELIBERATE DIVERGENCE, recorded rather than hidden: upstream's string
+        /// overload loops over the characters and returns true for an EMPTY token,
+        /// because the loop body never runs (<c>DataNode.cpp:201-234</c>). Its index
+        /// overload guards against that separately (<c>:193</c>), and so does ours, so
+        /// no caller can observe the difference — but an empty string is not a number
+        /// in any useful sense, and a public helper that says it is invites a caller to
+        /// be surprised later.
+        /// </remarks>
         public static bool IsNumber(string token)
         {
             if (string.IsNullOrEmpty(token))

@@ -11,9 +11,12 @@ namespace EndlessSky.Sim
     ///
     /// Definitions merge by name across files, matching upstream, which is what allows a
     /// later file (or eventually a plugin) to extend an earlier definition rather than
-    /// replace it. Node kinds that are not yet modelled are retained verbatim in
-    /// <see cref="UnhandledNodes"/> rather than discarded, so that content coverage can be
-    /// measured and no data is silently lost.
+    /// replace it. Node kinds that are not yet modelled are COUNTED in
+    /// <see cref="UnhandledNodes"/> rather than retained — a tally of root-node keys and
+    /// how often each was skipped, which is enough to measure content coverage and
+    /// drive it down, but is not the nodes themselves. Nothing can be replayed from
+    /// one, and a node kind counted there IS dropped — it is visible in the tally
+    /// rather than silent, which is the honest claim.
     /// </summary>
     public class GameData
     {
