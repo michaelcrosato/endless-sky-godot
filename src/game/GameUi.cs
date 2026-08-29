@@ -16,6 +16,7 @@ namespace EndlessSky.Game
         Controls,
         Options,
         Tutorial,
+        Destroyed,
     }
 
     /// <summary>
@@ -59,6 +60,12 @@ namespace EndlessSky.Game
 
         /// <summary>Raised when the player asks to quit.</summary>
         public event Action? QuitRequested;
+
+        /// <summary>Raised when the player asks to save; the handler reports success.</summary>
+        public event Func<bool>? SaveRequested;
+
+        /// <summary>Raised when the player asks to continue a saved game.</summary>
+        public event Func<bool>? LoadRequested;
 
         /// <summary>Screen to open on the first frame; only used for captures.</summary>
         public static UiScreen OpenAtStart { get; set; } = UiScreen.None;
@@ -130,11 +137,28 @@ namespace EndlessSky.Game
                 screen.Step(this);
         }
 
+        /// <summary>
+        /// Whether the run is over. The death screen is not a panel the player can
+        /// dismiss, so every other screen transition has to refuse to move off it.
+        /// </summary>
+        public bool IsGameOver => Screen == UiScreen.Destroyed;
+
         /// <summary>Opens a screen, or closes it if it is already the one showing.</summary>
-        public void Toggle(UiScreen screen) => Show(Screen == screen ? UiScreen.None : screen);
+        public void Toggle(UiScreen screen)
+        {
+            if (IsGameOver)
+                return;
+
+            Show(Screen == screen ? UiScreen.None : screen);
+        }
 
         public void Show(UiScreen screen)
         {
+            // Destruction is terminal: nothing dismisses it, so a stray Esc cannot put
+            // the player back at the controls of a ship that no longer exists.
+            if (IsGameOver && screen != UiScreen.Destroyed)
+                return;
+
             if (_current != null)
             {
                 _current.QueueFree();
@@ -167,13 +191,14 @@ namespace EndlessSky.Game
 
         private Control Build(UiScreen screen) => screen switch
         {
-            UiScreen.MainMenu => new MainMenuScreen(),
+            UiScreen.MainMenu => new MainMenuScreen(_universe),
             UiScreen.Pause => new PauseScreen(),
             UiScreen.Status => new StatusScreen(_player, _missions, _universe, _ship()),
             UiScreen.Map => new MapScreen(_player, _universe, _ship(), OnDestinationChosen),
             UiScreen.Controls => new ControlsScreen(),
             UiScreen.Options => new OptionsScreen(),
             UiScreen.Tutorial => new TutorialScreen(),
+            UiScreen.Destroyed => new DestroyedScreen(),
             _ => new Control(),
         };
 
@@ -184,6 +209,20 @@ namespace EndlessSky.Game
         }
 
         internal void RequestQuit() => QuitRequested?.Invoke();
+
+        /// <summary>Saves, and reports what happened so a menu row can say so.</summary>
+        internal string RequestSave() =>
+            SaveRequested?.Invoke() == true ? "saved" : "could not save";
+
+        /// <summary>Loads the saved game and closes the menu if it worked.</summary>
+        internal string RequestLoad()
+        {
+            if (LoadRequested?.Invoke() != true)
+                return "no save to load";
+
+            Show(UiScreen.None);
+            return "loaded";
+        }
 
         /// <summary>Edge-triggered key read: true only on the frame a key goes down.</summary>
         public bool Pressed(Key key)

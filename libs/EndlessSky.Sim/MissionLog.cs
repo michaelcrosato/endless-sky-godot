@@ -33,6 +33,19 @@ namespace EndlessSky.Sim
         /// <summary>The day after which this mission has failed, if it has one.</summary>
         public DateTime? Deadline { get; }
 
+        /// <summary>
+        /// The world this mission is actually going to, fixed when it was accepted.
+        /// </summary>
+        /// <remarks>
+        /// Most missions describe their destination with a filter rather than naming a
+        /// planet, so it has to be resolved into a real place at accept time -- exactly
+        /// as upstream fixes one in Mission::Instantiate. Reading only the literal
+        /// Mission.Destination left this null for every described job, which silently
+        /// removed the "be there to hand it in" requirement and placed every
+        /// `system destination` NPC wherever the player happened to be standing.
+        /// </remarks>
+        public string? Destination { get; internal set; }
+
         public MissionOutcome Outcome { get; internal set; } = MissionOutcome.Active;
 
         /// <summary>Cargo actually loaded, which may be less than asked if the hold was small.</summary>
@@ -141,7 +154,13 @@ namespace EndlessSky.Sim
                 ? _player.Date.AddDays(mission.DeadlineDays)
                 : null;
 
-            var taken = new ActiveMission(mission, _player.Date, deadline);
+            var taken = new ActiveMission(mission, _player.Date, deadline)
+            {
+                // Fixed now, not looked up later: a job that names its destination in
+                // prose has to be going to ONE place, and that place has to be the same
+                // one the text quoted, the NPCs are placed at, and the hand-in checks.
+                Destination = mission.ResolveDestination(_player.Data, _player.CurrentSystem?.Name),
+            };
 
             if (mission.CargoTons > 0 && mission.CargoType != null)
                 taken.CargoLoaded = _player.Fleet.LoadCargo(mission.CargoType, mission.CargoTons);
@@ -152,9 +171,9 @@ namespace EndlessSky.Sim
             // same, and it is why a bounty left half-finished stays half-finished.
             if (_npcs != null && mission.Npcs.Count > 0)
             {
-                StarSystem? destination = mission.Destination is null
+                StarSystem? destination = taken.Destination is null
                     ? null
-                    : FindSystemOf(mission.Destination);
+                    : FindSystemOf(taken.Destination);
 
                 taken.Npcs.AddRange(_npcs.Place(mission, _player.CurrentSystem, destination));
             }
@@ -203,9 +222,12 @@ namespace EndlessSky.Sim
             if (taken is null || taken.Outcome != MissionOutcome.Active)
                 return false;
 
-            // At the destination, on the ground.
-            if (taken.Mission.Destination != null &&
-                _player.CurrentPlanet?.Name != taken.Mission.Destination)
+            // At the destination, on the ground. The destination is the one fixed when
+            // the mission was accepted, which is the only way a job that DESCRIBES
+            // where it is going still has a "there" to be at. Checking the literal
+            // Mission.Destination instead meant every described job -- which is most of
+            // them -- skipped this check entirely and paid out anywhere.
+            if (taken.Destination != null && _player.CurrentPlanet?.Name != taken.Destination)
             {
                 return false;
             }
@@ -419,6 +441,7 @@ namespace EndlessSky.Sim
             DateTime accepted = _player.Date, deadline = default;
             bool hasDeadline = false;
             int cargo = 0;
+            string? destination = null;
 
             foreach (DataNode child in node.Children)
             {
@@ -440,12 +463,21 @@ namespace EndlessSky.Sim
                     case "cargo" when child.Size >= 2:
                         cargo = (int)child.Value(1);
                         break;
+
+                    case "destination" when child.Size >= 2:
+                        destination = child.Token(1);
+                        break;
                 }
             }
 
             var taken = new ActiveMission(mission, accepted, hasDeadline ? deadline : null)
             {
                 CargoLoaded = cargo,
+
+                // Saves written before destinations were recorded have none; resolving
+                // one now is better than leaving the job with nowhere to be handed in.
+                Destination = destination
+                    ?? mission.ResolveDestination(_player.Data, _player.CurrentSystem?.Name),
             };
 
             // No progress counters here on purpose: this is the load path, and the

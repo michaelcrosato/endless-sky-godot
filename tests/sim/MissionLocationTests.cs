@@ -94,6 +94,35 @@ namespace EndlessSky.Tests
             Assert.IsFalse(filter.Matches(data.Planets["Foundry"], "Home", data, "Home"));
         }
 
+        // --- A described destination has to decide behaviour, not just text -------
+
+        [Test]
+        public void HandingInRequiresBeingAtADescribedDestinationToo()
+        {
+            // The "be at the destination" gate only looked at Mission.Destination, the
+            // literal planet name. Every generated job describes its destination with a
+            // filter instead, so Destination is null for all of them and the gate
+            // vanished: any job could be handed in on any world, including the one it
+            // was taken on, still carrying the cargo it was meant to deliver.
+            GameData data = Load();
+            Mission job = data.Missions["Republic Job"];
+            string destination = job.ResolveDestination(data, "Home")!;
+            string elsewhere = destination == "Farmworld" ? "Foundry" : "Farmworld";
+
+            PlayerState player = LandedOn(data, "Foundry");
+            var log = new MissionLog(player);
+            ActiveMission taken = log.Accept(job)!;
+
+            player.Depart();
+            player.Land(data.Planets[elsewhere]);
+            Assert.IsFalse(log.CanComplete(taken),
+                "the wrong world does not pay out a described destination");
+
+            player.Depart();
+            player.Land(data.Planets[destination]);
+            Assert.IsTrue(log.CanComplete(taken), "the world the job describes does");
+        }
+
         // --- Where a mission is offered -------------------------------------------
 
         [Test]

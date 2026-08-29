@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using EndlessSky.Sim;
 using Godot;
 
 namespace EndlessSky.Game
@@ -112,11 +113,16 @@ namespace EndlessSky.Game
 
         private readonly MenuItem[] _items;
 
+        /// <summary>What the last save attempt did, shown beside the row.</summary>
+        private string _saveState = string.Empty;
+
         public PauseScreen()
         {
             _items = new[]
             {
                 new MenuItem("Resume", ui => ui.Show(UiScreen.None)),
+                new MenuItem("Save game", ui => _saveState = ui.RequestSave(),
+                             value: () => _saveState),
                 new MenuItem("Status", ui => ui.Show(UiScreen.Status)),
                 new MenuItem("Galaxy map", ui => ui.Show(UiScreen.Map)),
                 new MenuItem("Controls", ui => ui.Show(UiScreen.Controls)),
@@ -129,29 +135,82 @@ namespace EndlessSky.Game
         protected override IReadOnlyList<MenuItem> Items => _items;
     }
 
+    /// <summary>
+    /// The end of a run: the player's flagship has been destroyed.
+    /// </summary>
+    /// <remarks>
+    /// Before this existed there was no death at all. A hull below zero hid its mesh
+    /// and the game carried on — HUD live, landing key working, controls answering for
+    /// a ship that no longer existed. Losing has to be a state the game can be in, or
+    /// none of the combat means anything.
+    /// </remarks>
+    public partial class DestroyedScreen : UiMenuScreen
+    {
+        protected override string Title => "YOUR SHIP WAS DESTROYED";
+
+        protected override string Subtitle =>
+            "the wreckage is spreading out behind you, and there is no one left to fly it";
+
+        protected override float MinWidth => 520f;
+
+        private readonly MenuItem[] _items;
+
+        public DestroyedScreen()
+        {
+            _items = new[]
+            {
+                new MenuItem("Quit", ui => ui.RequestQuit()),
+            };
+        }
+
+        protected override IReadOnlyList<MenuItem> Items => _items;
+    }
+
     /// <summary>The screen the game opens on.</summary>
     public partial class MainMenuScreen : UiMenuScreen
     {
         protected override string Title => "ENDLESS SKY 3D";
 
-        protected override string Subtitle =>
-            "Endless Sky's simulation, rendered in 3D — 694 systems, 902 ships";
+        protected override string Subtitle => _subtitle;
 
         protected override float MinWidth => 460f;
 
+        private readonly string _subtitle;
         private readonly MenuItem[] _items;
 
-        public MainMenuScreen()
+        /// <summary>
+        /// The counts come from the dataset that is actually loaded rather than from
+        /// constants. They used to name upstream's 694 systems and 902 ships, which the
+        /// game has not loaded since it started playing its own universe -- so the
+        /// first thing a player read was a number that was not true of their game.
+        /// </summary>
+        public MainMenuScreen(GameData? universe = null)
         {
-            _items = new[]
+            _subtitle = universe is null
+                ? "Endless Sky's simulation, rendered in 3D"
+                : $"Endless Sky's simulation, rendered in 3D — " +
+                  $"{universe.Systems.Count:n0} systems, {universe.Ships.Count:n0} ships";
+
+            var items = new List<MenuItem>
             {
                 // First run gets the tutorial; after that, straight into flight.
                 new MenuItem("Begin", ui => ui.BeginPlay()),
+            };
+
+            // Only offered when there is a game to come back to; a Continue that does
+            // nothing is worse than no Continue at all.
+            if (SaveSlot.Exists)
+                items.Add(new MenuItem("Continue", ui => ui.RequestLoad()));
+
+            items.AddRange(new[]
+            {
                 new MenuItem("How to play", ui => ui.Show(UiScreen.Tutorial)),
                 new MenuItem("Controls", ui => ui.Show(UiScreen.Controls)),
                 new MenuItem("Graphics options", ui => ui.Show(UiScreen.Options)),
                 new MenuItem("Quit", ui => ui.RequestQuit()),
-            };
+            });
+
+            _items = items.ToArray();
         }
 
         protected override IReadOnlyList<MenuItem> Items => _items;

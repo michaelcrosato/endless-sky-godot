@@ -94,6 +94,11 @@ namespace EndlessSky.Sim
                                      taken.Deadline.Value.Month, taken.Deadline.Value.Year);
                     if (taken.CargoLoaded > 0)
                         writer.Write("cargo", taken.CargoLoaded);
+                    // The destination was chosen when the job was taken; a job whose
+                    // filter matches several worlds would otherwise pick a different
+                    // one on reload and send the player somewhere they were never told.
+                    if (taken.Destination != null)
+                        writer.Write("destination", taken.Destination);
                     writer.EndChild();
                 }
             }
@@ -138,12 +143,31 @@ namespace EndlessSky.Sim
         /// Restores a player from a save. Ships and places are resolved against the
         /// universe, so a save is meaningless without the data it was made with.
         /// </summary>
-        public static PlayerState Read(string text, GameData data, MissionLog? missions = null)
+        public static PlayerState Read(string text, GameData data, MissionLog? missions = null) =>
+            Read(text, data, missions is null ? null : _ => missions);
+
+        /// <summary>
+        /// Restores a player, building its mission log from the restored player itself.
+        /// </summary>
+        /// <param name="buildLog">
+        /// Called once with the new player, before any mission is read, and expected to
+        /// return the log those missions should be restored into.
+        /// </param>
+        /// <remarks>
+        /// A <see cref="MissionLog"/> is constructed against a player, and the player is
+        /// what this method produces — so a caller loading a save had no way to supply
+        /// a log that belonged to the right player. That circle is why nothing outside
+        /// the tests could load a game with a mission in progress. The factory closes
+        /// it: the player exists first, then its log is asked for.
+        /// </remarks>
+        public static PlayerState Read(string text, GameData data,
+                                       Func<PlayerState, MissionLog>? buildLog)
         {
             if (data is null)
                 throw new ArgumentNullException(nameof(data));
 
             var player = new PlayerState(data);
+            MissionLog? missions = buildLog?.Invoke(player);
             var file = new DataFile(text ?? string.Empty, "save");
             string? system = null, planet = null;
 

@@ -468,13 +468,22 @@ namespace EndlessSky.Game
                     for (int i = 0; i < _jobs.Count; i++)
                     {
                         Mission job = _jobs[i];
-                        string where = job.Destination is null ? "" : $"  → {job.Destination}";
+
+                        // Resolve the destination rather than reading the literal one.
+                        // Almost every job DESCRIBES where it is going instead of naming
+                        // a planet, so the raw property is null for them and the board
+                        // showed a bare title: no destination, no payment, nothing to
+                        // choose between one job and the next.
+                        string? going = job.ResolveDestination(_universe, _player.CurrentSystem?.Name);
+                        string where = going is null ? "" : $"  → {going}";
                         string load = job.CargoTons > 0 ? $"  {job.CargoTons} t" : "";
+                        long payment = job.Action(MissionTrigger.Complete)?.Payment ?? 0;
+                        string pays = payment > 0 ? $"  {payment:n0} cr" : "";
 
                         // Mission text is a template; showing it unsubstituted puts
                         // "<planet> business convention" on the board.
                         string name = TextSubstitution.NameOf(job, _player, _universe);
-                        lines.Add($"{Cursor(i, selected)}{name}{where}{load}");
+                        lines.Add($"{Cursor(i, selected)}{name}{where}{load}{pays}");
                     }
 
                     if (lines.Count == 0) lines.Add("   (nothing on the board)");

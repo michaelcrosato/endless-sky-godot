@@ -71,6 +71,7 @@ namespace EndlessSky.Game
         private FleetSpawner _spawner = null!;    // set with _ship
         private Government? _playerGovernment;
         private bool _missionSmoke;
+        private bool _saveSmoke;
         private bool _smokeFire;
         private ActiveMission? _smokeJob;
         private Ship? _smokeTarget;
@@ -198,6 +199,8 @@ namespace EndlessSky.Game
             _ui.Bind(_player, _missions, universe, () => _ship);
             _ui.DestinationChosen += OnDestinationChosen;
             _ui.QuitRequested += () => GetTree().Quit();
+            _ui.SaveRequested += SaveNow;
+            _ui.LoadRequested += LoadNow;
             AddChild(_ui);
 
             _shipView.SyncWith(_ship);
@@ -247,6 +250,19 @@ namespace EndlessSky.Game
                 return;
             }
 
+            // Losing the flagship ends the run. Without this there was no death at
+            // all: a destroyed hull had its mesh hidden and everything else carried on,
+            // so the HUD, the landing key and the controls all kept answering for a
+            // ship that no longer existed.
+            if (_ship.IsDestroyed && _ui != null && !_ui.IsGameOver)
+            {
+                GD.Print($"[flight] destroyed after {_simFrames} frames in {_ship.CurrentSystem?.Name}");
+                _effects?.SpawnExplosion(_ship.Position, 6f);
+                _shipView.Visible = false;
+                _ui.Show(UiScreen.Destroyed);
+                return;
+            }
+
             // A UI screen holds the simulation the same way landing does. Without this
             // the galaxy carries on while the player reads the map, and they come back
             // to a fight they never saw start.
@@ -255,9 +271,16 @@ namespace EndlessSky.Game
                 return;
             }
 
+            if (_saveSmoke)
+            {
+                StepSaveSmoke();
+                return;
+            }
+
             // The game opens on its menu. Captures and the landed-at-start path skip
             // it: a screenshot of the menu is not a screenshot of the game.
-            if (_simFrames == 1 && _capturePath == null && !_landAtStart && !_missionSmoke)
+            if (_simFrames == 1 && _capturePath == null && !_landAtStart && !_missionSmoke
+                && !_saveSmoke)
             {
                 _ui?.Show(UiScreen.MainMenu);
                 return;
@@ -762,9 +785,32 @@ namespace EndlessSky.Game
             }
 
             _lastSystem = system;
-            _currentDay += 1.0;
-            system.SetDate(_currentDay);
 
+            // A jump takes a day, and the day has to pass on the PLAYER'S calendar --
+            // not just on the counter that positions the stellar objects. Advancing
+            // only the render-side counter meant no day ever passed in game: no
+            // deadline could expire, no salary was owed, no depreciation ticked, and
+            // MissionLog.Step -- which fires the fail triggers -- was never called at
+            // all. The counter is derived from the player's date afterwards so there is
+            // one calendar rather than two that can drift apart.
+            AdvanceDay();
+            RebuildSystemViews(system);
+
+            GD.Print($"[flight] entered {system.Name} on day {_currentDay:0} " +
+                     $"(objects={_stellarViews.Count} fuel={_ship.Fuel:0})");
+        }
+
+        /// <summary>
+        /// Replaces everything in the scene that belongs to one system: its worlds,
+        /// its asteroid belts and the lighting keyed to where the action is.
+        /// </summary>
+        /// <remarks>
+        /// The asteroid field used to be built once, for the starting system, and never
+        /// touched again — so after one jump the player flew through the belts of the
+        /// system they had left, in a system whose own rocks never appeared.
+        /// </remarks>
+        private void RebuildSystemViews(StarSystem system)
+        {
             foreach (StellarObjectView view in _stellarViews)
             {
                 view.QueueFree();
@@ -778,6 +824,10 @@ namespace EndlessSky.Game
                 _stellarViews.Add(view);
             }
 
+            _asteroidField?.QueueFree();
+            _asteroidField = AsteroidFieldView.Create(system);
+            AddChild(_asteroidField);
+
             Point playArea = Point.Zero;
             foreach (StellarObject obj in system.AllObjects())
             {
@@ -790,7 +840,7 @@ namespace EndlessSky.Game
 
             if (playArea == Point.Zero)
             {
-                playArea = _ship.Position;
+                playArea = _ship!.Position;
             }
 
             _keyLight.QueueFree();
@@ -801,9 +851,6 @@ namespace EndlessSky.Game
             {
                 _titleLabel.Text = $"{system.Name.ToUpperInvariant()}  ·  {_startShip.ToUpperInvariant()}";
             }
-
-            GD.Print($"[flight] entered {system.Name} on day {_currentDay:0} " +
-                     $"(objects={_stellarViews.Count} fuel={_ship.Fuel:0})");
         }
 
         /// <summary>
@@ -1202,7 +1249,7 @@ namespace EndlessSky.Game
                 GD.Print($"[smoke] PASS: objective met after {_smokeFrames} frames; " +
                          $"player hull {_ship.Hull:0}/{_ship.MaxHull:0}; " +
                          $"mission still open pending hand-in at " +
-                         $"{_smokeJob.Mission.Destination ?? "(nowhere)"}");
+                         $"{_smokeJob.Destination ?? "(nowhere)"}");
                 GetTree().Quit(0);
                 return;
             }
@@ -1373,6 +1420,10 @@ namespace EndlessSky.Game
                 {
                     _missionSmoke = true;
                 }
+                else if (arg == "--save-smoke")
+                {
+                    _saveSmoke = true;
+                }
                 else if (arg == "--land-at-start")
                 {
                     _landAtStart = true;
@@ -1413,6 +1464,155 @@ namespace EndlessSky.Game
         /// Date::DaysSinceEpoch (365.2425-day calendar; stellar angles depend
         /// on absolute alignment, so the epoch must match).
         /// </summary>
+        /// <summary>
+        /// --save-smoke: writes a save, changes the player, loads it back, and reports
+        /// whether the change was undone.
+        /// </summary>
+        /// <remarks>
+        /// Persistence is exactly the kind of feature the sim suite cannot vouch for:
+        /// the serialiser round-tripped correctly under test for as long as nothing in
+        /// the game called it. This drives the real path in a real engine process.
+        /// </remarks>
+        private void StepSaveSmoke()
+        {
+            // A couple of frames in, so the world is fully built first.
+            if (_simFrames != 3 || _player is null)
+            {
+                return;
+            }
+
+            long creditsBefore = _player.Credits;
+            DateTime dateBefore = _player.Date;
+
+            if (!SaveNow())
+            {
+                GD.Print("[smoke] FAIL: could not write a save");
+                GetTree().Quit();
+                return;
+            }
+
+            // Change the world, so a load that does nothing cannot look like success.
+            _player.AddCredits(-123_456);
+            _player.AdvanceDays(9);
+
+            if (!LoadNow())
+            {
+                GD.Print("[smoke] FAIL: could not load the save back");
+                GetTree().Quit();
+                return;
+            }
+
+            bool creditsBack = _player.Credits == creditsBefore;
+            bool dateBack = _player.Date == dateBefore;
+            bool flagshipBack = _player.Fleet.Flagship != null;
+
+            GD.Print(creditsBack && dateBack && flagshipBack
+                ? $"[smoke] PASS: save round-tripped — {_player.Credits:n0} credits, " +
+                  $"{_player.Date:d MMM yyyy}, flagship {_player.Fleet.Flagship!.Definition.DisplayName}"
+                : $"[smoke] FAIL: credits {creditsBack}, date {dateBack}, flagship {flagshipBack}");
+
+            GetTree().Quit();
+        }
+
+        /// <summary>
+        /// Writes the whole player — money, calendar, fleet, cargo, conditions and the
+        /// missions in progress — to the save slot.
+        /// </summary>
+        /// <remarks>
+        /// The serialiser and its round-trip tests already existed; nothing ever called
+        /// them, so the game had no Save and no Load in any menu and every session
+        /// began again from the starting world. That made every other rule that
+        /// expresses itself over days — deadlines, salaries, depreciation, reputation —
+        /// unobservable, because the player's history was discarded at quit.
+        /// </remarks>
+        private bool SaveNow()
+        {
+            if (_player is null)
+            {
+                return false;
+            }
+
+            bool written = SaveSlot.Save(SaveGame.Write(_player, _missions));
+            GD.Print(written
+                ? $"[save] wrote {SaveSlot.Where}"
+                : "[save] failed");
+
+            return written;
+        }
+
+        /// <summary>
+        /// Restores the saved game and rebuilds the world around it.
+        /// </summary>
+        private bool LoadNow()
+        {
+            string? text = SaveSlot.Load();
+            if (text is null || _universe is null)
+            {
+                return false;
+            }
+
+            MissionLog? restoredLog = null;
+            PlayerState restored = SaveGame.Read(text, _universe,
+                player => restoredLog = new MissionLog(player));
+
+            Ship? flagship = restored.Fleet.Flagship;
+            if (flagship is null || restored.CurrentSystem is null)
+            {
+                GD.PrintErr("[save] the save names no flagship or no system; ignoring it");
+                return false;
+            }
+
+            _player = restored;
+            _missions = restoredLog ?? new MissionLog(restored);
+            _credits = restored.Credits;
+
+            // The restored hull is a different object, so everything holding the old
+            // one has to be pointed at the new one: the view, the camera, the combat
+            // field and the mission log's idea of who the player is.
+            _ship = flagship;
+            _ship.BuildMounts();
+            _startShip = _ship.Definition.DisplayName;
+            _shipView.SyncWith(_ship);
+            _camera?.Snap(_ship);
+
+            _ui?.Bind(_player, _missions, _universe, () => _ship);
+
+            _lastSystem = restored.CurrentSystem;
+            _currentDay = DaysSinceEpoch(_player.Date.Year, _player.Date.Month, _player.Date.Day);
+            restored.CurrentSystem.SetDate(_currentDay);
+
+            BuildCombat(_universe);
+            RebuildSystemViews(restored.CurrentSystem);
+
+            // A load can arrive while the player is standing in a spaceport; the
+            // overlay belongs to the old player and has to go with it.
+            _isLanded = false;
+            _landedOverlay?.QueueFree();
+            _landedOverlay = null;
+
+            GD.Print($"[save] loaded {SaveSlot.Where}: {_ship.Definition.DisplayName} at " +
+                     $"{restored.CurrentSystem.Name}, {_player.Date:d MMM yyyy}, " +
+                     $"{_player.Credits:n0} credits, {_missions.Active.Count} mission(s) in progress");
+            return true;
+        }
+
+        /// <summary>
+        /// Moves the game on by one day: the player's calendar, the stellar-object
+        /// clock derived from it, and everything that only happens between days.
+        /// </summary>
+        private void AdvanceDay()
+        {
+            _player.AdvanceDays(1);
+            _currentDay = DaysSinceEpoch(_player.Date.Year, _player.Date.Month, _player.Date.Day);
+            _ship?.CurrentSystem?.SetDate(_currentDay);
+
+            IReadOnlyList<ActiveMission> ended = _missions?.Step() ?? System.Array.Empty<ActiveMission>();
+            foreach (ActiveMission over in ended)
+            {
+                GD.Print($"[mission] \"{over.Mission.DisplayName}\" ended: {over.Outcome}");
+            }
+        }
+
         internal static double DaysSinceEpoch(int year, int month, int day)
         {
             int[] mdays = { 0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334 };

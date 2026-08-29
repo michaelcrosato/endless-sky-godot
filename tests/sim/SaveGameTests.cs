@@ -64,6 +64,51 @@ namespace EndlessSky.Tests
             return player;
         }
 
+        // --- Restoring the mission log --------------------------------------------
+
+        [Test]
+        public void ActiveMissionsComeBackAttachedToTheRestoredPlayer()
+        {
+            // The log needs a player and the player is what Read produces, so a caller
+            // could not hand in a log without building it against somebody else. The
+            // factory overload closes that circle: Read builds the player, then asks
+            // for the log that belongs to it. Without this the game had no way to load
+            // a save with a mission in progress at all.
+            GameData data = Load();
+            PlayerState original = Populated(data);
+            var log = new MissionLog(original);
+            ActiveMission taken = log.Accept(data.Missions["Deliver Grain"]);
+            Assert.IsNotNull(taken);
+
+            string text = SaveGame.Write(original, log);
+
+            MissionLog? restoredLog = null;
+            PlayerState restored = SaveGame.Read(text, data, p => restoredLog = new MissionLog(p));
+
+            Assert.IsNotNull(restoredLog);
+            Assert.AreEqual(1, restoredLog!.Active.Count, "the mission in progress came back");
+            Assert.AreEqual("Deliver Grain", restoredLog.Active[0].Mission.Name);
+        }
+
+        [Test]
+        public void AMissionKeepsTheDestinationItWasGivenWhenItWasAccepted()
+        {
+            // A described destination is chosen once, when the job is taken. Losing it
+            // over a save would send the player somewhere else on reload -- or, for a
+            // job whose filter matches several worlds, somewhere they were never told
+            // about.
+            GameData data = Load();
+            PlayerState original = Populated(data);
+            var log = new MissionLog(original);
+            ActiveMission taken = log.Accept(data.Missions["Deliver Grain"])!;
+            Assert.IsNotNull(taken.Destination, "the job resolved a destination when taken");
+
+            MissionLog? restoredLog = null;
+            SaveGame.Read(SaveGame.Write(original, log), data, p => restoredLog = new MissionLog(p));
+
+            Assert.AreEqual(taken.Destination, restoredLog!.Active[0].Destination);
+        }
+
         // --- Round trip -----------------------------------------------------------
 
         [Test]
