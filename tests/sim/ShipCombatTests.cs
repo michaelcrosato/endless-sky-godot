@@ -44,6 +44,31 @@ namespace EndlessSky.Tests
             return text.ToString();
         }
 
+        /// <summary>
+        /// A hull that carries "never disabled" the way content writes it: a bare
+        /// quoted flag on the ship node, parsed by the real parser.
+        /// </summary>
+        /// <remarks>
+        /// Setting it as a numeric ATTRIBUTE instead is exactly the trap this
+        /// repository's own audit notes warn about — ship-level booleans do not live in
+        /// the attribute bag, because ShipDefinition.InheritFrom copies a base hull's
+        /// attributes only when the variant's own bag is empty. A test that sets the
+        /// attribute directly is green whether or not the parser ever learns to read
+        /// the flag, which is the shape of a test that cannot fail for its own reason.
+        /// </remarks>
+        private static Ship MakeNeverDisabled(double hull = 100.0)
+        {
+            var definition = new ShipDefinition("Drone");
+            definition.Load(new DataFile(string.Join("\n",
+                "ship \"Drone\"",
+                "\t\"never disabled\"",
+                "\tattributes",
+                "\t\t\"hull\" " + hull.ToString(System.Globalization.CultureInfo.InvariantCulture))
+                + "\n", "test.txt").Nodes[0]);
+
+            return new Ship(definition);
+        }
+
         [Test]
         public void LevelsStartFull()
         {
@@ -168,10 +193,7 @@ namespace EndlessSky.Tests
         {
             // Uses a never-disabled hull so the threshold clamp does not interfere:
             // this test is about the destroyed boundary alone.
-            var definition = new ShipDefinition("Drone");
-            definition.Attributes.Set("hull", 100.0);
-            definition.Attributes.Set("never disabled", 1.0);
-            var ship = new Ship(definition);
+            Ship ship = MakeNeverDisabled();
 
             // Exactly zero hull is explicitly NOT destroyed upstream.
             ship.TakeDamage(MakeWeapon(("hull damage", 100.0)));
@@ -262,11 +284,9 @@ namespace EndlessSky.Tests
         [Test]
         public void NeverDisabledShipsHaveNoThreshold()
         {
-            var definition = new ShipDefinition("Drone");
-            definition.Attributes.Set("hull", 100.0);
-            definition.Attributes.Set("never disabled", 1.0);
-            var ship = new Ship(definition);
+            Ship ship = MakeNeverDisabled();
 
+            Assert.IsTrue(ship.Definition.IsNeverDisabled, "the bare flag was read");
             Assert.AreEqual(0.0, ship.MinimumHull, 1e-9);
 
             ship.TakeDamage(MakeWeapon(("hull damage", 101.0)));
