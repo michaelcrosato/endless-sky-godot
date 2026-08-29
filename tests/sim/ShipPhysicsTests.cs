@@ -24,6 +24,10 @@ namespace EndlessSky.Tests
             "\tattributes\n" +
             "\t\t\"mass\" 100\n" +
             "\t\t\"drag\" 10\n" +
+            // A hull, so that "disabled" is a state this ship can actually be in.
+            // The disabled flag is derived from hull against the minimum rather than
+            // set, so a ship with no hull at all can never be crippled.
+            "\t\t\"hull\" 1000\n" +
             "\toutfits\n" +
             "\t\t\"Test Engine\"\n" +
             "\n" +
@@ -149,7 +153,7 @@ namespace EndlessSky.Tests
                 ship.Step(new Command { Forward = true });
             }
 
-            ship.IsDisabled = true;
+            ship.Disable();
             for (int i = 0; i < 400; i++)
             {
                 ship.Step(Command.None);

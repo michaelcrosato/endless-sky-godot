@@ -162,28 +162,74 @@ namespace EndlessSky.Sim
         /// </remarks>
         public void StepResources()
         {
-            // 1. Hull repair, then shields, out of energy already in the bank.
-            double hullRate = Attributes.Get("hull repair rate");
-            if (hullRate > 0.0 && Hull < MaxHull)
-                Repair(hullRate, Attributes.Get("hull energy"), Attributes.Get("hull heat"),
-                       Hull, MaxHull, repaired => SetLevels(hull: repaired));
+            // A disabled ship generates and repairs nothing. Upstream wraps this whole
+            // block in `if(!isDisabled)` (Ship.cpp:4331), and that is what makes a
+            // crippled hull STAY crippled until it is boarded or repaired. Running it
+            // unguarded let a disabled ship rebuild its shields while the fight went on
+            // around it, so a crippled raider could come back without anyone touching it.
+            if (!IsDisabled)
+            {
+                // 1. Hull repair, then shields, out of energy already in the bank.
+                double hullRate = Attributes.Get("hull repair rate");
+                if (hullRate > 0.0 && Hull < MaxHull)
+                    Repair(hullRate, Attributes.Get("hull energy"), Attributes.Get("hull heat"),
+                           Hull, MaxHull, repaired => SetLevels(hull: repaired));
 
-            double shieldRate = Attributes.Get("shield generation");
-            if (shieldRate > 0.0 && Shields < MaxShields)
-                Repair(shieldRate, Attributes.Get("shield energy"), Attributes.Get("shield heat"),
-                       Shields, MaxShields, regenerated => SetLevels(shields: regenerated));
+                double shieldRate = Attributes.Get("shield generation");
+                if (shieldRate > 0.0 && Shields < MaxShields)
+                    Repair(shieldRate, Attributes.Get("shield energy"), Attributes.Get("shield heat"),
+                           Shields, MaxShields, regenerated => SetLevels(shields: regenerated));
 
-            // 2. This frame's power, minus what the ship's systems draw idling.
-            double generated = Attributes.Get("energy generation") - Attributes.Get("energy consumption");
-            if (generated != 0.0)
-                SetLevels(energy: Math.Clamp(Energy + generated, 0.0, MaxEnergy));
+                // 2. This frame's power, minus what the ship's systems draw idling.
+                double generated = Attributes.Get("energy generation") - Attributes.Get("energy consumption");
+                if (generated != 0.0)
+                    SetLevels(energy: Math.Clamp(Energy + generated, 0.0, MaxEnergy));
+            }
 
             // 3. Heat: what the hull makes, less what it sheds. Dissipation is a
             //    fraction of current heat, so a hot ship cools faster than a cool one.
+            //    Heat keeps moving on a disabled ship, which is how one cools back down.
             Heat += Attributes.Get("heat generation") - Attributes.Get("cooling");
             Heat -= Heat * HeatDissipation;
             if (Heat < 0.0)
                 Heat = 0.0;
+
+            ApplyOverheating();
+            IsDisabled = ComputeDisabled();
+        }
+
+        /// <summary>
+        /// Updates the overheated flag and applies overheat hull burn.
+        /// Port of upstream <c>Ship::DoGeneration</c>'s tail (<c>Ship.cpp:4449-4457</c>).
+        /// </summary>
+        /// <remarks>
+        /// The hysteresis is the point: heat above <see cref="MaxHeat"/> shuts a ship
+        /// down, and only falling below nine tenths of it brings the ship back, so a
+        /// hull sitting on the threshold does not flicker in and out of commission.
+        /// The burn itself is opt-in -- <c>overheat damage rate</c> defaults to zero
+        /// (<c>ShipAttributeCache.h:81</c>), so vanilla ships shut down without
+        /// catching fire.
+        /// </remarks>
+        private void ApplyOverheating()
+        {
+            double max = MaxHeat;
+            if (max <= 0.0)
+                return;
+
+            if (Heat > max)
+            {
+                IsOverheated = true;
+
+                double threshold = 1.0 + Attributes.Get("overheat damage threshold");
+                double heatRatio = Heat / max / threshold;
+                double rate = Attributes.Get("overheat damage rate");
+                if (rate > 0.0 && heatRatio > 1.0)
+                    SetLevels(hull: Hull - rate * heatRatio);
+            }
+            else if (Heat < 0.9 * max)
+            {
+                IsOverheated = false;
+            }
         }
 
         /// <summary>
@@ -262,8 +308,35 @@ namespace EndlessSky.Sim
         /// <summary>Upstream destroys a ship only once hull goes strictly below zero.</summary>
         public bool IsDestroyed => Hull < 0.0;
 
+        /// <summary>
+        /// Cripples this ship: brings its hull just under the disabling threshold, so
+        /// it is disabled by its own state rather than by a flag.
+        /// </summary>
+        /// <remarks>
+        /// The disabled flag is recomputed from levels every frame, exactly as
+        /// upstream recomputes it (<c>Ship.cpp:4469</c>), so setting it directly does
+        /// not survive the next step. A derelict has to actually BE a wreck. Kept
+        /// above zero because a hull below zero is destroyed, not boardable.
+        /// </remarks>
+        public void Disable()
+        {
+            double crippled = Math.Max(0.0, MinimumHull - 0.5);
+            SetLevels(hull: Math.Min(Hull, crippled));
+        }
+
+        /// <summary>
+        /// Whether heat has shut this ship down. Cleared only below nine tenths of
+        /// <see cref="MaxHeat"/>; see <see cref="ApplyOverheating"/>.
+        /// </summary>
+        public bool IsOverheated { get; private set; }
+
         /// <summary>Recomputes the disabled flag from current levels, as upstream does after every hit.</summary>
-        private bool ComputeDisabled() => Hull < MinimumHull;
+        /// <remarks>
+        /// <c>Ship.cpp:4469</c>: <c>isDisabled = isOverheated || hull &lt; minimumHull
+        /// || (!crew &amp;&amp; RequiredCrew())</c>. The crew clause is not modelled yet;
+        /// the heat clause is what makes a cooked reactor take a ship out of a fight.
+        /// </remarks>
+        private bool ComputeDisabled() => IsOverheated || Hull < MinimumHull;
 
         /// <summary>
         /// Pays a weapon's non-energy firing costs. Fuel, hull and shields can all be

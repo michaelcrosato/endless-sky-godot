@@ -26,6 +26,73 @@ namespace EndlessSky.Tests
             return ship;
         }
 
+        // --- Disabled and overheated ----------------------------------------------
+
+        [Test]
+        public void ADisabledShipRepairsNothingAndGeneratesNoPower()
+        {
+            // Upstream gates the whole generation block on !isDisabled (Ship.cpp:4331),
+            // which is what makes a crippled hull stay crippled until someone boards or
+            // repairs it. Running it unguarded let a disabled ship quietly rebuild its
+            // shields and hull while the fight went on around it.
+            Ship ship = Make(
+                "\"shields\" 500", "\"hull repair rate\" 10", "\"shield generation\" 20",
+                "\"energy generation\" 30", "\"energy capacity\" 1000");
+
+            ship.SetLevels(shields: 0.0, hull: 1.0, energy: 0.0);
+            Assert.IsTrue(ship.IsDisabled, "a hull below the minimum is disabled");
+
+            ship.StepResources();
+
+            Assert.AreEqual(1.0, ship.Hull, 1e-9, "no hull repair while disabled");
+            Assert.AreEqual(0.0, ship.Shields, 1e-9, "no shield regeneration while disabled");
+            Assert.AreEqual(0.0, ship.Energy, 1e-9, "no energy generation while disabled");
+        }
+
+        [Test]
+        public void AShipThatOverheatsIsDisabledUntilItCoolsBelowNineTenths()
+        {
+            // Ship.cpp:4449-4457: crossing MaxHeat sets isOverheated, and only dropping
+            // under .9 * MaxHeat clears it -- hysteresis, so a ship on the edge does not
+            // flicker in and out of commission. Ship.cpp:4469 folds that into isDisabled.
+            // Heat was accumulated and displayed here but had no effect whatever.
+            Ship ship = Make("\"heat capacity\" 1", "\"heat dissipation\" 0");
+
+            double max = ship.MaxHeat;
+            Assert.Greater(max, 0.0);
+
+            ship.SetLevels(heat: max * 1.01);
+            ship.StepResources();
+            Assert.IsTrue(ship.IsDisabled, "over its heat capacity, a ship shuts down");
+
+            // Still hot, but under the ceiling: upstream keeps it disabled.
+            ship.SetLevels(heat: max * 0.95);
+            ship.StepResources();
+            Assert.IsTrue(ship.IsDisabled, "between .9 and 1.0 of MaxHeat it stays disabled");
+
+            ship.SetLevels(heat: max * 0.5);
+            ship.StepResources();
+            Assert.IsFalse(ship.IsDisabled, "cooled well below the ceiling, it comes back");
+        }
+
+        [Test]
+        public void OverheatingBurnsHullOnlyWhereTheAttributeAsksForIt()
+        {
+            // overheatDamageRate defaults to 0 (ShipAttributeCache.h:81), so vanilla
+            // ships shut down without burning. A hull that declares the attribute takes
+            // rate * (heatFraction / (1 + threshold)) per frame.
+            Ship plain = Make("\"heat capacity\" 1", "\"heat dissipation\" 0");
+            plain.SetLevels(hull: 1000.0, heat: plain.MaxHeat * 2.0);
+            plain.StepResources();
+            Assert.AreEqual(1000.0, plain.Hull, 1e-9, "no burn without the attribute");
+
+            Ship burner = Make(
+                "\"heat capacity\" 1", "\"heat dissipation\" 0", "\"overheat damage rate\" 5");
+            burner.SetLevels(hull: 1000.0, heat: burner.MaxHeat * 2.0);
+            burner.StepResources();
+            Assert.AreEqual(990.0, burner.Hull, 1e-9, "rate 5 at twice the ceiling burns 10");
+        }
+
         // --- Movement costs -------------------------------------------------------
 
         [Test]

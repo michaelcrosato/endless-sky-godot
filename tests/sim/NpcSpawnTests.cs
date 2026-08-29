@@ -393,7 +393,7 @@ namespace EndlessSky.Tests
             ActiveMission taken = log.Accept(data.Missions["See them home"])!;
 
             Ship convoy = taken.Npcs.Single().Ships.Single();
-            convoy.IsDisabled = true;
+            convoy.Disable();
 
             player.Depart();
             IReadOnlyList<Ship> came =

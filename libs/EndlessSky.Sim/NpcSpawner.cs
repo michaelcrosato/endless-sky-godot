@@ -199,7 +199,7 @@ namespace EndlessSky.Sim
             // A derelict is a hull with nobody aboard, which is what makes it something
             // to board rather than something to fight.
             if (template.IsDerelict)
-                ship.IsDisabled = true;
+                ship.Disable();
         }
     }
 }
