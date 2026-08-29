@@ -114,6 +114,10 @@ edit the generator rather than the output.
 
 ## Gotchas
 
+- **`.gitignore`'s `bin/` matches ANY directory of that name**, including the one
+  gdUnit4 vendors its command-line runner in. `!/addons/gdUnit4/bin/` un-excludes
+  it; without that a fresh clone cannot run the in-engine suite at all and dies
+  on "Can't load script: res://addons/gdUnit4/bin/GdUnitCmdTool.gd".
 - **`reports/.gdignore` and `build/.gdignore` must stay.** gdUnit4 writes HTML
   reports containing PNGs into `res://reports/`. Without `.gdignore`, Godot
   imports them on the next boot, and the extra cold-start time makes the

@@ -148,11 +148,12 @@ jobs:
             || { echo "::error::mission smoke did not reach its objective"; exit 1; }
 
       # The presentation suites need a real engine, so they cannot run in the sim
-      # job. Non-gating for now: this is the first time they have run on Linux CI
-      # at all, and gdUnit4's connect handshake is documented as timing-sensitive
-      # (see CLAUDE.md). Promote to a gate once it has proven stable across runs.
+      # job. This was non-gating on its first run and it earned that caution: it
+      # failed, and only looked green because of it. The cause was not flakiness —
+      # gdUnit4's command-line runner lives in addons/gdUnit4/bin/, which the
+      # blanket `bin/` in .gitignore swallowed, so no clone had ever had it. With
+      # the runner committed the step passes, and it gates.
       - name: In-engine test suite (gdUnit4)
-        continue-on-error: true
         run: pwsh tools/test.ps1 -Suite godot
 
       - name: Upload logs

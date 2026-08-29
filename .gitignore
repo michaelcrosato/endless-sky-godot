@@ -24,6 +24,12 @@ obj/
 .vs/
 .idea/
 
+# ...but `bin/` above matches ANY directory of that name, and gdUnit4 vendors its
+# command-line runner in addons/gdUnit4/bin/. Excluding it meant a fresh clone had
+# no way to run the in-engine suite at all: tools/test.ps1 -Suite godot died on
+# "Can't load script: res://addons/gdUnit4/bin/GdUnitCmdTool.gd". Four files, 15K.
+!/addons/gdUnit4/bin/
+
 # --- Test + tool output ---
 # .gdignore must survive a clone: it keeps Godot from importing report assets,
 # which otherwise slows the next engine boot enough to time out the C# runner.
