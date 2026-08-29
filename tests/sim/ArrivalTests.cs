@@ -207,5 +207,77 @@ namespace EndlessSky.Tests
             Assert.Greater(named, 100);
             Assert.AreEqual(named, linked);
         }
+
+        // --- Landing --------------------------------------------------------------
+
+        private static (Ship ship, StellarObject world, Planet planet) LandingFixture()
+        {
+            var data = new GameData();
+            data.LoadText(string.Join("\n",
+                "ship \"Lander\"",
+                "\tattributes",
+                "\t\t\"mass\" 100",
+                "\t\t\"drag\" 2",
+                "\t\t\"hull\" 500",
+                "planet \"Rock\"",
+                "\tgovernment \"Republic\"",
+                "\tspaceport `Busy.`",
+                "system \"Sol\"",
+                "\tpos 0 0",
+                "\tobject \"Rock\"",
+                "\t\tsprite planet/earth",
+                "\t\tdistance 0",
+                "\t\tperiod 100") + "\n");
+
+            Ship ship = data.BuildShip("Lander");
+            StarSystem sol = data.Systems["Sol"];
+            sol.SetDate(0.0);
+            ship.CurrentSystem = sol;
+
+            return (ship, sol.AllObjects().First(o => o.PlanetName == "Rock"), data.Planets["Rock"]);
+        }
+
+        [Test]
+        public void LandingNeedsToBeCloseAndSlow()
+        {
+            // Ship.cpp:2355-2357: speed < 1 and distance < the object's own radius.
+            // The rule lived in the flight scene with constants of its own — a speed
+            // limit three times upstream's and a flat 260-unit reach that ignored how
+            // big the world was — so it was neither upstream's rule nor testable.
+            (Ship ship, StellarObject world, Planet planet) = LandingFixture();
+
+            ship.Position = world.Position;
+            ship.Velocity = Point.Zero;
+            Assert.IsTrue(ship.CanLandOn(world, planet), "stationary, right on top of it");
+
+            ship.Velocity = new Point(0.0, 2.0);
+            Assert.IsFalse(ship.CanLandOn(world, planet), "too fast");
+
+            ship.Velocity = Point.Zero;
+            ship.Position = world.Position + new Point(world.LandingRadius * 2.0, 0.0);
+            Assert.IsFalse(ship.CanLandOn(world, planet), "too far out");
+        }
+
+        [Test]
+        public void ACrippledShipCannotLand()
+        {
+            // Ship.cpp:2346. A wreck does not put down under its own power.
+            (Ship ship, StellarObject world, Planet planet) = LandingFixture();
+            ship.Position = world.Position;
+            ship.Velocity = Point.Zero;
+
+            ship.Disable();
+            Assert.IsFalse(ship.CanLandOn(world, planet));
+        }
+
+        [Test]
+        public void ThereIsNothingToLandOnWithoutAPlanet()
+        {
+            (Ship ship, StellarObject world, _) = LandingFixture();
+            ship.Position = world.Position;
+            ship.Velocity = Point.Zero;
+
+            Assert.IsFalse(ship.CanLandOn(world, null));
+        }
     }
 }

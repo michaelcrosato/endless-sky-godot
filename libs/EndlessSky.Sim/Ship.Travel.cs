@@ -331,5 +331,39 @@ namespace EndlessSky.Sim
             Position += Velocity;
             return true;
         }
+
+        /// <summary>
+        /// Whether this ship may put down on a stellar object right now. Port of
+        /// upstream <c>Ship::CanLand</c> (<c>Ship.cpp:2344-2358</c>).
+        /// </summary>
+        /// <remarks>
+        /// This is a simulation rule, and it used to live in the flight scene with
+        /// constants of its own: a speed limit three times upstream's and a flat reach
+        /// that ignored how big the world was. Rules written in the view layer are
+        /// invisible to the sim suite AND to the architecture test, because nothing
+        /// stops a rule being written on the wrong side of a boundary that only guards
+        /// which direction the dependencies point.
+        ///
+        /// INCOMPLETE, tracked rather than dropped: upstream also asks
+        /// <c>Planet::CanLand(ship)</c>, which gates on licences, government access and
+        /// a world's "requires" attributes. None of that is modelled on Planet yet, so
+        /// any world with a landing site accepts anyone.
+        /// </remarks>
+        public bool CanLandOn(StellarObject? where, Planet? planet)
+        {
+            if (where is null || planet is null)
+                return false;
+
+            if (IsDisabled || IsDestroyed || IsHyperspacing || IsEnteringHyperspace)
+                return false;
+
+            if (Velocity.Length >= LandingSpeed)
+                return false;
+
+            return (where.Position - Position).Length < where.LandingRadius;
+        }
+
+        /// <summary>Fastest a ship may be moving and still land. Upstream's is 1.</summary>
+        public const double LandingSpeed = 1.0;
     }
 }

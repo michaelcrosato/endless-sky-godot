@@ -678,24 +678,25 @@ namespace EndlessSky.Game
 
         private void TryLand()
         {
-            if (_ship == null || _ship.CurrentSystem == null || _ship.IsHyperspacing)
-            {
-                return;
-            }
-
-            if (_ship.Velocity.Length > 3.0)
+            if (_ship == null || _ship.CurrentSystem == null)
             {
                 return;
             }
 
             foreach (StellarObject obj in _ship.CurrentSystem.AllObjects())
             {
-                if (obj.PlanetName == null || (obj.Position - _ship.Position).Length > 260.0)
+                if (obj.PlanetName == null ||
+                    !_universe.Planets.TryGetValue(obj.PlanetName, out Planet? planet))
                 {
                     continue;
                 }
 
-                if (!_universe.Planets.TryGetValue(obj.PlanetName, out Planet? planet))
+                // Whether a ship may put down is the simulation's rule, not this
+                // screen's. It used to live here with constants of its own — a speed
+                // limit three times upstream's and a flat reach that ignored how big the
+                // world was — where neither the sim suite nor the architecture test
+                // could see it.
+                if (!_ship.CanLandOn(obj, planet))
                 {
                     continue;
                 }

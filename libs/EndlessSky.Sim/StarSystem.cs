@@ -31,6 +31,20 @@ namespace EndlessSky.Sim
         /// <summary>Starting angle in degrees; used to place binary partners 180 apart.</summary>
         public double Offset { get; internal set; }
 
+        /// <summary>
+        /// How close a ship has to be to put down here, in simulation units.
+        /// </summary>
+        /// <remarks>
+        /// Upstream tests <c>distance &lt; GetTargetStellar()-&gt;Radius()</c>
+        /// (<c>Ship.cpp:2357</c>), where the radius comes from the object's SPRITE.
+        /// INCOMPLETE, tracked rather than dropped: sprite dimensions are not plumbed
+        /// into this engine-free layer — the same gap <c>Ship.CollisionRadius</c>
+        /// records — so this is a flat stand-in. It is a property rather than a
+        /// constant so that a world can be given its real size the moment the data is
+        /// available, without moving the rule again.
+        /// </remarks>
+        public double LandingRadius { get; internal set; } = 260.0;
+
         public bool ExplicitPeriodSet { get; internal set; }
 
         public StellarObject? Parent { get; internal set; }
