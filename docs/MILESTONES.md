@@ -6,12 +6,12 @@ here is quietly dropped — incomplete systems stay listed as incomplete.
 
 | Milestone | Status | Evidence |
 |---|---|---|
-| **M1 Flight** | **Done through gauntlet round 1** | Sim port verified exact by the gameplay critic (epoch math, quantized angles, coasting rule); visual critic's six corrections landed (key light, framing, bloom, silhouette, plume, HUD) plus the retrograde-brake input translation with hand-derived tests. Evidence: `reports/m1_flight_v3.png`. |
+| **M1 Flight** | **Done through gauntlet round 1** | Sim port verified exact by the gameplay critic (epoch math, quantized angles, coasting rule); visual critic's six corrections landed (key light, framing, bloom, silhouette, plume, HUD) plus the retrograde-brake input translation with hand-derived tests. Evidence: `reports/m1_flight_v3.png` — note that `reports/` is gitignored, so the gauntlet captures live only on the machine that took them and are not evidence anyone else can check. |
 | M2 Combat | **Sim complete; views wired; gauntlet run** | Weapons/damage/projectiles/governments/firing/collision/targeting-AI in `libs/EndlessSky.Sim` (shields-block-entirely, 0.25 hull epsilon, valueless flags pinned by tests); `CombatEffects`/`ProjectileView`/`ExplosionView`/`ShieldImpactView` + the `--combat-demo` hostile drone driven by `ShipAi`. Combat gauntlet round (bolt/flash captures) pending. |
 | M3 Travel | **Sim complete; view wired** | `Ship.Travel.cs` ports IsReadyToJump/DoHyperspaceLogic (hyperdrive path) with hand-derived tests (exact 100-frame phases, fuel drain, 4-jump tank); FlightWorld: J-key best-aligned-link targeting, brake-and-face autopilot, arrival advances the date and rebuilds the system. Full protocol: docs/upstream-reference.md §jump. |
-| M4 Landing economy | **Done** | Commodity/TradeData/CargoHold/Outfitting, `Trading` (buy/sell ships and outfits with upstream's `Depreciation`), a moving economy (`StepEconomy`), and a landed screen with trade, shipyard, outfitter and job counters. |
-| M5 Missions | **Done** | Parsing, conditions, conversations (inline and top-level), events (416, incl. universe patching), NPC entities (1,186 across 587 missions), the full accept/carry/complete/fail lifecycle with deadlines, and text substitution so jobs read as prose rather than templates. |
-| M6 Fleet gameplay | **Done** | Multiple owned ships, escorts, fleet commands (escort/gather/hold/attack on upstream's `MoveTo` + `StoppingPoint`), salaries, cargo distribution, boarding, capturing, parking and flagship selection. |
+| M4 Landing economy | **Playable; the debt half is not built** | Commodity/TradeData/CargoHold/Outfitting, `Trading` (buy/sell ships and outfits with upstream's `Depreciation`), a moving economy (`StepEconomy`), and a landed screen with trade, shipyard, outfitter and job counters. |
+| M5 Missions | **Lifecycle done; offer conversations and events not fired** | Parsing, conditions, conversations (inline and top-level), events (416, incl. universe patching), NPC entities (1,186 across 587 missions), the full accept/carry/complete/fail lifecycle with deadlines, and text substitution so jobs read as prose rather than templates. |
+| M6 Fleet gameplay | **Done in the sim; boarding is unreachable from the cockpit** | Multiple owned ships, escorts, fleet commands (escort/gather/hold/attack on upstream's `MoveTo` + `StoppingPoint`), salaries, cargo distribution, boarding, capturing, parking and flagship selection. |
 | M7 Content compatibility | **Ahead of schedule** | The loader already ingests the FULL upstream dataset (902 ships / 920 outfits / 694 systems, zero parse diagnostics) — M7's "progressively larger portions" started at 100% for parsing; behavior coverage still tracks the other milestones. `GameData.UnhandledNodes` counts what the model doesn't yet understand. |
 | M8 Visual production | Done | Hulls generated per ship from ShipAppearance; faction plating from fleets/shipyards. See `docs/art-direction.md`. |
 | M9 Full gauntlet | **Running — see below** | Scenario suite across all nine dimensions. Four combat-breaking defects found and fixed in the first pass; the directive's own wording ("continue correcting discrepancies") makes this milestone open-ended by design. See `docs/m9-gauntlet.md`. |
@@ -38,7 +38,7 @@ it skips — to find gaps objectively. What that turned up:
 | M2 "NPC ships" | Systems were empty | Fleets spawn and fly; 599 systems declare traffic |
 | Rendering "asteroid fields" | Not parsed | 71,984 rocks across 669 systems, instanced |
 | M7 "do not hard-code content" | Start was 4 constants | Loaded from `starts.txt`, conditions included |
-| Progression (save/load) | None | Whole game round-trips through the data format |
+| Progression (save/load) | None | Round-trips through the data format, AND reachable: Save game in the pause menu, Continue on the main menu |
 
 Still unparsed, and listed rather than dropped: `phrase` (867, procedural naming),
 `effect` (309), `news` (219), `color`/`swizzle`/`interface`/`tip`/`help`
@@ -53,8 +53,9 @@ and asteroids, governments, events, conversations, starts — are now in.
   thrust and turn are now in, with generation to match.
 - Player starts in space beside New Boston; upstream starts landed with a
   launch. Landing/launch is M4 surface.
-- Stellar objects are date-static (upstream repositions only on date change —
-  faithful — but we never advance the date yet).
+- Stellar objects reposition on date change, as upstream does, and the date now
+  actually advances: a jump costs a day on the player's own calendar, which is
+  what drives deadlines, salaries, depreciation and mission expiry.
 - Key bindings are hardcoded polls (W/A/S/D + arrows); Godot InputMap
   remapping is UI-milestone work.
 
@@ -74,7 +75,7 @@ throughout; none of these were visible from inside the simulation layer.
 | `npc` blocks were parsed but never instantiated | Every bounty, escort and salvage job could be accepted and never finished | `NpcSpawner` + `NpcInstance`, built at accept time as upstream does |
 | Nothing reported combat back to the mission log | A bounty target could be destroyed and the job stayed open | `MissionLog.ReportShipEvent`, wired from `HitReport` |
 | `ship "Model" 3` in a generated npc block | The count was read as the ship's NAME, placing one hull where three were meant | One `ship` line per hull |
-| `system destination` read as a system literally named "destination" | Bounties were placed where the job was taken, not where its text pointed | `IsAtDestination`, resolved per instance |
+| `system destination` read as a system literally named "destination" | Bounties were placed where the job was taken, not where its text pointed | `IsAtDestination` on the template — but see the 2026-08-28 audit below: the resolution half was not wired until later, so the symptom survived this fix |
 | Bounty targets drawn from any faction of an enemy race | Peoples with no raiders (the Orokh field only a navy and a corporation) produced bounties on friendly ships that never fought back | Targets are picked faction-first, from `fringe`/`zealot` only |
 | Objectives were satisfied in aggregate | A bounty on three raiders paid out on the first kill | Per-ship events, as upstream: every hull must meet the objective |
 | Escorts could not travel | An `accompany` objective failed the moment the player jumped | `MissionLog.CarryAccompanying`, called on arrival |
@@ -117,3 +118,67 @@ independent critic contexts; the builder never grades its own output.
   composition/lighting bar) and one gameplay critic (implementation vs.
   upstream source; `docs/upstream-reference.md` is the distilled ground
   truth) in fresh contexts; their top findings become the next FIX pass.
+
+## Full repository audit (2026-08-28)
+
+Seventeen agents over eight dimensions, every finding sent to an adversarial
+verifier told to refute it: 72 raised, 5 refuted, 67 confirmed. The report is
+at <https://claude.ai/code/artifact/65b6e714-bb73-4d7d-b33f-b2ed92301e3e>.
+
+**The pattern was worth more than any single finding.** Correct, tested code in
+`libs/` was repeatedly wired to nothing. `SaveGame`, `MissionLog.Step`,
+`CaptureOdds`, `ConversationRunner`, `TradeData.StepEconomy`,
+`Government.Offend`, `GameEvent.Apply`, `TextSubstitution.DescriptionOf`,
+`Minable` and `StartScenario.MortgagePrincipal` all had zero callers outside
+tests. The suite was green because it tests the library, and the library had run
+ahead of the game. That is why a tracker can read "Done" over a subsystem the
+player cannot reach — and why the statuses above now distinguish the two.
+
+### Fixed in this pass
+
+| Was | Now |
+|---|---|
+| CI red for three pushes: the `sim` job never fetched the dataset, so 14 tests threw and 80 skipped | Data fetched in the job that needs it, with a fail-fast check so a green tick cannot mean "the parity suites skipped" |
+| Ammunition lived in a private ledger no production code wrote to, so every launcher and torpedo tube in the dataset was inert | Ammunition IS outfits, as upstream reads it; firing removes the round and its mass |
+| `BuildShip` never built hardpoints, so every hull it made carried its guns as inventory | Hardpoints first, as in `Ship::FinishLoading` |
+| Disabled ships repaired hull, regenerated shields and made power | Generation is gated on `!isDisabled`, as upstream gates it |
+| Heat accumulated and did nothing | Overheating disables a ship, with upstream's 0.9 hysteresis and opt-in hull burn |
+| Mission progress used invented condition keys, so all 1,966 `": done"` gates in the dataset read 0 forever | Upstream's six counters, keyed on the mission's true name |
+| An inline `not` in a LocationFilter built an empty exclusion, so the whole filter matched nothing | Both shapes of `not` read, as upstream reads them |
+| No day ever passed: jumping advanced a render-side counter, not the player's date | One calendar; `MissionLog.Step` runs on it |
+| No death: a destroyed flagship hid its mesh and the game carried on | Losing is a state the game can be in |
+| No save and no load in any menu | Save game in the pause menu, Continue on the main menu, verified by `--save-smoke` |
+| Bounties spawned where the job was taken, and any job could be handed in anywhere | An accepted mission fixes its destination once and uses it for both |
+| Buying and selling were asymmetric: every sale paid the 25% floor | Purchase dates recorded, so a same-day resale is break-even |
+| An outfit could always be sold, even one holding the rest of the loadout | Uninstall is gated on `CanAdd(outfit, -1)` |
+| Landing repaired nothing and refuelled only the flagship | `PlayerState.TakeOff` services the fleet, skipping parked and crippled hulls |
+| Reputation never moved | `Politics` ports upstream's propagation across every government |
+| `universe/jobs.txt` could not be regenerated — salted `hash()` | CRC32; CI regenerates and diffs on every push |
+
+### Still incomplete, and now listed where a reader will find it
+
+The source is the inventory: `grep -rn "INCOMPLETE" libs/ src/` returns 40-odd
+entries, each naming what is missing and the upstream function it belongs to.
+The ones a player would notice first:
+
+- **Nothing boards a disabled hull.** `CaptureOdds` exists and is not wired, so
+  a crippled ship is neither captured nor finished and a fight between two
+  ships that both end up disabled simply stops. Every salvage job's `board`
+  objective is unreachable from the cockpit.
+- **No conversation is ever shown**, so a mission's `on offer` dialogue and the
+  opening conversation that upstream uses to sell the player their first ship —
+  on credit, which is why the classic start begins in debt — do not happen.
+  `StartScenario.MortgagePrincipal` is parsed and never applied: the player
+  starts with 480,000 credits and no debt where upstream gives both.
+- **Events never fire.** 416 are parsed and nothing schedules them.
+- **The Reach defines no events, conversations or wormholes at all**, so those
+  three subsystems have no content to act on in the shipped game whatever the
+  engine supports. They are exercised only against upstream's dataset, by tests.
+- **Mission NPCs never despawn**, and the template's `to spawn` gate is parsed
+  and not consulted.
+- **NPC ships do not jump under their own power.** Escorts are carried with the
+  flagship, which is the same observable outcome for an `accompany` objective
+  but is not upstream's mechanism.
+- **Turrets do not traverse**: every mount fires along the ship's facing.
+- **No audio at all**, and no input remapping — every control is a hard-coded
+  key poll rather than an `InputMap` action.

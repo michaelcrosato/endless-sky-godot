@@ -20,18 +20,20 @@
       "problemMatcher": []
     },
     {
-      "label": "godot: test (GDScript)",
+      "label": "godot: test (simulation, engine-free)",
+      "detail": "NUnit over libs/EndlessSky.{Data,Sim}; no engine, under a second",
       "type": "shell",
-      "command": "pwsh -NoProfile -File tools/test.ps1 -Suite gd",
-      "group": "test",
-      "problemMatcher": []
-    },
-    {
-      "label": "godot: test (C#)",
-      "type": "shell",
-      "command": "pwsh -NoProfile -File tools/test.ps1 -Suite cs",
+      "command": "pwsh -NoProfile -File tools/test.ps1 -Suite sim",
       "group": "test",
       "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "godot: test (presentation, in-engine)",
+      "detail": "gdUnit4 over src/game; boots a real engine process",
+      "type": "shell",
+      "command": "pwsh -NoProfile -File tools/test.ps1 -Suite godot",
+      "group": "test",
+      "problemMatcher": []
     },
     {
       "label": "godot: run",
@@ -43,6 +45,19 @@
       "label": "godot: run headless (smoke)",
       "type": "shell",
       "command": "pwsh -NoProfile -File tools/run.ps1 -Headless",
+      "problemMatcher": []
+    },
+    {
+      "label": "godot: run mission + combat smoke",
+      "detail": "Takes a bounty, flies to it and fights it — the only check that drives libs/ and src/game/ together",
+      "type": "shell",
+      "command": "pwsh -NoProfile -File tools/run.ps1 -Headless -Frames 20000 -UserArgs '--mission-smoke'",
+      "problemMatcher": []
+    },
+    {
+      "label": "godot: run save round-trip smoke",
+      "type": "shell",
+      "command": "pwsh -NoProfile -File tools/run.ps1 -Headless -Frames 400 -UserArgs '--save-smoke'",
       "problemMatcher": []
     },
     {

@@ -58,7 +58,7 @@ jobs:
             || { echo "::error::upstream dataset absent; the parity suites would silently skip"; exit 1; }
 
       - name: Test
-        run: dotnet test tests/sim/EndlessSky.SimTests.csproj --nologo -v minimal
+        run: dotnet test tests/sim/EndlessSky.SimTests.csproj --nologo -v minimal --settings .runsettings
 
       # universe/ is a build artifact with a source, and that claim is only worth
       # anything if it is checked. It was not: emit.py picked each job's NPC hull with

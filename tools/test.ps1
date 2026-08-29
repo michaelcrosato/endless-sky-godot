@@ -32,7 +32,12 @@ $failures = [System.Collections.Generic.List[string]]::new()
 
 if ($Suite -in 'all', 'sim') {
     Write-Host '=== Simulation + data (NUnit, engine-free) ===' -ForegroundColor Cyan
-    $simArgs = @('test', 'tests/sim/EndlessSky.SimTests.csproj', '--nologo')
+    # .runsettings carries the guardrails this suite is supposed to run under --
+    # notably TreatNoTestsAsError, so a filter that matches nothing fails loudly
+    # instead of reporting a green run of zero tests. Nothing passed it to dotnet
+    # before, which made the whole file inert configuration.
+    $simArgs = @('test', 'tests/sim/EndlessSky.SimTests.csproj', '--nologo',
+                 '--settings', "$script:ProjectRoot/.runsettings")
     if ($Filter) { $simArgs += @('--filter', $Filter) }
     dotnet @simArgs
     if ($LASTEXITCODE -ne 0) { $failures.Add("sim (exit $LASTEXITCODE)") }

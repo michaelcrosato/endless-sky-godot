@@ -34,6 +34,8 @@ owned by a different session. This repo is the Godot arm of that comparison.
 | Run the game | `pwsh tools/run.ps1` |
 | Headless smoke | `pwsh tools/run.ps1 -Headless` |
 | Mission/combat smoke | `pwsh tools/run.ps1 -Headless -Frames 20000 -UserArgs '--mission-smoke'` |
+| Save round-trip smoke | `pwsh tools/run.ps1 -Headless -Frames 400 -UserArgs '--save-smoke'` |
+| Regenerate the universe | `python tools/worldgen/worldgen.py` |
 | Open the editor | `pwsh tools/editor.ps1` |
 | Export a build | `pwsh tools/export.ps1 -Preset "Windows Desktop" -Release` |
 | Clickable build (exe + dataset) | `pwsh tools/package.ps1` |
@@ -45,9 +47,11 @@ owned by a different session. This repo is the Godot arm of that comparison.
 libs/EndlessSky.Data    parser: DataFile, DataNode, DataWriter   (no Godot)
 libs/EndlessSky.Sim     Point, Angle, Ship, StarSystem, GameData (no Godot)
 src/game/               Godot views, camera, world, starfield
-scenes/flight.tscn      main scene (Milestone 1 flight slice)
+scenes/flight.tscn      main scene
 tests/sim/              NUnit over the two libraries; runs with no engine
 tests/godot/            gdUnit4 suites that need a real engine process
+tools/worldgen/         Python generator for The Reach; the SOURCE of universe/
+universe/               its output, committed: the galaxy the game actually plays
 external/endless-sky/   upstream reference checkout (gitignored)
 tools/                  build / test / run / editor / export scripts
 ```
@@ -91,6 +95,23 @@ take PATH precedence and silently shadow the Program Files ones.
 Export templates are per-user by design and stay at
 `%APPDATA%\Godot\export_templates\`.
 
+## Which dataset the game loads
+
+**The game plays `universe/`, not upstream.** `EsData` resolves, in order:
+`$ENDLESS_SKY_DATA`, then `universe/` (The Reach — this project's own generated
+galaxy, 1000 systems, committed), then `external/endless-sky/data`, then
+`../es-upstream/data`. The upstream clone stays on disk because the parity suites
+read it, and `tools/package.ps1` ships `universe/` beside the exe.
+
+So: **the game plays our content and the tests check theirs.** That split is
+deliberate, and it is worth holding in mind when a change looks correct under
+test and wrong in the game — the two are reading different files. Point
+`ENDLESS_SKY_DATA` at `external/endless-sky/data` to play upstream's galaxy.
+
+`universe/` is generated, not hand-written: `python tools/worldgen/worldgen.py`
+reproduces it byte for byte from its seed, and CI regenerates and diffs it, so
+edit the generator rather than the output.
+
 ## Gotchas
 
 - **`reports/.gdignore` and `build/.gdignore` must stay.** gdUnit4 writes HTML
@@ -119,9 +140,9 @@ Export templates are per-user by design and stay at
   disk with `System.IO`, not through `res://`, so it can never come out of the
   `.pck` however the export is configured — an exported build with no data
   beside it boots to "Endless Sky data not found" and idles. `EsData` resolves
-  `external/endless-sky/data` relative to `res://`, which in an export
-  globalizes to the executable's own directory. `tools/package.ps1` does the
-  export and the copy together; the output folder is movable, the exe alone is not.
+  its candidates relative to `res://`, which in an export globalizes to the
+  executable's own directory. `tools/package.ps1` does the export and the copy
+  together; the output folder is movable, the exe alone is not.
 - **Release exports have no console wrapper** (`debug/export_console_wrapper=1`
   is debug-only), so redirect stdout to inspect their output.
 - `Godot.Environment` shadows `System.Environment` in any file with
