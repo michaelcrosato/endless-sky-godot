@@ -135,8 +135,15 @@ namespace EndlessSky.Sim
         /// </summary>
         public double AttitudeToward(Government other)
         {
-            if (other is null || ReferenceEquals(other, this))
+            if (other is null)
                 return 0.0;
+
+            // Wholly on its own side. Upstream returns 1 here (Government.cpp:588-589),
+            // and it is load-bearing: an offence is weighted by each government's
+            // attitude toward the victim, so a government indifferent to what was done
+            // to ITSELF would never lose any standing at all.
+            if (ReferenceEquals(other, this) || other.Name == Name)
+                return 1.0;
 
             if (_attitude.TryGetValue(other.Name, out double value))
                 return value;

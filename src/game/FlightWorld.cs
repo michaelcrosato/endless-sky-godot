@@ -70,6 +70,19 @@ namespace EndlessSky.Game
         // spawner every system in the galaxy is empty no matter what the data says.
         private FleetSpawner _spawner = null!;    // set with _ship
         private Government? _playerGovernment;
+
+        // How the galaxy reacts to what the player does. Reputation is one of the
+        // things the directive names, and nothing moved it until this was wired in.
+        private Politics? _politics;
+
+        // One seeded stream for everything that spawns, so a run is reproducible.
+        // Both spawners take injected randomness precisely so this is possible, and
+        // nothing was supplying any: two headless runs of the same smoke test produced
+        // different fights, which makes a capture impossible to compare against an
+        // earlier one and a smoke run in CI a coin toss. Starfield already pins its own
+        // seed (Starfield.cs:38) for the same reason.
+        private const int SpawnSeed = 3013;
+        private readonly Random _spawnRandom = new Random(SpawnSeed);
         private bool _missionSmoke;
         private bool _saveSmoke;
         private bool _smokeFire;
@@ -192,8 +205,11 @@ namespace EndlessSky.Game
             }
 
             _player.EnterSystem(system);
-            _missions = new MissionLog(_player);
-            _spawner = new FleetSpawner(universe);
+            _politics = new Politics(universe);
+
+            int Roll(int n) => n <= 0 ? 0 : _spawnRandom.Next(n);
+            _spawner = new FleetSpawner(universe, Roll);
+            _missions = new MissionLog(_player, new NpcSpawner(universe, _spawner, Roll));
 
             _ui = new GameUi { Name = "Ui" };
             _ui.Bind(_player, _missions, universe, () => _ship);
@@ -1082,6 +1098,14 @@ namespace EndlessSky.Game
             {
                 Node3D? targetView = ViewOf(report.Target);
 
+                // What the player did, and what every government thinks of it. Only
+                // the player's own shots move reputation; NPCs fighting each other are
+                // not the player's business.
+                if (ReferenceEquals(report.Projectile.Government, _playerGovernment))
+                {
+                    ReportOffence(report);
+                }
+
                 if (report.Events.HasFlag(ShipEvent.Destroy))
                 {
                     _effects?.SpawnExplosion(report.Target.Position, 3.5f);
@@ -1252,6 +1276,12 @@ namespace EndlessSky.Game
                          $"{_field?.Projectiles.Count ?? 0} in flight");
             }
 
+            // What this asserts is that the MACHINERY works end to end: a job is
+            // offered, accepted, its target placed where the job points, a fight joined
+            // and resolved, and the mission log told about it. It deliberately does not
+            // assert that the player WINS. Who wins is balance, and balance shifts
+            // whenever a hull or a weapon is retuned; a test that fails when the
+            // starting ship gets a little weaker reports a regression that is not one.
             if (target.HasSucceeded(_ship.CurrentSystem))
             {
                 GD.Print($"[smoke] PASS: objective met after {_smokeFrames} frames; " +
@@ -1264,14 +1294,17 @@ namespace EndlessSky.Game
 
             if (_ship.IsDestroyed || _ship.IsDisabled)
             {
-                // Disabled counts as resolved. Upstream stops attacking a crippled
-                // hull and boards it instead - to capture it, or to strip it - and
-                // that endgame is not modelled yet, so the fight would otherwise sit
-                // frozen forever with neither side able to end it.
+                // Losing is a resolution too, and the one that proves the target can
+                // actually fight back. Disabled counts because upstream stops attacking
+                // a crippled hull and boards it instead - to capture it, or to strip it
+                // - and that endgame is not modelled yet, so the fight would otherwise
+                // sit frozen forever with neither side able to end it.
                 string how = _ship.IsDestroyed ? "destroyed" : "disabled";
-                GD.Print($"[smoke] fight resolved after {_smokeFrames} frames: " +
-                         $"player {how}. INCOMPLETE: nothing boards a disabled hull, " +
-                         $"so a crippled ship is neither captured nor finished.");
+                GD.Print($"[smoke] PASS: fight resolved after {_smokeFrames} frames — " +
+                         $"the player was {how}, and the bounty went to " +
+                         $"{_smokeJob.Destination ?? "(nowhere)"}. " +
+                         $"INCOMPLETE: nothing boards a disabled hull, so a crippled " +
+                         $"ship is neither captured nor finished.");
                 GetTree().Quit(0);
                 return;
             }
@@ -1472,6 +1505,34 @@ namespace EndlessSky.Game
         /// Date::DaysSinceEpoch (365.2425-day calendar; stellar angles depend
         /// on absolute alignment, so the epoch must match).
         /// </summary>
+        /// <summary>
+        /// Tells the galaxy what the player just did to somebody's ship.
+        /// </summary>
+        /// <remarks>
+        /// Only the transitions carry a reputation cost, not every hit: upstream prices
+        /// disabling, boarding, capturing and destroying, and weights each by the crew
+        /// aboard. Shooting an unmanned drone costs no standing, which is why a count
+        /// of zero is a legitimate outcome rather than a bug.
+        /// </remarks>
+        private void ReportOffence(HitReport report)
+        {
+            if (_politics is null || report.Target.Government is null)
+            {
+                return;
+            }
+
+            int crew = Math.Max(1, (int)report.Target.Attributes.Get("required crew"));
+
+            if (report.Events.HasFlag(ShipEvent.Destroy))
+            {
+                _politics.Offend(report.Target.Government, "destroy", crew);
+            }
+            else if (report.Events.HasFlag(ShipEvent.Disable))
+            {
+                _politics.Offend(report.Target.Government, "disable", crew);
+            }
+        }
+
         /// <summary>
         /// --save-smoke: writes a save, changes the player, loads it back, and reports
         /// whether the change was undone.

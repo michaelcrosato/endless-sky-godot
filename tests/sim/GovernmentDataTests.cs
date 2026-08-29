@@ -108,5 +108,63 @@ namespace EndlessSky.Tests
 
             Assert.Greater(resolvable, 0, "named references should find their conversation");
         }
+
+        // --- Politics: offence propagates across governments -----------------------
+
+        [Test]
+        public void AGovernmentIsWhollyOnItsOwnSide()
+        {
+            // Government.cpp:588-589 returns 1 for self. Returning 0 made a government
+            // indifferent to what was done to it, which would leave any penalty
+            // calculation weighted by zero -- a no-op dressed up as a rule.
+            var data = new GameData();
+            data.LoadText("government \"Republic\"" + "\n");
+
+            Government republic = data.Governments["Republic"];
+            Assert.AreEqual(1.0, republic.AttitudeToward(republic), 1e-9);
+        }
+
+        [Test]
+        public void OffendingOneGovernmentMovesItsFriendsAndItsEnemies()
+        {
+            // Politics.cpp:111-149 walks EVERY government and weights the penalty by
+            // that government's attitude toward the offended one. This is the mechanism
+            // by which shooting pirates earns navy goodwill: nothing else in the game
+            // makes an ally like you for hurting their enemy.
+            var data = new GameData();
+            data.LoadText(string.Join("\n",
+                "government \"Navy\"",
+                "\t\"attitude toward\"",
+                "\t\t\"Pirates\" -1",
+                "\t\t\"Militia\" 0.5",
+                "government \"Militia\"",
+                "\t\"attitude toward\"",
+                "\t\t\"Pirates\" -0.02",
+                "government \"Pirates\"") + "\n");
+
+            var politics = new Politics(data);
+            politics.Offend(data.Governments["Pirates"], "destroy", count: 1);
+
+            Assert.Less(data.Governments["Pirates"].Reputation, 0.0,
+                "the offended government itself, at full weight");
+            Assert.Greater(data.Governments["Navy"].Reputation, 0.0,
+                "an enemy of the offended government is pleased");
+            Assert.AreEqual(0.0, data.Governments["Militia"].Reputation, 1e-9,
+                "a weight under 5% never moves reputation at all");
+        }
+
+        [Test]
+        public void OffendingThePlayersOwnGovernmentDoesNothing()
+        {
+            // Politics.cpp:116-117 returns immediately for the player's flag.
+            var data = new GameData();
+            data.LoadText("government \"Player\"" + "\n" + "government \"Navy\"" + "\n");
+            data.Governments["Player"].IsPlayer = true;
+
+            new Politics(data).Offend(data.Governments["Player"], "destroy");
+
+            Assert.AreEqual(0.0, data.Governments["Navy"].Reputation, 1e-9);
+        }
+
     }
 }
