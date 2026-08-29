@@ -26,6 +26,96 @@ namespace EndlessSky.Tests
             return ship;
         }
 
+        // --- Landing and taking off -----------------------------------------------
+
+        [Test]
+        public void ASpaceportPutsEveryStatBackToFull()
+        {
+            // Ship.cpp:2644-2668. This is the ONLY repair path most hulls have: the
+            // per-frame regeneration in StepResources only runs for ships carrying a
+            // "hull repair rate" or "shield generation" outfit, which most do not. With
+            // nothing calling Recharge, damage was permanent for the rest of the game.
+            Ship ship = Make("\"shields\" 500", "\"energy capacity\" 200",
+                             "\"fuel capacity\" 300", "\"heat dissipation\" 1");
+
+            ship.SetLevels(shields: 10.0, hull: 20.0, energy: 5.0, fuel: 3.0, heat: 900.0);
+            ship.Recharge(RechargeType.All);
+
+            Assert.AreEqual(ship.MaxShields, ship.Shields, 1e-9);
+            Assert.AreEqual(ship.MaxHull, ship.Hull, 1e-9);
+            Assert.AreEqual(ship.MaxEnergy, ship.Energy, 1e-9);
+            Assert.AreEqual(ship.MaxFuel, ship.Fuel, 1e-9);
+            Assert.AreEqual(0.0, ship.Heat, 1e-9, "a ship on the ground cools off");
+        }
+
+        [Test]
+        public void AWorldWithNoPortStillRestoresWhatTheShipMakesItself()
+        {
+            // Upstream ORs the port's services with the ship's own regeneration, so a
+            // hull with a shield generator recovers its shields anywhere, and one
+            // without recovers nothing at a world with no port.
+            Ship generating = Make("\"shields\" 500", "\"shield generation\" 2");
+            generating.SetLevels(shields: 0.0);
+            generating.Recharge(RechargeType.None);
+            Assert.AreEqual(generating.MaxShields, generating.Shields, 1e-9);
+
+            Ship bare = Make("\"shields\" 500");
+            bare.SetLevels(shields: 0.0);
+            bare.Recharge(RechargeType.None);
+            Assert.AreEqual(0.0, bare.Shields, 1e-9, "nothing to recharge it with");
+        }
+
+        [Test]
+        public void TakingOffRechargesTheWholeFleetButNotParkedOrCrippledShips()
+        {
+            // PlayerInfo.cpp:1870 skips parked and disabled ships entirely: a hull left
+            // in a hangar is not being serviced, and a wreck is not repaired by landing
+            // next to one. Recharging only the flagship left every escort in the fleet
+            // carrying its damage forever.
+            var data = new GameData();
+            data.LoadText(string.Join("\n",
+                "ship \"Hauler\"",
+                "	attributes",
+                "		\"mass\" 100",
+                "		\"hull\" 400",
+                "		\"shields\" 200",
+                "planet \"Home\"",
+                "	government \"Republic\"",
+                "	spaceport `Busy.`",
+                "system \"Sol\"",
+                "	pos 0 0",
+                "	object \"Home\"",
+                "		sprite planet/earth",
+                "		distance 500",
+                "\t\tperiod 300") + "\n");
+
+            var player = new PlayerState(data);
+            Ship flagship = data.BuildShip("Hauler");
+            Ship escort = data.BuildShip("Hauler");
+            Ship parked = data.BuildShip("Hauler");
+            Ship wreck = data.BuildShip("Hauler");
+
+            foreach (Ship ship in new[] { flagship, escort, parked, wreck })
+                player.Fleet.Add(ship);
+
+            player.Fleet.SetFlagship(flagship);
+            parked.IsParked = true;
+
+            flagship.SetLevels(shields: 0.0);
+            escort.SetLevels(shields: 0.0);
+            parked.SetLevels(shields: 0.0);
+            wreck.Disable();
+
+            player.EnterSystem(data.Systems["Sol"]);
+            player.Land(data.Planets["Home"]);
+            player.TakeOff();
+
+            Assert.AreEqual(flagship.MaxShields, flagship.Shields, 1e-9, "the flagship");
+            Assert.AreEqual(escort.MaxShields, escort.Shields, 1e-9, "and every escort with it");
+            Assert.AreEqual(0.0, parked.Shields, 1e-9, "a parked hull is not being serviced");
+            Assert.IsTrue(wreck.IsDisabled, "and a wreck is not repaired by landing beside one");
+        }
+
         // --- Disabled and overheated ----------------------------------------------
 
         [Test]

@@ -690,7 +690,11 @@ namespace EndlessSky.Game
             }
 
             _credits = _landedOverlay.Credits;
-            _player.Depart();
+
+            // Leaving the ground is TakeOff's job, below, because what the world
+            // services depends on which world the player is still standing on. Clearing
+            // the planet here first would make every departure look like one from a
+            // world with no port.
 
             // The flagship may have changed at the shipyard.
             if (_player.Fleet.Flagship != null && !ReferenceEquals(_player.Fleet.Flagship, _ship))
@@ -715,17 +719,21 @@ namespace EndlessSky.Game
                 _field?.Add(_ship);
                 GD.Print($"[flight] flagship is now a {_ship.Definition.DisplayName}");
             }
-            bool refuel = _landedOverlay.PlanetHasSpaceport;
             _landedOverlay.QueueFree();
             _landedOverlay = null;
             _isLanded = false;
             _ship.Velocity = Point.Zero;
-            if (refuel)
-            {
-                _ship.SetLevels(fuel: _ship.MaxFuel);
-            }
 
-            GD.Print($"[flight] departed (credits={_credits:n0} fuel={_ship.Fuel:0})");
+            // Servicing the fleet is the simulation's rule, not this screen's: it
+            // restores shields, hull, energy and fuel on every ship that is neither
+            // parked nor a wreck, or only what each ship makes for itself at a world
+            // with no port. This used to top up the flagship's fuel and nothing else,
+            // so every escort carried its battle damage for the rest of the game and no
+            // hull was ever repaired anywhere.
+            _player.TakeOff();
+
+            GD.Print($"[flight] departed (credits={_credits:n0} fuel={_ship.Fuel:0} " +
+                     $"hull={_ship.Hull:0}/{_ship.MaxHull:0})");
         }
 
         /// <summary>Upstream J behavior: target the linked system best aligned with facing.</summary>

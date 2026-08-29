@@ -112,6 +112,33 @@ namespace EndlessSky.Sim
 
         public void Depart() => CurrentPlanet = null;
 
+        /// <summary>
+        /// Services the fleet for the world it is standing on, and leaves the ground.
+        /// Port of the recharge loop in upstream <c>PlayerInfo::TakeOff</c>
+        /// (<c>PlayerInfo.cpp:1868-1884</c>).
+        /// </summary>
+        /// <remarks>
+        /// Parked and disabled ships are skipped, exactly as upstream skips them: a
+        /// hull left in a hangar is not being serviced, and a wreck is not repaired by
+        /// landing beside one.
+        ///
+        /// Before this existed the only thing landing did was top up the FLAGSHIP'S
+        /// fuel, so every escort in the fleet carried its battle damage for the rest of
+        /// the game and no ship ever got its hull back.
+        /// </remarks>
+        public void TakeOff()
+        {
+            RechargeType port = CurrentPlanet is { HasSpaceport: true }
+                ? RechargeType.All
+                : RechargeType.None;
+
+            foreach (Ship ship in Fleet.Ships)
+                if (!ship.IsParked && !ship.IsDisabled)
+                    ship.Recharge(port);
+
+            Depart();
+        }
+
         /// <summary>Marks a system visited without moving the player there.</summary>
         public void MarkVisited(StarSystem? system)
         {

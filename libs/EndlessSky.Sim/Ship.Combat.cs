@@ -27,6 +27,21 @@ namespace EndlessSky.Sim
     }
 
     /// <summary>
+    /// What a port will put back for a ship that lands at it. Values are upstream's
+    /// (<c>Port.h:36-45</c>).
+    /// </summary>
+    [Flags]
+    public enum RechargeType
+    {
+        None = 0,
+        Shields = 1 << 0,
+        Hull = 1 << 1,
+        Energy = 1 << 2,
+        Fuel = 1 << 3,
+        All = Shields | Hull | Energy | Fuel,
+    }
+
+    /// <summary>
     /// Combat state: the damage levels a ship carries and how weapons change them.
     /// Port of the instantaneous-damage path through upstream <c>DamageProfile</c>
     /// and <c>Ship::TakeDamage</c>.
@@ -307,6 +322,49 @@ namespace EndlessSky.Sim
 
         /// <summary>Upstream destroys a ship only once hull goes strictly below zero.</summary>
         public bool IsDestroyed => Hull < 0.0;
+
+        /// <summary>
+        /// Puts a ship back in order after landing. Port of upstream
+        /// <c>Ship::Recharge</c> (<c>Ship.cpp:2644-2668</c>).
+        /// </summary>
+        /// <param name="port">What the world this ship landed at provides.</param>
+        /// <remarks>
+        /// Each stat is restored if the PORT offers it OR the ship makes it itself,
+        /// which is upstream's `||`. That distinction is the whole point: a hull with a
+        /// shield generator comes back to full anywhere, while a bare hull at a world
+        /// with no port comes back to nothing.
+        ///
+        /// This is the only repair path most ships have. Per-frame regeneration only
+        /// runs for hulls carrying a "hull repair rate" or "shield generation" outfit,
+        /// which most do not — so with nothing calling this, battle damage was
+        /// permanent for the rest of the game.
+        ///
+        /// INCOMPLETE, tracked rather than dropped: upstream returns heat to the ship's
+        /// computed IdleHeat rather than to zero, re-hires crew up to the bunk count,
+        /// and clears the status effects (ionisation, disruption, slowing) that are not
+        /// modelled here yet.
+        /// </remarks>
+        public void Recharge(RechargeType port)
+        {
+            if (IsDestroyed)
+                return;
+
+            if (port.HasFlag(RechargeType.Shields) || Attributes.Get("shield generation") > 0.0)
+                Shields = MaxShields;
+
+            if (port.HasFlag(RechargeType.Hull) || Attributes.Get("hull repair rate") > 0.0)
+                Hull = MaxHull;
+
+            if (port.HasFlag(RechargeType.Energy) || Attributes.Get("energy generation") > 0.0)
+                Energy = MaxEnergy;
+
+            if (port.HasFlag(RechargeType.Fuel) || Attributes.Get("fuel generation") > 0.0)
+                Fuel = MaxFuel;
+
+            Heat = 0.0;
+            IsOverheated = false;
+            IsDisabled = ComputeDisabled();
+        }
 
         /// <summary>
         /// Cripples this ship: brings its hull just under the disabling threshold, so
