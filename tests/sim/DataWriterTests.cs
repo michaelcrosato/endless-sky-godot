@@ -100,5 +100,48 @@ namespace EndlessSky.Tests
             DataNode node = new DataFile(text, "test.txt").Nodes[0];
             Assert.AreEqual(0.3, node.Children[0].Value(1), 1e-9);
         }
+
+        [TestCase(100.0, "100")]
+        [TestCase(0.3, "0.3")]
+        [TestCase(2.5, "2.5")]
+        [TestCase(-1234.5, "-1234.5")]
+        public void ModestNumbersAreWrittenPlainly(double value, string expected)
+        {
+            Assert.AreEqual(expected, DataWriter.Number(value));
+        }
+
+        [TestCase(1e8, "1e+08")]
+        [TestCase(123456789.0, "1.2345679e+08")]
+        [TestCase(1e15, "1e+15")]
+        public void LargeValuesGoScientificExactlyWhereUpstreamDoes(double value, string expected)
+        {
+            // Upstream sets out.precision(8) and writes doubles through the default
+            // float format, i.e. C's %.8g -- which switches to scientific notation once
+            // the decimal exponent reaches the precision. An integer short-circuit
+            // printed these in full instead, so a file written here and a file written
+            // by upstream stopped matching byte for byte at exactly 1e8.
+            Assert.AreEqual(expected, DataWriter.Number(value));
+        }
+
+        [Test]
+        public void NegativeZeroKeepsItsSign()
+        {
+            // %.8g of -0.0 is "-0". Casting to a long threw the sign away, which is the
+            // one bit distinguishing a value that approached zero from below.
+            Assert.AreEqual("-0", DataWriter.Number(-0.0));
+            Assert.AreEqual("0", DataWriter.Number(0.0));
+        }
+
+        [Test]
+        public void IntegersPassedAsIntegersAreStillWrittenInFull()
+        {
+            // Upstream's writer is templated on the static type: an integral type goes
+            // to the stream unaffected by precision, so a large credit balance is not
+            // rounded away. Only doubles get %.8g.
+            var writer = new DataWriter();
+            writer.Write("credits", 123456789L);
+
+            StringAssert.Contains("123456789", writer.ToString());
+        }
     }
 }

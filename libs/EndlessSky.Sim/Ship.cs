@@ -31,7 +31,8 @@ namespace EndlessSky.Sim
     /// Deliberately preserved upstream behaviours that look like bugs but are not:
     ///
     ///  * A ship under no thrust does NOT slow down. Drag is applied only inside the
-    ///    acceleration block, so coasting is lossless. Only disabled ships drift to a halt.
+    ///    acceleration block, so coasting is lossless. Only a ship that cannot act —
+    ///    disabled, or out of power with no way to make more — drifts to a halt.
     ///  * Drag is scaled by the dot-product term, which softens drag when it opposes
     ///    the commanded thrust direction.
     /// </summary>
@@ -158,6 +159,59 @@ namespace EndlessSky.Sim
         /// <summary>Terminal speed in units per frame: thrust balanced against drag.</summary>
         public double MaxVelocity => Drag > 0.0 ? Thrust / Drag : double.PositiveInfinity;
 
+        /// <summary>
+        /// Whether this ship is out of power and cannot make more. Port of upstream
+        /// <c>Ship::NeedsEnergy</c> (<c>Ship.cpp:2854-2900</c>).
+        /// </summary>
+        /// <remarks>
+        /// Upstream takes the drag-only branch on <c>isDisabled || NeedsEnergy()</c>
+        /// (<c>Ship.cpp:4896</c>). Testing only the disabled flag let a browned-out hull
+        /// coast forever at whatever velocity it had — no thrust, no turn, and no drag
+        /// either, which is precisely the state that should feel like being adrift.
+        ///
+        /// The epsilon is upstream's 1/2^8: engines can spend fractional thrust, so even
+        /// a sliver of charge is still worth something.
+        ///
+        /// INCOMPLETE, tracked rather than dropped: solar collection and fuel-burning
+        /// generators are further sources upstream checks before giving up on a ship;
+        /// neither is modelled yet, so a hull that would be saved by one is not.
+        /// </remarks>
+        public bool NeedsEnergy
+        {
+            get
+            {
+                // A hull whose engines are free never browns out.
+                if (!RequiresMovementEnergy)
+                    return false;
+
+                double capacity = MaxEnergy;
+                if (capacity <= 0.0 || Energy >= capacity)
+                    return false;
+
+                if (Energy > 0.00390625)
+                    return false;
+
+                // Generating more than it draws is not a dead ship, whatever the reserve.
+                return Attributes.Get("energy generation") - Attributes.Get("energy consumption") <= 0.0;
+            }
+        }
+
+        /// <summary>
+        /// Whether moving this ship costs energy at all. Port of
+        /// <c>Ship::RequiresMovementEnergy</c> (<c>Ship.cpp:5098</c>).
+        /// </summary>
+        private bool RequiresMovementEnergy
+        {
+            get
+            {
+                bool hasForwardThrust = Thrust > 0.0;
+
+                return Attributes.Get("thrusting energy") > 0.0
+                    || (!hasForwardThrust && Attributes.Get("reverse thrusting energy") > 0.0)
+                    || Attributes.Get("turning energy") > 0.0;
+            }
+        }
+
         // --- Simulation ----------------------------------------------------------
 
         /// <summary>
@@ -185,9 +239,11 @@ namespace EndlessSky.Sim
             Point acceleration = Point.Zero;
             double dragForce = DragForce;
 
-            if (IsDisabled)
+            if (IsDisabled || NeedsEnergy)
             {
-                // A disabled ship can only coast to a stop.
+                // A disabled ship — or one with a dead reactor and no way to refill it —
+                // can only coast to a stop. Upstream's branch is the same disjunction
+                // (Ship.cpp:4896).
                 Velocity *= 1.0 - dragForce;
                 Position += Velocity;
                 return;

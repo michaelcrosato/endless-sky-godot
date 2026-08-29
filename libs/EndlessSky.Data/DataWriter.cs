@@ -61,12 +61,17 @@ namespace EndlessSky.Data
         /// </remarks>
         public static string Number(double value)
         {
-            // Integers are written without a decimal point, matching upstream output.
-            if (value == Math.Floor(value) && Math.Abs(value) < 1e15)
-            {
-                return ((long)value).ToString(CultureInfo.InvariantCulture);
-            }
-
+            // No integer short-circuit. "G8" already writes an integral value without a
+            // decimal point, and short-circuiting past it diverged from upstream in two
+            // places: %.8g switches to scientific notation once the decimal exponent
+            // reaches the precision, so 1e8 is "1e+08" and not "100000000"; and %.8g of
+            // -0.0 is "-0", where casting to a long threw away the one bit that says a
+            // value approached zero from below.
+            //
+            // Only DOUBLES round like this. Upstream's writer is templated on the
+            // static type and an integral type goes to the stream unaffected by
+            // precision, which is why WriteToken keeps long and int on their own path
+            // and a large credit balance is not rounded away.
             string text = value.ToString("G8", CultureInfo.InvariantCulture);
 
             // .NET spells the exponent "E+09"; C's %g spells it "e+09".

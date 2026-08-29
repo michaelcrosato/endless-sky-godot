@@ -77,20 +77,24 @@ namespace EndlessSky.Sim
                     continue;
                 }
 
-                // A bare name with no operator increments it, which upstream uses for
-                // counters such as "visited <planet>".
-                if (child.Size == 1 && !string.IsNullOrEmpty(key))
-                {
-                    _assignments.Add((key, "++", new List<string> { "1" }));
-                    continue;
-                }
-
-                Diagnostics.Add(Where(child) + ": unrecognised assignment");
+                // No bare-name rule. Upstream rejects a one-token child outright with
+                // "Incomplete assignment." (ConditionAssignments.cpp:208-212) -- there
+                // is no "a bare name means increment it" form. Recording one as a "++"
+                // that Apply's switch has no case for made it a permanent no-op nothing
+                // complained about, so a typo in a content file looked exactly like a
+                // working line, and every non-assignment key in an action block
+                // (conversation, dialog, payment) leaked into the condition store.
+                Diagnostics.Add(Where(child) + ": incomplete assignment");
             }
         }
 
+        /// <summary>
+        /// Upstream's seven assignment operators, and only those
+        /// (<c>ConditionAssignments.cpp:29-37</c>). <c>%=</c> is not among them, so
+        /// content using it is a mistake worth reporting rather than a rule to honour.
+        /// </summary>
         private static bool IsAssignmentOperator(string token) =>
-            token is "=" or "+=" or "-=" or "*=" or "/=" or "%=" or "<?=" or ">?=";
+            token is "=" or "+=" or "-=" or "*=" or "/=" or "<?=" or ">?=";
 
         /// <summary>Applies every assignment, in declaration order.</summary>
         public void Apply(Conditions conditions)
@@ -111,7 +115,6 @@ namespace EndlessSky.Sim
                     // Upstream saturates rather than skipping, matching the expression
                     // evaluator's division rule.
                     "/=" => value == 0L ? long.MaxValue : current / value,
-                    "%=" => value == 0L ? current : current % value,
                     // "<?=" keeps the smaller value, ">?=" the larger: min/max assign.
                     "<?=" => Math.Min(current, value),
                     ">?=" => Math.Max(current, value),

@@ -266,6 +266,32 @@ namespace EndlessSky.Tests
         }
 
         [Test]
+        public void AnIncompleteAssignmentIsReportedRatherThanSilentlyKept()
+        {
+            // Upstream rejects a one-token child outright with "Incomplete assignment."
+            // (ConditionAssignments.cpp:208-212). Recording it as a "++" that Apply's
+            // switch has no case for made it a permanent no-op that nothing complained
+            // about -- so a typo in a content file looked exactly like a working line.
+            var assignments = ConditionAssignments.Load(Parse(
+                string.Join("\n", "on offer", "\t\"visited New Boston\"") + "\n"));
+
+            Assert.IsNotEmpty(assignments.Diagnostics,
+                "a line that assigns nothing has to say so");
+        }
+
+        [Test]
+        public void ModuloIsNotAnAssignmentOperatorUpstreamHas()
+        {
+            // ConditionAssignments.cpp:29-37 lists seven: = += -= *= /= <?= >?=.
+            // "%=" is not among them, so content using it is a mistake worth reporting
+            // rather than a rule worth honouring.
+            var assignments = ConditionAssignments.Load(Parse(
+                string.Join("\n", "on offer", "\t\"tally\" %= 7") + "\n"));
+
+            Assert.IsNotEmpty(assignments.Diagnostics);
+        }
+
+        [Test]
         public void NonIntegerLiteralsAreTruncatedRatherThanReadAsConditionNames()
         {
             var conditions = new Conditions();

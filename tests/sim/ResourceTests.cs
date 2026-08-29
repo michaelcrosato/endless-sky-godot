@@ -60,6 +60,57 @@ namespace EndlessSky.Tests
                 "asked for everything, gets what it can pay for");
         }
 
+        [Test]
+        public void AShipThatRunsOutOfPowerDriftsToAStop()
+        {
+            // Ship.cpp:4896 takes the drag-only branch on `isDisabled || NeedsEnergy()`.
+            // Testing only IsDisabled let a browned-out hull coast forever at whatever
+            // velocity it had — no thrust, no turn, and no drag either, which is the one
+            // state that should feel like being adrift.
+            // thrust 20 / mass 100 / drag 2 gives a terminal speed of 10, and a
+            // 1000-unit reserve at 5 a frame is exactly 200 frames of thrust — so it
+            // gets up to speed and arrives at the far end with the tank empty.
+            Ship ship = Make("\"thrust\" 20", "\"thrusting energy\" 5",
+                             "\"turn\" 200", "\"turning energy\" 5",
+                             "\"energy capacity\" 1000");
+
+            for (int frame = 0; frame < 200; frame++)
+                ship.Step(new Command { Forward = true });
+
+            Assert.Greater(ship.Velocity.Length, 5.0, "it got moving first");
+            Assert.LessOrEqual(ship.Energy, 0.00390625, "and ran the reactor dry doing it");
+
+            // Drag sheds 2% of the remaining speed a frame, so a halt is asymptotic:
+            // long enough for 0.98^n to take ten units below a millionth.
+            for (int frame = 0; frame < 1500; frame++)
+                ship.Step(Command.None);
+
+            Assert.Less(ship.Velocity.Length, 1e-6, "with no power it drifts to a halt");
+        }
+
+        [Test]
+        public void AShipWithItsOwnReactorNeverCountsAsOutOfPower()
+        {
+            // NeedsEnergy is false the moment a ship generates more than it draws
+            // (Ship.cpp:2879-2882), whatever its current reserve.
+            Ship ship = Make("\"thrust\" 20", "\"thrusting energy\" 5",
+                             "\"energy capacity\" 100", "\"energy generation\" 6");
+
+            ship.SetLevels(energy: 0.0);
+            Assert.IsFalse(ship.NeedsEnergy, "a working reactor is not a dead ship");
+        }
+
+        [Test]
+        public void AShipThatCostsNoEnergyToMoveNeverNeedsAny()
+        {
+            // RequiresMovementEnergy (Ship.cpp:5098): a hull whose engines are free
+            // does not brown out, however empty its reserve.
+            Ship ship = Make("\"thrust\" 20", "\"energy capacity\" 100");
+
+            ship.SetLevels(energy: 0.0);
+            Assert.IsFalse(ship.NeedsEnergy);
+        }
+
         // --- Landing and taking off -----------------------------------------------
 
         [Test]
