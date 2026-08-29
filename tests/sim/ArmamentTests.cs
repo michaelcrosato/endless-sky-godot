@@ -40,6 +40,40 @@ namespace EndlessSky.Tests
             return outfit;
         }
 
+        /// <summary>A turret outfit: it consumes a turret mount rather than a gun port.</summary>
+        private static Outfit MakeTurret(string name, params string[] weaponLines)
+        {
+            var lines = new List<string> { "outfit \"" + name + "\"", "	\"turret mounts\" -1", "	weapon" };
+            foreach (string line in weaponLines)
+                lines.Add("		" + line);
+
+            var outfit = new Outfit(name);
+            outfit.Load(new DataFile(string.Join("\n", lines) + "\n", "test.txt").Nodes[0]);
+            return outfit;
+        }
+
+        /// <summary>A hull with one turret mount and plenty of power.</summary>
+        private static Ship MakeTurretedShip()
+        {
+            var lines = new List<string>
+            {
+                "ship \"Turret Boat\"",
+                "	attributes",
+                "		\"hull\" 1000",
+                "		\"mass\" 100",
+                "		\"energy capacity\" 1000",
+                "		\"turret mounts\" 1",
+                "	turret 0 -10",
+            };
+
+            var definition = new ShipDefinition("Turret Boat");
+            definition.Load(new DataFile(string.Join("\n", lines) + "\n", "test.txt").Nodes[0]);
+
+            var ship = new Ship(definition);
+            ship.BuildMounts();
+            return ship;
+        }
+
         /// <summary>
         /// A ship with the requested gun mounts and plenty of energy, built through the
         /// real data parser so the mount wiring is exercised rather than faked.
@@ -322,6 +356,64 @@ namespace EndlessSky.Tests
             double full = ship.Fire(mount)!.Angle.Degrees - ship.Facing.Degrees;
             // Angles quantise to 65536 steps, so the tolerance is one step (0.0055 deg).
             Assert.AreEqual(10.0, full, 0.01, "the extremes give the full cone");
+        }
+
+        // --- Turret traverse ------------------------------------------------------
+
+        [Test]
+        public void ATurretTurnsTowardATargetOffTheShipsNose()
+        {
+            // Hardpoint::Aim (Hardpoint.cpp:266-273) turns a turret on its own mount at
+            // its own rate. Without it every mount fired along the ship's facing, which
+            // makes a turret indistinguishable from a fixed gun — a turret-armed ship
+            // could not shoot at anything it was not already pointed at.
+            Outfit turret = MakeTurret("Test Turret", "\"turret turn\" 3",
+                "\"reload\" 1", "\"velocity\" 10", "\"lifetime\" 100");
+
+            Ship ship = MakeTurretedShip();
+            WeaponMount mount = ship.InstallWeapon(turret, asTurret: true);
+            Assert.IsNotNull(mount);
+
+            // Directly abeam: 90 degrees off the nose.
+            ship.Facing = new Angle(0.0);
+            var abeam = new Point(400.0, 0.0);
+
+            for (int frame = 0; frame < 40; frame++)
+                ship.AimTurrets(abeam);
+
+            Assert.AreEqual(90.0, mount.BaseAngle.Degrees, 1.0,
+                "the turret came round to bear");
+        }
+
+        [Test]
+        public void ATurretTurnsNoFasterThanItsRate()
+        {
+            Outfit turret = MakeTurret("Slow Turret", "\"turret turn\" 2",
+                "\"reload\" 1", "\"velocity\" 10", "\"lifetime\" 100");
+
+            Ship ship = MakeTurretedShip();
+            WeaponMount mount = ship.InstallWeapon(turret, asTurret: true);
+
+            ship.Facing = new Angle(0.0);
+            ship.AimTurrets(new Point(400.0, 0.0));
+
+            Assert.AreEqual(2.0, mount.BaseAngle.Degrees, 0.01,
+                "one frame of traverse is one turn rate");
+        }
+
+        [Test]
+        public void AFixedGunDoesNotTraverse()
+        {
+            // Only turrets move. A gun fires along the hull, which is the whole reason
+            // aiming the SHIP matters.
+            Outfit gun = MakeGun("Fixed Gun", "\"reload\" 1", "\"velocity\" 10", "\"lifetime\" 100");
+
+            Ship ship = MakeArmedShip();
+            WeaponMount mount = ship.InstallWeapon(gun);
+
+            ship.AimTurrets(new Point(400.0, 0.0));
+
+            Assert.AreEqual(0.0, mount.BaseAngle.Degrees, 1e-9);
         }
     }
 }

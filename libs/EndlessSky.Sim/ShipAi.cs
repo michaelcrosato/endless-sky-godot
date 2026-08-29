@@ -164,6 +164,11 @@ namespace EndlessSky.Sim
             if (distance <= 0.0)
                 return Command.None;
 
+            // Turrets bear on the target regardless of where the hull points. Upstream
+            // aims them every frame from the AI (Armament.cpp:233); leaving them fixed
+            // is what made a turret indistinguishable from a gun.
+            self.AimTurrets(AimPoint(self, target, PrimaryWeapon(self)) + self.Position);
+
             // The nose stays ON the target at all times. An earlier attempt at a
             // standoff turned the ship's tail to its target to bleed closing speed,
             // which silenced its fixed guns for the whole braking phase - upstream

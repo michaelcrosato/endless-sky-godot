@@ -9,8 +9,10 @@ namespace EndlessSky.Sim
     /// govern cadence and resource cost.
     /// </summary>
     /// <remarks>
-    /// INCOMPLETE, tracked rather than dropped: turret traverse, blindspots, firing
-    /// effects, anti-missile, cluster aiming, and the fighter-bay half of armament.
+    /// INCOMPLETE, tracked rather than dropped: turret firing ARCS (every turret is
+    /// treated as omnidirectional, so one mounted behind a hull can still bear
+    /// forward), blindspots, firing effects, anti-missile, and the fighter-bay half of
+    /// armament.
     /// </remarks>
     public partial class Ship
     {
@@ -177,6 +179,38 @@ namespace EndlessSky.Sim
                 AddOutfit(outfit, arm: false);
 
             return mount;
+        }
+
+        /// <summary>
+        /// Turns every turret toward a point, one frame's traverse at a time.
+        /// </summary>
+        /// <remarks>
+        /// Upstream drives this from the AI's per-hardpoint aim commands
+        /// (<c>Armament.cpp:233</c>); this is the same motion with the common case —
+        /// every turret onto the same target — expressed directly. Each turret turns at
+        /// its own rate and takes the shorter way round, so a mount already nearly on
+        /// target eases the last degree rather than overshooting it.
+        /// </remarks>
+        public void AimTurrets(Point target)
+        {
+            foreach (WeaponMount mount in _mounts)
+            {
+                if (!mount.IsTurret || mount.Weapon is null || mount.Weapon.TurretTurn <= 0.0)
+                    continue;
+
+                // Where the mount points now, and where it needs to point, both in
+                // hull-relative terms so the ship's own heading cancels out.
+                Point offset = target - (Position + Facing.Rotate(mount.Point));
+                if (offset.LengthSquared <= 0.0)
+                    continue;
+
+                // Angle.Degrees already folds to [-180, 180), so subtracting the three
+                // angles gives the SHORTER way round without any further wrapping.
+                double delta = (Angle.FromPoint(offset) - Facing - mount.BaseAngle).Degrees;
+
+                double rate = mount.Weapon.TurretTurn;
+                mount.Aim(Math.Clamp(delta / rate, -1.0, 1.0));
+            }
         }
 
         /// <summary>Advances every mount's reload clocks by one frame.</summary>

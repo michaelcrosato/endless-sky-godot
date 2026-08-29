@@ -325,6 +325,12 @@ namespace EndlessSky.Sim
         public double FiringShields => Attributes.Get("firing shields");
 
         /// <summary>Outfit consumed per shot, or null for weapons needing no ammunition.</summary>
+        /// <summary>
+        /// Degrees a turret carrying this weapon traverses per frame, from the
+        /// <c>turret turn</c> attribute. Zero for a fixed gun.
+        /// </summary>
+        public double TurretTurn => Attributes.Get("turret turn");
+
         public string? AmmoName { get; private set; }
 
         /// <summary>Rounds consumed per shot, from the ammo line's optional count.</summary>

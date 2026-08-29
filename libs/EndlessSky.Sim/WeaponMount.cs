@@ -37,7 +37,42 @@ namespace EndlessSky.Sim
         public Point Point { get; }
 
         /// <summary>Fixed mounting angle, relative to the ship's facing.</summary>
-        public Angle BaseAngle { get; }
+        /// <summary>
+        /// Where this mount points, relative to the hull. Fixed for a gun; a turret
+        /// traverses it toward whatever it is aiming at.
+        /// </summary>
+        public Angle BaseAngle { get; private set; }
+
+        /// <summary>
+        /// Traverses a turret by up to one frame's turn. Port of upstream
+        /// <c>Hardpoint::Aim</c> (<c>Hardpoint.cpp:266-273</c>).
+        /// </summary>
+        /// <param name="amount">
+        /// How much of the available traverse to use, in [-1, 1]. Upstream's caller
+        /// works the same way, which is what lets a turret ease onto a target instead
+        /// of snapping to it.
+        /// </param>
+        /// <remarks>
+        /// Without this every mount fired along the ship's facing, which makes a turret
+        /// indistinguishable from a fixed gun: a turret-armed ship could not shoot at
+        /// anything it was not already pointed at, and the whole reason to buy one
+        /// disappeared.
+        ///
+        /// INCOMPLETE, tracked rather than dropped: firing arcs. Upstream clamps a
+        /// non-omnidirectional turret to its min/max arc; every turret here is treated
+        /// as omnidirectional, so one mounted behind a hull can still bear forward.
+        /// </remarks>
+        public void Aim(double amount)
+        {
+            if (!IsTurret || Weapon is null)
+                return;
+
+            double rate = Weapon.TurretTurn;
+            if (rate <= 0.0)
+                return;
+
+            BaseAngle += new Angle(rate * Math.Clamp(amount, -1.0, 1.0));
+        }
 
         /// <summary>Turrets aim independently; guns fire along the hull.</summary>
         public bool IsTurret { get; }
