@@ -26,8 +26,7 @@ namespace EndlessSky.Tests
     {
         private static IEnumerable<string> AllDataFiles()
         {
-            string root = UpstreamData.Path;
-            Assert.IsNotNull(root, "upstream data required");
+            string root = UpstreamData.RequiredPath;
             return Directory.EnumerateFiles(root, "*.txt", SearchOption.AllDirectories);
         }
 
@@ -140,7 +139,7 @@ namespace EndlessSky.Tests
         {
             // Alien content is where the unusual syntax lives, so a parser that only
             // survives data/human has not really proven anything.
-            string root = UpstreamData.Path;
+            string root = UpstreamData.RequiredPath;
             var factionDirs = Directory.EnumerateDirectories(root)
                 .Select(Path.GetFileName)
                 .Where(n => !n.StartsWith("_", StringComparison.Ordinal))

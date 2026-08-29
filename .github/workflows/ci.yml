@@ -36,6 +36,27 @@ jobs:
           key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
           restore-keys: nuget-${{ runner.os }}-
 
+      # The parity suites assert against real upstream content, and external/ is
+      # gitignored, so this job has to fetch it. Without it 80 tests Ignore
+      # themselves and the run proves far less than its green tick suggests --
+      # which is exactly what happened for three pushes before this step existed.
+      # Data only: nothing here compiles or reads the C++.
+      - name: Fetch upstream dataset
+        run: |
+          set -euo pipefail
+          git clone --depth 1 --filter=blob:none --sparse \
+            https://github.com/endless-sky/endless-sky.git external/endless-sky
+          git -C external/endless-sky sparse-checkout set data
+
+      # A green run that quietly skipped the parity suites is the failure mode
+      # this job exists to rule out, so check the dataset landed before testing
+      # rather than reading it out of the skip count afterwards.
+      - name: Fail fast if the dataset is missing
+        run: |
+          set -euo pipefail
+          test -f external/endless-sky/data/commodities.txt \
+            || { echo "::error::upstream dataset absent; the parity suites would silently skip"; exit 1; }
+
       - name: Test
         run: dotnet test tests/sim/EndlessSky.SimTests.csproj --nologo -v minimal
 
@@ -83,14 +104,9 @@ jobs:
           key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
           restore-keys: nuget-${{ runner.os }}-
 
-      # external/ is gitignored, so the upstream content the game loads at
-      # startup has to be fetched here the same way a developer would.
-      - name: Fetch upstream reference (source + data)
-        run: |
-          set -euo pipefail
-          git clone --depth 1 --filter=blob:none --sparse \
-            https://github.com/endless-sky/endless-sky.git external/endless-sky
-          git -C external/endless-sky sparse-checkout set source data
+      # No upstream fetch here on purpose: the game loads universe/ (The Reach),
+      # which is committed, so this job needs nothing from external/. The parity
+      # suites that DO need it live in the sim job, which fetches it there.
 
       - name: Import assets
         run: $GODOT_BIN --headless --path . --import
@@ -98,7 +114,7 @@ jobs:
       - name: Build
         run: dotnet build EndlessSky.sln --nologo -v minimal
 
-      # Boots the real main scene against real upstream content: catches broken
+      # Boots the real main scene against the real dataset: catches broken
       # scenes, missing data and C# load failures that compilation alone misses.
       - name: Headless smoke run
         run: |
@@ -107,6 +123,25 @@ jobs:
           echo "$output"
           echo "$output" | grep -q '^\[flight\]' \
             || { echo "::error::flight scene did not report startup state"; exit 1; }
+
+      # Plays a bounty end to end -- accept, fly, fight, report. This is the only
+      # check that exercises libs/ and src/game/ together, and it is where the
+      # defect class that unit tests cannot see has actually been caught before.
+      - name: Mission and combat smoke run
+        run: |
+          set -euo pipefail
+          output=$($GODOT_BIN --headless --path . --quit-after 20000 -- --mission-smoke 2>&1)
+          echo "$output"
+          echo "$output" | grep -q '^\[smoke\] PASS' \
+            || { echo "::error::mission smoke did not reach its objective"; exit 1; }
+
+      # The presentation suites need a real engine, so they cannot run in the sim
+      # job. Non-gating for now: this is the first time they have run on Linux CI
+      # at all, and gdUnit4's connect handshake is documented as timing-sensitive
+      # (see CLAUDE.md). Promote to a gate once it has proven stable across runs.
+      - name: In-engine test suite (gdUnit4)
+        continue-on-error: true
+        run: pwsh tools/test.ps1 -Suite godot
 
       - name: Upload logs
         if: failure()

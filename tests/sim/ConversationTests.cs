@@ -330,7 +330,7 @@ namespace EndlessSky.Tests
         [Test]
         public void RealUpstreamConversationsParseAndReachAnEnding()
         {
-            string dataPath = UpstreamData.Path;
+            string dataPath = UpstreamData.RequiredPath;
             Assert.IsNotNull(dataPath, "upstream data required");
 
             var conversations = new List<Conversation>();

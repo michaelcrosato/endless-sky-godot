@@ -266,7 +266,7 @@ namespace EndlessSky.Tests
         public void TheUpstreamDatasetDefinesTheExpectedCommodities()
         {
             // Sanity that the real commodities file parses through the same path.
-            string dataPath = UpstreamData.Path;
+            string dataPath = UpstreamData.RequiredPath;
             Assert.IsNotNull(dataPath, "upstream data required");
 
             var trade = new TradeData();

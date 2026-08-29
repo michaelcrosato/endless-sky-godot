@@ -199,7 +199,7 @@ namespace EndlessSky.Tests
         [Test]
         public void RealUpstreamMissionsParseWithoutLosingTheirGates()
         {
-            string dataPath = UpstreamData.Path;
+            string dataPath = UpstreamData.RequiredPath;
             Assert.IsNotNull(dataPath, "upstream data required");
 
             var missions = new System.Collections.Generic.List<Mission>();

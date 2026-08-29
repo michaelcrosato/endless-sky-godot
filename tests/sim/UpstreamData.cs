@@ -45,6 +45,21 @@ namespace EndlessSky.Tests
             }
         }
 
+        /// <summary>
+        /// The upstream <c>data</c> directory, ignoring the calling test when it is absent.
+        /// </summary>
+        /// <remarks>
+        /// Tests that read the dataset off disk rather than through <see cref="Instance"/>
+        /// must go through this, not through <see cref="Path"/>. Reaching for the raw
+        /// property makes a missing checkout a hard failure, which is exactly what the
+        /// Ignore contract above exists to prevent -- and what turned CI red for three
+        /// pushes, because the fast job never fetches the dataset at all.
+        /// </remarks>
+        internal static string RequiredPath =>
+            Path ?? throw new IgnoreException(
+                "Upstream Endless Sky data not found. Run tools/get-data.ps1, set " +
+                "ENDLESS_SKY_DATA, or clone endless-sky beside this project as ../es-upstream.");
+
         /// <summary>The upstream <c>data</c> directory, or null when it cannot be found.</summary>
         internal static string Path
         {

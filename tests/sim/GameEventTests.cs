@@ -213,7 +213,7 @@ namespace EndlessSky.Tests
             Assert.IsNotEmpty(stocking, "some event must make the Kestrel available");
 
             var fresh = new GameData();
-            fresh.LoadDirectory(UpstreamData.Path);
+            fresh.LoadDirectory(UpstreamData.RequiredPath);
             Assert.IsEmpty(fresh.Shipyards["Kestrel"].Items, "empty before any event fires");
 
             foreach (GameEvent e in stocking.Select(s => fresh.Events[s.Name]))

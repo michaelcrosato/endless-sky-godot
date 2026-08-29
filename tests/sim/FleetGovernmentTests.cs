@@ -232,7 +232,7 @@ namespace EndlessSky.Tests
             GameData first = UpstreamData.Instance;
 
             var second = new GameData();
-            second.LoadDirectory(UpstreamData.Path);
+            second.LoadDirectory(UpstreamData.RequiredPath);
 
             foreach (ShipDefinition ship in first.Ships.Values)
             {

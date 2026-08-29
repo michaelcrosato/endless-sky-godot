@@ -27,6 +27,20 @@ namespace EndlessSky.Tests
         }
 
         /// <summary>
+        /// An ammunition outfit. Rounds are ordinary outfits with mass, which is why
+        /// they are loaded with AddOutfit rather than through any ammunition-specific
+        /// call -- that is the route the game itself takes.
+        /// </summary>
+        private static Outfit MakeAmmo(string name, double mass = 1.0)
+        {
+            var lines = new List<string> { "outfit \"" + name + "\"", "\t\"mass\" " + mass };
+
+            var outfit = new Outfit(name);
+            outfit.Load(new DataFile(string.Join("\n", lines) + "\n", "test.txt").Nodes[0]);
+            return outfit;
+        }
+
+        /// <summary>
         /// A ship with the requested gun mounts and plenty of energy, built through the
         /// real data parser so the mount wiring is exercised rather than faked.
         /// </summary>
@@ -139,7 +153,7 @@ namespace EndlessSky.Tests
             Assert.AreEqual("Test Missile", launcher.Weapon.AmmoName);
             Assert.IsNull(ship.Fire(mount), "no ammunition loaded");
 
-            ship.AddAmmo("Test Missile", 2);
+            ship.AddOutfit(MakeAmmo("Test Missile"), 2);
             Assert.IsNotNull(ship.Fire(mount));
             Assert.AreEqual(1, ship.AmmoCount("Test Missile"));
 
@@ -228,12 +242,53 @@ namespace EndlessSky.Tests
             Assert.AreEqual("Sidewinder Missile", launcher.Weapon.AmmoName);
             Assert.IsNull(ship.Fire(mount), "an empty launcher does not fire");
 
-            ship.AddAmmo("Sidewinder Missile", 45);
+            ship.AddOutfit(data.Outfits["Sidewinder Missile"], 45);
             Projectile shot = ship.Fire(mount);
 
             Assert.IsNotNull(shot);
             Assert.IsTrue(shot.Weapon.IsHoming);
             Assert.AreEqual(44, ship.AmmoCount("Sidewinder Missile"));
+        }
+
+        [Test]
+        public void AStockShipCanFireTheAmmunitionItWasBuiltWith()
+        {
+            // The Raven's stock loadout is one Sidewinder launcher and 45 rounds for
+            // it. Upstream reads ammunition straight out of the ship's outfit map, so
+            // a hull that was built with its missiles aboard is loaded. Nothing in the
+            // game calls AddAmmo, so if ammunition lives in a separate ledger every
+            // launcher, torpedo tube and missile pod in the dataset is inert.
+            Ship raven = UpstreamData.Instance.BuildShip("Raven");
+
+            Assert.AreEqual(45, raven.AmmoCount("Sidewinder Missile"),
+                "the rounds the hull was built with are its ammunition");
+
+            WeaponMount launcher = raven.Mounts.First(
+                m => m.Weapon?.AmmoName == "Sidewinder Missile");
+
+            Assert.IsNotNull(raven.Fire(launcher), "a stock Raven can fire its missiles");
+            Assert.AreEqual(44, raven.AmmoCount("Sidewinder Missile"));
+        }
+
+        [Test]
+        public void SpendingAmmunitionRemovesTheOutfitAndItsMass()
+        {
+            // Upstream spends a round with AddOutfit(ammo, -AmmoUsage), so the hull
+            // gets lighter as the magazine empties. Decrementing a private counter
+            // instead leaves a ship carrying the mass of ammunition it already fired.
+            Ship raven = UpstreamData.Instance.BuildShip("Raven");
+            double loadedMass = raven.Mass;
+            double roundMass = UpstreamData.Instance.Outfits["Sidewinder Missile"].Attributes.Get("mass");
+
+            Assert.Greater(roundMass, 0.0, "a missile has mass upstream");
+
+            WeaponMount launcher = raven.Mounts.First(
+                m => m.Weapon?.AmmoName == "Sidewinder Missile");
+
+            raven.Fire(launcher);
+
+            Assert.AreEqual(loadedMass - roundMass, raven.Mass, 1e-9,
+                "firing a missile makes the ship lighter by exactly one round");
         }
     }
 }

@@ -605,6 +605,14 @@ namespace EndlessSky.Sim
             if (government != null && _governments.TryGetValue(government, out Government? faction))
                 ship.Government = faction;
 
+            // Hardpoints before weapons, which is upstream's order in
+            // Ship::FinishLoading: the Armament exists first, and each weapon outfit is
+            // handed to it as it is installed. Leaving the mounts until later meant
+            // every hull this method produced carried its guns as inventory with no
+            // hardpoint to fire them from -- so callers had to know to call BuildMounts
+            // themselves, and the ones that forgot shipped an unarmed ship.
+            ship.BuildMounts();
+
             foreach (string outfitName in definition.OutfitNames)
             {
                 if (_outfits.TryGetValue(outfitName, out Outfit? outfit))

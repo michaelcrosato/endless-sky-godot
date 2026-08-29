@@ -15,7 +15,6 @@ namespace EndlessSky.Sim
     public partial class Ship
     {
         private readonly List<WeaponMount> _mounts = new List<WeaponMount>();
-        private readonly Dictionary<string, int> _ammo = new Dictionary<string, int>(StringComparer.Ordinal);
 
         /// <summary>Every weapon mount, guns first then turrets, in definition order.</summary>
         public IReadOnlyList<WeaponMount> Mounts => _mounts;
@@ -82,21 +81,63 @@ namespace EndlessSky.Sim
             return null;
         }
 
-        /// <summary>Ammunition currently carried, by outfit name.</summary>
-        public int AmmoCount(string? outfitName) =>
-            outfitName is not null && _ammo.TryGetValue(outfitName, out int count) ? count : 0;
-
-        public void AddAmmo(string? outfitName, int count)
+        /// <summary>
+        /// Ammunition currently carried, by outfit name.
+        /// </summary>
+        /// <remarks>
+        /// This counts the ship's own outfits, because that is what ammunition is:
+        /// upstream's <c>Ship::CanFire</c> looks the round up in the same
+        /// <c>outfits</c> map that installing an outfit fills
+        /// (<c>Ship.cpp:3657</c>). Keeping a separate ledger meant a hull built with
+        /// its stock loadout carried 45 Sidewinders that <c>CanFire</c> could not
+        /// see, so every launcher, torpedo tube and missile pod in the dataset was
+        /// inert while the tests -- which loaded rounds through a back door no
+        /// production code used -- stayed green.
+        /// </remarks>
+        public int AmmoCount(string? outfitName)
         {
-            if (string.IsNullOrEmpty(outfitName) || count == 0)
+            if (string.IsNullOrEmpty(outfitName))
+                return 0;
+
+            int count = 0;
+            foreach (Outfit carried in _outfits)
+                if (string.Equals(carried.Name, outfitName, StringComparison.Ordinal))
+                    count++;
+
+            return count;
+        }
+
+        /// <summary>
+        /// Spends rounds of the named ammunition, removing the outfits themselves so
+        /// their mass and attributes leave the ship with them.
+        /// </summary>
+        /// <remarks>
+        /// Upstream spends a round with <c>AddOutfit(ammo, -AmmoUsage())</c>
+        /// (<c>Ship.cpp:3687</c>), so an emptying magazine really does make the hull
+        /// lighter. There is deliberately no public "load ammunition" call: rounds are
+        /// ordinary outfits, so they arrive through <see cref="AddOutfit(Outfit,int,bool)"/>
+        /// like everything else a ship carries. An earlier separate ledger let tests
+        /// load rounds by a route the game never took, which is why every launcher in
+        /// the dataset was inert under a green suite.
+        /// </remarks>
+        private void SpendAmmo(string? outfitName, int count)
+        {
+            if (string.IsNullOrEmpty(outfitName) || count <= 0)
                 return;
 
-            _ammo.TryGetValue(outfitName, out int existing);
-            int total = existing + count;
-            if (total <= 0)
-                _ammo.Remove(outfitName);
-            else
-                _ammo[outfitName] = total;
+            Outfit? round = FindCarriedOutfit(outfitName);
+            if (round is not null)
+                RemoveOutfit(round, count);
+        }
+
+        /// <summary>The ammunition outfit this ship carries under that name, if any.</summary>
+        private Outfit? FindCarriedOutfit(string outfitName)
+        {
+            foreach (Outfit carried in _outfits)
+                if (string.Equals(carried.Name, outfitName, StringComparison.Ordinal))
+                    return carried;
+
+            return null;
         }
 
         /// <summary>
@@ -174,7 +215,7 @@ namespace EndlessSky.Sim
             Heat += weapon.FiringHeat;
             SpendFiringResources(weapon);
             if (weapon.AmmoName is not null)
-                AddAmmo(weapon.AmmoName, -(int)weapon.AmmoUsage);
+                SpendAmmo(weapon.AmmoName, weapon.AmmoUsage);
 
             mount.RecordShot();
 
