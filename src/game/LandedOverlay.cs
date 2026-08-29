@@ -185,8 +185,21 @@ namespace EndlessSky.Game
                 .ToList();
         }
 
+        // The offer dialogue, while one is being shown. It owns the keyboard: the
+        // counter behind it must not also read the arrow keys.
+        private ConversationRunner? _talk;
+        private Mission? _talkingAbout;
+        private string? _dialog;
+        private int _talkChoice;
+
         public override void _Process(double delta)
         {
+            if (_talk != null || _dialog != null)
+            {
+                StepOffer();
+                return;
+            }
+
             bool up = Input.IsPhysicalKeyPressed(Key.Up) || Input.IsPhysicalKeyPressed(Key.W);
             bool down = Input.IsPhysicalKeyPressed(Key.Down) || Input.IsPhysicalKeyPressed(Key.S);
             bool buy = Input.IsPhysicalKeyPressed(Key.B);
@@ -229,6 +242,123 @@ namespace EndlessSky.Game
 
             (_upWas, _downWas, _buyWas, _sellWas, _departWas, _tabWas) =
                 (up, down, buy, sell, depart, tab);
+        }
+
+        /// <summary>
+        /// Puts an offer's dialogue on screen. Returns false when there is nothing to
+        /// show and the caller should simply take the job.
+        /// </summary>
+        private bool BeginOffer(Mission job, MissionAction? offer)
+        {
+            if (offer is null)
+            {
+                return false;
+            }
+
+            _talkingAbout = job;
+            _talkChoice = 0;
+
+            Conversation? talk = offer.InlineConversation;
+            if (talk is null && offer.Conversation != null)
+            {
+                _universe.Conversations.TryGetValue(offer.Conversation, out talk);
+            }
+
+            if (talk != null)
+            {
+                _talk = new ConversationRunner(talk, _player.Conditions);
+                Refresh();
+                return true;
+            }
+
+            if (!string.IsNullOrEmpty(offer.Dialog))
+            {
+                _dialog = offer.Dialog;
+                Refresh();
+                return true;
+            }
+
+            _talkingAbout = null;
+            return false;
+        }
+
+        /// <summary>Drives the offer dialogue. Enter answers; Esc walks away.</summary>
+        private void StepOffer()
+        {
+            bool up = Input.IsPhysicalKeyPressed(Key.Up) || Input.IsPhysicalKeyPressed(Key.W);
+            bool down = Input.IsPhysicalKeyPressed(Key.Down) || Input.IsPhysicalKeyPressed(Key.S);
+            bool enter = Input.IsPhysicalKeyPressed(Key.Enter) || Input.IsPhysicalKeyPressed(Key.Space);
+            bool escape = Input.IsPhysicalKeyPressed(Key.Escape);
+
+            if (escape && !_departWas)
+            {
+                EndOffer(accepted: false);
+            }
+            else if (_dialog != null)
+            {
+                // A plain dialog is read and dismissed; saying yes is pressing on.
+                if (enter && !_buyWas)
+                {
+                    EndOffer(accepted: true);
+                }
+            }
+            else if (_talk != null)
+            {
+                int options = _talk.Choices.Count;
+                if (options > 0)
+                {
+                    if (up && !_upWas) { _talkChoice = (_talkChoice + options - 1) % options; Refresh(); }
+                    if (down && !_downWas) { _talkChoice = (_talkChoice + 1) % options; Refresh(); }
+                    if (enter && !_buyWas) { _talk.Choose(_talkChoice); _talkChoice = 0; Refresh(); }
+                }
+                else if (enter && !_buyWas)
+                {
+                    Refresh();
+                }
+
+                if (_talk.IsFinished)
+                {
+                    EndOffer(_talk.Outcome != ConversationOutcome.Decline);
+                }
+            }
+
+            (_upWas, _downWas, _buyWas, _departWas) = (up, down, enter, escape);
+        }
+
+        /// <summary>Closes the dialogue and takes the job if the player agreed.</summary>
+        private void EndOffer(bool accepted)
+        {
+            Mission? job = _talkingAbout;
+
+            _talk = null;
+            _dialog = null;
+            _talkingAbout = null;
+
+            if (job is null)
+            {
+                Refresh();
+                return;
+            }
+
+            if (accepted)
+            {
+                AcceptOffered(job);
+            }
+            else
+            {
+                _missions.Decline(job);
+                _message = $"declined: {job.DisplayName}";
+                RefreshStock();
+                Refresh();
+            }
+        }
+
+        private void AcceptOffered(Mission job)
+        {
+            ActiveMission? taken = _missions.Accept(job);
+            _message = taken != null ? $"accepted: {job.DisplayName}" : "could not accept";
+            RefreshStock();
+            Refresh();
         }
 
         private int Selection() => _selected.TryGetValue(_counter, out int value) ? value : 0;
@@ -309,9 +439,19 @@ namespace EndlessSky.Game
                     }
 
                     Mission job = _jobs[index];
-                    ActiveMission? taken = _missions.Accept(job);
-                    _message = taken != null ? $"accepted: {job.DisplayName}" : "could not accept";
-                    RefreshStock();
+
+                    // Ask first. A mission's `on offer` action is where its dialogue
+                    // lives; upstream shows it and takes the player's answer as the
+                    // decision. Nothing ever fired the trigger, so every line of offer
+                    // dialogue in the dataset went unread and every mission was accepted
+                    // silently.
+                    MissionAction? offer = _missions.Offer(job);
+                    if (BeginOffer(job, offer))
+                    {
+                        break;
+                    }
+
+                    AcceptOffered(job);
                     break;
                 }
             }
@@ -403,12 +543,55 @@ namespace EndlessSky.Game
 
         // --- Rendering --------------------------------------------------------------
 
+        /// <summary>The offer dialogue as it stands: what has been said, and the reply.</summary>
+        private IEnumerable<string> OfferLines()
+        {
+            var lines = new List<string>();
+
+            if (_talkingAbout != null)
+                lines.Add(TextSubstitution.NameOf(_talkingAbout, _player, _universe));
+
+            lines.Add("");
+
+            if (_dialog != null)
+            {
+                lines.Add(_dialog);
+                lines.Add("");
+                lines.Add("   ENTER accept   ·   ESC decline");
+                return lines;
+            }
+
+            if (_talk is null)
+                return lines;
+
+            foreach (string said in _talk.PendingText)
+                lines.Add(said);
+
+            if (_talk.Choices.Count > 0)
+            {
+                lines.Add("");
+                for (int i = 0; i < _talk.Choices.Count; i++)
+                    lines.Add(Cursor(i, _talkChoice) + _talk.Choices[i]);
+            }
+
+            lines.Add("");
+            lines.Add(_talk.Choices.Count > 0
+                ? "   ↑/↓ choose   ·   ENTER answer   ·   ESC walk away"
+                : "   ENTER continue   ·   ESC walk away");
+
+            return lines;
+        }
+
         private void Refresh()
         {
             _tabLabel.Text = string.Join("   ", Enum.GetValues<Counter>()
                 .Select(c => c == _counter ? $"[ {Title(c)} ]" : $"  {Title(c)}  "));
 
-            _listLabel.Text = string.Join("\n", Lines());
+            // A dialogue takes over the panel while it is up: the counter behind it is
+            // not what the player is answering.
+            _listLabel.Text = _talk != null || _dialog != null
+                ? string.Join("\n", OfferLines())
+                : string.Join("\n", Lines());
 
             Ship? flagship = _player.Fleet.Flagship;
             string hold = flagship is null

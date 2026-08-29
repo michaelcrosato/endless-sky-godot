@@ -150,6 +150,36 @@ namespace EndlessSky.Sim
         }
 
         /// <summary>
+        /// Presents a mission to the player: fires its <c>on offer</c> action and hands
+        /// back whatever that action wants shown.
+        /// </summary>
+        /// <returns>
+        /// The offer action, or null when the mission has none. A caller with a screen
+        /// runs its dialog or conversation and decides whether to <see cref="Accept"/>
+        /// on the answer; a caller without one can ignore it.
+        /// </returns>
+        /// <remarks>
+        /// OFFER is where a mission's dialogue lives and where content sets the
+        /// conditions the offer itself implies. Nothing fired the trigger, so `on offer`
+        /// was dead in every mission that had one — and since that is where upstream's
+        /// opening conversation sells the player their first ship, it is also why this
+        /// game has to pick a starting hull by other means.
+        /// </remarks>
+        public MissionAction? Offer(Mission mission)
+        {
+            if (mission is null)
+                return null;
+
+            MissionAction? action = mission.Action(MissionTrigger.Offer);
+            if (action is null)
+                return null;
+
+            _player.AddCredits(mission.Fire(MissionTrigger.Offer, _player.Conditions));
+            ApplyFailures(action, null);
+            return action;
+        }
+
+        /// <summary>
         /// Takes a mission: fires its accept action, loads its cargo and passengers,
         /// and starts its clock.
         /// </summary>

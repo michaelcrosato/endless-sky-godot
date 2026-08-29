@@ -51,6 +51,59 @@ namespace EndlessSky.Tests
             return new MissionLog(player);
         }
 
+        // --- Offering a mission ----------------------------------------------------
+
+        [Test]
+        public void OfferingAMissionFiresItsOnOfferAction()
+        {
+            // Mission.cpp fires OFFER when a mission is presented, which is where its
+            // dialogue lives and where content sets the conditions the offer itself
+            // implies. The trigger was never fired by anything, so `on offer` was dead
+            // in every mission that had one.
+            var data = new GameData();
+            data.LoadText(Universe + string.Join("\n",
+                "mission \"Talkative\"",
+                "\tname `Talkative`",
+                "\tdestination \"Away\"",
+                "\tto offer",
+                "\t\thas \"flagship landed\"",
+                "\ton offer",
+                "\t\tset \"was asked\"",
+                "\t\tdialog `Fancy a job?`") + "\n");
+
+            MissionLog log = LogOn(data, out PlayerState player);
+            MissionAction? offer = log.Offer(data.Missions["Talkative"]);
+
+            Assert.AreEqual(1, player.Conditions.Get("was asked"), "the offer action fired");
+            Assert.IsNotNull(offer);
+            Assert.AreEqual("Fancy a job?", offer!.Dialog, "and the caller gets its dialogue to show");
+        }
+
+        [Test]
+        public void OfferingAMissionWithNothingToSayIsHarmless()
+        {
+            MissionLog log = LogOn(Loaded(), out _);
+            Assert.IsNull(log.Offer(Loaded().Missions["Deliver Grain"]));
+        }
+
+        private static GameData Loaded()
+        {
+            var data = new GameData();
+            data.LoadText(Universe);
+            return data;
+        }
+
+        private static MissionLog LogOn(GameData data, out PlayerState player)
+        {
+            player = new PlayerState(data);
+            Ship hauler = data.BuildShip("Hauler");
+            player.Fleet.Add(hauler);
+            player.Fleet.SetFlagship(hauler);
+            player.EnterSystem(data.Systems["Sol"]);
+            player.Land(data.Planets["Home"]);
+            return new MissionLog(player);
+        }
+
         // --- The `fail` action ----------------------------------------------------
 
         [Test]

@@ -100,11 +100,6 @@ namespace EndlessSky.Tests
             ["CaptureOdds"] =
                 "Boarding is not reachable from the cockpit, so nothing captures a "
                 + "crippled hull. Tracked in docs/MILESTONES.md.",
-            ["ConversationRunner"] =
-                "No conversation is ever shown, so a mission's `on offer` dialogue and "
-                + "upstream's opening conversation do not happen.",
-            ["Conversation"] =
-                "Parsed and covered; see ConversationRunner.",
         };
 
         [Test]
@@ -122,13 +117,7 @@ namespace EndlessSky.Tests
             string root = RepositoryRoot();
             Assume.That(root, Is.Not.Null, "run from inside the repository");
 
-            var sources = Directory
-                .EnumerateFiles(Path.Combine(root!, "src"), "*.cs", SearchOption.AllDirectories)
-                .Concat(Directory.EnumerateFiles(Path.Combine(root!, "libs"), "*.cs",
-                                                 SearchOption.AllDirectories))
-                .Where(f => !f.Contains(Path.DirectorySeparatorChar + "obj" + Path.DirectorySeparatorChar)
-                         && !f.Contains(Path.DirectorySeparatorChar + "bin" + Path.DirectorySeparatorChar))
-                .ToDictionary(f => f, File.ReadAllText);
+            var sources = SourceFiles(root!);
 
             var orphans = new List<string>();
 
@@ -158,14 +147,36 @@ namespace EndlessSky.Tests
         [Test]
         public void TheUnreachedListDoesNotOutliveWhatItExcuses()
         {
-            // An excuse list that keeps naming things somebody has since wired up
-            // stops being an inventory and becomes noise.
+            // An excuse list that keeps naming things somebody has since wired up stops
+            // being an inventory and becomes noise — so it fails both ways: for a type
+            // that no longer exists, and for one that is now reached after all.
             var names = SimAssembly.GetExportedTypes().Select(t => t.Name).ToHashSet();
-            var stale = UnreachedOnPurpose.Keys.Where(n => !names.Contains(n)).ToArray();
+            var gone = UnreachedOnPurpose.Keys.Where(n => !names.Contains(n)).ToArray();
 
-            Assert.That(stale, Is.Empty,
-                "UnreachedOnPurpose names types that no longer exist: " + string.Join(", ", stale));
+            Assert.That(gone, Is.Empty,
+                "UnreachedOnPurpose names types that no longer exist: " + string.Join(", ", gone));
+
+            string root = RepositoryRoot();
+            Assume.That(root, Is.Not.Null, "run from inside the repository");
+
+            var reached = UnreachedOnPurpose.Keys
+                .Where(name => SourceFiles(root!).Any(entry =>
+                    !DefinesType(entry.Key, name) && MentionsType(entry.Value, name)))
+                .ToArray();
+
+            Assert.That(reached, Is.Empty,
+                "These are reached now, so the excuse should go with the fix: "
+                + string.Join(", ", reached));
         }
+
+        /// <summary>Every C# source file the shipped game and its libraries are built from.</summary>
+        private static Dictionary<string, string> SourceFiles(string root) => Directory
+            .EnumerateFiles(Path.Combine(root, "src"), "*.cs", SearchOption.AllDirectories)
+            .Concat(Directory.EnumerateFiles(Path.Combine(root, "libs"), "*.cs",
+                                             SearchOption.AllDirectories))
+            .Where(f => !f.Contains(Path.DirectorySeparatorChar + "obj" + Path.DirectorySeparatorChar)
+                     && !f.Contains(Path.DirectorySeparatorChar + "bin" + Path.DirectorySeparatorChar))
+            .ToDictionary(f => f, File.ReadAllText);
 
         /// <summary>Whether this file is where the type is declared.</summary>
         private static bool DefinesType(string path, string typeName) =>
