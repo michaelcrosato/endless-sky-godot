@@ -99,6 +99,13 @@ namespace EndlessSky.Game
         private readonly List<(Ship Ship, ShipView View)> _traffic =
             new List<(Ship, ShipView)>();
 
+        /// <summary>
+        /// Whether this process has no window. A headless run has no one to read a
+        /// menu, so it goes straight to flying.
+        /// </summary>
+        private static bool IsHeadless =>
+            DisplayServer.GetName() == "headless";
+
         /// <summary>Most ships to keep in flight at once, so a busy system stays playable.</summary>
         private const int TrafficLimit = 12;
         private AsteroidFieldView? _asteroidField;
@@ -293,10 +300,13 @@ namespace EndlessSky.Game
                 return;
             }
 
-            // The game opens on its menu. Captures and the landed-at-start path skip
-            // it: a screenshot of the menu is not a screenshot of the game.
+            // The game opens on its menu. Captures, the landed-at-start path and the
+            // smoke runs skip it: a screenshot of the menu is not a screenshot of the
+            // game, and a headless run that sits on the menu steps the simulation
+            // exactly zero times — so CI's smoke run proved the scene could be built
+            // and nothing whatever about whether it runs.
             if (_simFrames == 1 && _capturePath == null && !_landAtStart && !_missionSmoke
-                && !_saveSmoke)
+                && !_saveSmoke && !IsHeadless)
             {
                 _ui?.Show(UiScreen.MainMenu);
                 return;
@@ -463,7 +473,10 @@ namespace EndlessSky.Game
                 // Low: ambient is fill-of-last-resort, not the key. At 0.22 it
                 // flattened every terminator.
                 AmbientLightEnergy = 0.08f,
-                GlowEnabled = true,
+                // The player's saved preference, not a constant. GameSettings wrote
+                // this on every options change and nothing ever read it back, so
+                // turning glow off survived exactly until the next launch.
+                GlowEnabled = GameSettings.GlowPreference(true),
                 GlowBlendMode = Godot.Environment.GlowBlendModeEnum.Additive,
                 GlowIntensity = 1.0f,
                 GlowStrength = 1.2f,

@@ -307,8 +307,47 @@ namespace EndlessSky.Game
         public override void Step(GameUi ui)
         {
             base.Step(ui);
+
+            // Only when something actually changed. This ran unconditionally, which
+            // rewrote the whole settings file to disk on EVERY rendered frame for as
+            // long as the options screen was open -- a few thousand writes a minute
+            // for a screen a player mostly sits and reads.
+            string now = Fingerprint();
+            if (_lastSaved is null)
+            {
+                // First frame: remember where we started, and write nothing. Opening
+                // the options screen and closing it again should not touch the file.
+                _lastSaved = now;
+                return;
+            }
+
+            if (now == _lastSaved)
+            {
+                return;
+            }
+
+            _lastSaved = now;
             GameSettings.Save(GlowEnabled());
         }
+
+        /// <summary>Everything this screen can change, as one comparable string.</summary>
+        private string Fingerprint()
+        {
+            Vector2I size = DisplayServer.WindowGetSize();
+            var tree = Engine.GetMainLoop() as SceneTree;
+
+            return string.Join("|",
+                (int)DisplayServer.WindowGetMode(),
+                size.X, size.Y,
+                (int)DisplayServer.WindowGetVsyncMode(),
+                Engine.MaxFps,
+                (int)(tree?.Root.Msaa3D ?? Viewport.Msaa.Disabled),
+                GlowEnabled());
+        }
+
+        // Null until the first Step, so the settings are never written before the
+        // player has touched anything.
+        private string? _lastSaved;
 
         private static void CycleWindowMode(int direction)
         {

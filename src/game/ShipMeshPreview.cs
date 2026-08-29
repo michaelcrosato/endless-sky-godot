@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using EndlessSky.Data;
 using EndlessSky.Sim;
 using Godot;
@@ -23,11 +24,21 @@ namespace EndlessSky.Game
     /// </summary>
     public partial class ShipMeshPreview : Node3D
     {
-        /// <summary>Hulls to line up, chosen to span the size classes.</summary>
-        private static readonly string[] Subjects =
+        /// <summary>
+        /// Hulls to line up, if the loaded dataset happens to have them. These are
+        /// upstream's, and the game has not loaded upstream's galaxy since it started
+        /// playing its own — so they are a preference, not a requirement, and
+        /// <see cref="ChooseSubjects"/> falls back to spanning whatever IS loaded.
+        /// Naming five hulls that do not exist rendered an empty frame and five log
+        /// lines saying so.
+        /// </summary>
+        private static readonly string[] PreferredSubjects =
         {
             "Shuttle", "Marauder Raven", "Falcon", "Lance", "Bactrian",
         };
+
+        /// <summary>How many hulls to line up when picking them from the data.</summary>
+        private const int SubjectCount = 5;
 
         private string? _capturePath;
         private int _damageState;
@@ -108,6 +119,27 @@ namespace EndlessSky.Game
             fill.LookAtFromPosition(new Vector3(7f, -3f, -5f), Vector3.Zero, Vector3.Up);
         }
 
+        /// <summary>
+        /// The hulls to draw: the preferred list where the dataset has it, otherwise a
+        /// spread across the size classes of whatever is actually loaded.
+        /// </summary>
+        private static List<string> ChooseSubjects(GameData data)
+        {
+            var preferred = PreferredSubjects.Where(data.Ships.ContainsKey).ToList();
+            if (preferred.Count > 0)
+                return preferred;
+
+            // One hull per size class, largest class first, so the line-up spans the
+            // range the builder has to cope with rather than five of the same shape.
+            return data.Ships.Values
+                .Select(definition => new ShipAppearance(definition))
+                .GroupBy(appearance => appearance.Class)
+                .OrderBy(group => group.Key)
+                .Select(group => group.OrderBy(a => a.Length).Last().Definition.DisplayName)
+                .Take(SubjectCount)
+                .ToList();
+        }
+
         private void BuildSubjects()
         {
             GameData? data = EsData.Universe;
@@ -120,7 +152,7 @@ namespace EndlessSky.Game
             var hulls = new List<(string Name, Node3D Node, float Width)>();
             float totalWidth = 0f;
 
-            foreach (string name in Subjects)
+            foreach (string name in ChooseSubjects(data))
             {
                 ShipDefinition? definition = data.Ships.TryGetValue(name, out ShipDefinition? found) ? found : null;
                 if (definition is null)

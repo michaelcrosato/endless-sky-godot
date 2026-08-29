@@ -61,12 +61,11 @@ namespace EndlessSky.Game
         /// </summary>
         private void Rebuild(Ship ship)
         {
-            // The government comes from the fleets that fly the hull and the shipyards
-            // that stock it; a ship definition never names one.
-            var appearance = new ShipAppearance(ship.Definition)
-            {
-                Faction = EsData.Universe?.GovernmentOf(ship.Definition.DisplayName),
-            };
+            // Cheap check first. This ran AFTER building a throwaway ShipAppearance,
+            // so every ship in the system allocated one on every physics tick to
+            // discover that nothing had changed — which is the overwhelmingly common
+            // case, since a hull's identity never changes and its damage state moves a
+            // handful of times in a fight.
             int damageState = ShipAppearance.DamageState(ship.Hull, ship.MaxHull);
 
             if (ReferenceEquals(_builtFor, ship.Definition) && _builtDamageState == damageState)
@@ -74,6 +73,13 @@ namespace EndlessSky.Game
 
             _builtFor = ship.Definition;
             _builtDamageState = damageState;
+
+            // The government comes from the fleets that fly the hull and the shipyards
+            // that stock it; a ship definition never names one.
+            var appearance = new ShipAppearance(ship.Definition)
+            {
+                Faction = EsData.Universe?.GovernmentOf(ship.Definition.DisplayName),
+            };
 
             foreach (Node child in _generated.GetChildren())
             {

@@ -237,10 +237,13 @@ namespace EndlessSky.Game
 
         private int CurrentCount() => _counter switch
         {
+            // Jobs lists what is offered AND what is being carried, so the cursor has
+            // to reach both -- otherwise the active rows are decoration and the
+            // abandon key can only ever guess which one was meant.
+            Counter.Jobs => _jobs.Count + _missions.Active.Count,
             Counter.Trade => _quotes.Count,
             Counter.Shipyard => _shipyardStock.Count,
             Counter.Outfitter => _outfitterStock.Count,
-            Counter.Jobs => _jobs.Count,
             _ => 0,
         };
 
@@ -293,6 +296,14 @@ namespace EndlessSky.Game
 
                 case Counter.Jobs:
                 {
+                    // The rows past the offered jobs are missions already in progress;
+                    // there is nothing to accept on one.
+                    if (index >= _jobs.Count)
+                    {
+                        _message = "already carrying that one";
+                        break;
+                    }
+
                     Mission job = _jobs[index];
                     ActiveMission? taken = _missions.Accept(job);
                     _message = taken != null ? $"accepted: {job.DisplayName}" : "could not accept";
@@ -351,13 +362,20 @@ namespace EndlessSky.Game
 
                 case Counter.Jobs:
                 {
-                    ActiveMission? taken = _missions.Active.FirstOrDefault();
-                    if (taken is null)
+                    // The row the player is standing on, not whichever mission happens
+                    // to be first. Abandoning a mission the player did not select is
+                    // destructive and silent: they lose a job they were carrying and
+                    // the one they meant to drop is still there.
+                    int active = index - _jobs.Count;
+                    if (active < 0 || active >= _missions.Active.Count)
                     {
-                        _message = "no mission to abandon";
+                        _message = _missions.Active.Count == 0
+                            ? "no mission to abandon"
+                            : "select a mission you are carrying to abandon it";
                         break;
                     }
 
+                    ActiveMission taken = _missions.Active[active];
                     _missions.Abort(taken);
                     _message = $"abandoned: {taken.Mission.DisplayName}";
                     RefreshStock();
