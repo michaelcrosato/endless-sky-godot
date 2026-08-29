@@ -266,5 +266,72 @@ namespace EndlessSky.Tests
 
             Assert.Greater(reachable.Count, 0);
         }
+
+        // --- The jump drive has its own protocol -----------------------------------
+
+        private static (Ship ship, StarSystem home, StarSystem far) JumpDriveFixture()
+        {
+            var data = new GameData();
+            data.LoadText(string.Join("\n",
+                "outfit \"Jump Drive\"",
+                "\t\"jump drive\" 1",
+                "\t\"jump range\" 300",
+                "\t\"jump speed\" 1",
+                "\t\"jump fuel\" 200",
+                "ship \"Wanderer\"",
+                "\tattributes",
+                "\t\t\"mass\" 100",
+                "\t\t\"drag\" 2",
+                "\t\t\"hull\" 500",
+                "\t\t\"fuel capacity\" 1000",
+                "\toutfits",
+                "\t\t\"Jump Drive\"",
+                "system Home",
+                "\tpos 0 0",
+                "system Far",
+                "\tpos 200 0") + "\n");
+
+            Ship ship = data.BuildShip("Wanderer");
+            ship.SetLevels(fuel: 1000.0);
+            ship.CurrentSystem = data.Systems["Home"];
+            ship.TargetSystem = data.Systems["Far"];
+            return (ship, data.Systems["Home"], data.Systems["Far"]);
+        }
+
+        [Test]
+        public void AJumpDriveDoesNotCareWhichWayTheShipIsPointing()
+        {
+            // Ship.cpp:2505 guards the whole facing test with `if(!isJump)`. A jump
+            // drive tears a hole where it is; only a hyperdrive has to line up with the
+            // lane. Requiring the turn made every jump-drive ship fly a hyperdrive
+            // approach it never needed.
+            (Ship ship, _, StarSystem far) = JumpDriveFixture();
+
+            Assert.IsFalse(ship.CurrentSystem!.Links.Contains(far.Name),
+                "there is no link; this can only be a jump-drive jump");
+
+            ship.Facing = new Angle(180.0);   // pointed away from the destination
+            Assert.IsTrue(ship.TryCommitJump(), "it goes anyway");
+        }
+
+        [Test]
+        public void AJumpDriveArrivesOnARandomBearingRatherThanADecelerationRun()
+        {
+            // Ship.cpp:4679-4691: a jump-drive arrival is placed on a random bearing at
+            // 300*(rand+1) from the target and returns immediately — no deceleration
+            // phase. Sharing the hyperdrive path dropped every jump-drive ship 11,000
+            // units out and made it fly the distance in.
+            (Ship ship, _, _) = JumpDriveFixture();
+            ship.RandomSource = () => 0.5;   // a fixed bearing and a fixed distance
+
+            Assert.IsTrue(ship.TryCommitJump());
+
+            for (int frame = 0; frame < 400 && ship.IsEnteringHyperspace; frame++)
+                ship.StepHyperspace();
+
+            Assert.AreEqual("Far", ship.CurrentSystem!.Name, "it arrived");
+            Assert.Less(ship.Position.Length, 2000.0,
+                $"a jump drive drops the ship close in, not {ship.Position.Length:F0} out");
+        }
     }
 }

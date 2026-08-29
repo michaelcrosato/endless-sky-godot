@@ -8,10 +8,15 @@ namespace EndlessSky.Sim
     /// The travel half of Ship: hyperspace jumps between linked systems.
     /// Port of upstream Ship::IsReadyToJump (Ship.cpp:2467),
     /// DoInitializeMovement's commit (Ship.cpp:4836) and DoHyperspaceLogic
-    /// (Ship.cpp:4596), hyperdrive path. Jump drives, scram drives, wormholes
-    /// and escort offsets are later-milestone surface; where they alter a
-    /// check it is noted inline. See docs/upstream-reference.md, "The jump
-    /// protocol".
+    /// (Ship.cpp:4596). Both drives are here and they are NOT the same journey: a
+    /// hyperdrive follows a lane, has to line up with it, and flies a deceleration run
+    /// in at the far end; a jump drive tears a hole where the ship is, points anywhere,
+    /// and drops it on a random bearing close in.
+    ///
+    /// INCOMPLETE, tracked rather than dropped: scram drives and their deviation
+    /// threshold, escort arrival offsets, and upstream's cheapest-drive-per-destination
+    /// selection (attributes are summed here, so a ship with two drives reads the best
+    /// of both). See docs/upstream-reference.md, "The jump protocol".
     /// </summary>
     public partial class Ship
     {
@@ -41,6 +46,27 @@ namespace EndlessSky.Sim
         public bool IsEnteringHyperspace => HyperspaceSystem != null;
 
         public bool IsHyperspacing => HyperspaceCount != 0;
+
+        /// <summary>Whether the jump in progress is on the jump drive rather than a hyperdrive.</summary>
+        public bool IsUsingJumpDrive { get; private set; }
+
+        /// <summary>
+        /// Which drive a jump to the current target would use. A hyperdrive takes any
+        /// LINKED destination; a jump drive is what goes where the links do not.
+        /// </summary>
+        public bool WouldUseJumpDrive
+        {
+            get
+            {
+                if (!HasJumpDrive)
+                    return false;
+
+                bool linked = TargetSystem != null && CurrentSystem != null &&
+                              CurrentSystem.Links.Contains(TargetSystem.Name);
+
+                return !(HasHyperdrive && linked);
+            }
+        }
 
         public bool HasHyperdrive => Attributes.Get("hyperdrive") > 0.0;
 
@@ -200,6 +226,15 @@ namespace EndlessSky.Sim
                 return false;
             }
 
+            // A jump drive tears a hole where the ship is; only a HYPERDRIVE has to
+            // line up with the lane. Upstream guards the whole facing test with
+            // `if(!isJump)` (Ship.cpp:2505), and requiring the turn for both made every
+            // jump-drive ship fly a hyperdrive approach it never needed.
+            if (WouldUseJumpDrive)
+            {
+                return true;
+            }
+
             // Within one turn step of facing the target system, exactly as
             // upstream: turn toward the direction and require the turn to
             // cross over it (or land on it, quantized).
@@ -229,6 +264,7 @@ namespace EndlessSky.Sim
 
             HyperspaceSystem = TargetSystem;
             _hyperspaceFuelCost = JumpFuelCost;
+            IsUsingJumpDrive = WouldUseJumpDrive;
             return true;
         }
 
@@ -276,7 +312,9 @@ namespace EndlessSky.Sim
                 // system that sets one does so precisely to keep arrivals away from its
                 // inhabited worlds, and aiming at a planet anyway drops ships on top of
                 // what the setting exists to prevent.
-                double extraArrivalDistance = CurrentSystem!.ExtraHyperArrivalDistance;
+                double extraArrivalDistance = IsUsingJumpDrive
+                    ? CurrentSystem!.ExtraJumpArrivalDistance
+                    : CurrentSystem!.ExtraHyperArrivalDistance;
 
                 Point target = Point.Zero;
                 if (extraArrivalDistance == 0.0)
@@ -293,6 +331,23 @@ namespace EndlessSky.Sim
                             break;
                         }
                     }
+                }
+
+                if (IsUsingJumpDrive)
+                {
+                    // A jump drive drops the ship on a random bearing, close in, and is
+                    // finished — there is no deceleration run to fly
+                    // (Ship.cpp:4679-4691). Sharing the hyperdrive path put every
+                    // jump-drive arrival 11,000 units out and made it cross the distance
+                    // under its own power, which is a different journey entirely.
+                    var bearing = new Angle(RandomUnit() * 360.0);
+                    double reach = 300.0 * (RandomUnit() + 1.0) + extraArrivalDistance;
+
+                    Position = target + bearing.Unit() * reach;
+                    Velocity = Point.Zero;
+                    HyperspaceCount = 0;
+                    IsUsingJumpDrive = false;
+                    return true;
                 }
 
                 double distance = HyperspaceFrames * HyperspaceFrames * 0.5 * HyperspaceAcceleration
