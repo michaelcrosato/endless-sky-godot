@@ -47,7 +47,10 @@ namespace EndlessSky.Tests
             }
         }
 
-        /// <summary>The loaded galaxy, parsed once per run by the real loader.</summary>
+        /// <summary>
+        /// Shared content fixture, parsed once per run. Tests that change markets or
+        /// other universe state must load their own GameData from Root.
+        /// </summary>
         internal static GameData Instance
         {
             get

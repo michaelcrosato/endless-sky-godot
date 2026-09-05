@@ -163,41 +163,46 @@ namespace EndlessSky.Tests
 
         // --- Against the real dataset ---------------------------------------------
 
-        [Test]
-        public void TheRealEconomyMovesWithoutBreakingAnyPrice()
+        [TestCase(false)]
+        [TestCase(true)]
+        public void TheRealEconomyMovesWithoutBreakingAnyPrice(bool generated)
         {
-            GameData data = UpstreamData.Instance;
-
-            string commodity = data.Trade.Commodities.Keys
-                .First(c => data.Trade.PricedSystems.Count(s => data.Trade.Price(s, c).HasValue) > 10);
-
-            var before = data.Trade.PricedSystems
-                .ToDictionary(s => s, s => data.Trade.Price(s, commodity));
+            GameData reference = generated ? GeneratedUniverse.Instance : UpstreamData.Instance;
+            var data = new GameData();
+            data.LoadDirectory(generated ? GeneratedUniverse.Root : UpstreamData.RequiredPath);
+            var before = reference.Trade.PricedSystems.SelectMany(reference.Trade.Quotes)
+                .ToDictionary(q => (q.SystemName, q.Commodity), q => q.Price);
+            var supplyBefore = before.Keys.ToDictionary(k => k,
+                k => reference.Trade.Supply(k.SystemName, k.Commodity));
+            Assert.Greater(before.Count, 1000, "exercise the full dataset's markets");
 
             var random = new Random(7);
             for (int day = 0; day < 100; day++)
-                data.Trade.StepEconomy(() =>
-                {
-                    double u1 = 1.0 - random.NextDouble();
-                    double u2 = random.NextDouble();
-                    return Math.Sqrt(-2.0 * Math.Log(u1)) * Math.Cos(2.0 * Math.PI * u2);
-                });
+                data.StepEconomy(random);
 
             int moved = 0;
-            foreach (string system in data.Trade.PricedSystems)
+            foreach (var quote in before)
             {
+                (string system, string commodity) = quote.Key;
                 int? now = data.Trade.Price(system, commodity);
-                if (!now.HasValue)
-                    continue;
-
-                Assert.Greater(now.Value, 0, $"{commodity} at {system} must stay worth something");
-
-                if (before.TryGetValue(system, out int? was) && was != now)
+                int basis = data.Trade.BasePrice(system, commodity)!.Value;
+                Assert.That(now, Is.InRange((long)basis - 100, (long)basis + 100),
+                    $"{commodity} at {system}");
+                Assert.IsTrue(double.IsFinite(data.Trade.Supply(system, commodity)));
+                if (now != quote.Value)
                     moved++;
             }
 
-            TestContext.WriteLine($"after 100 days, {commodity} moved in {moved} systems");
+            TestContext.WriteLine($"after 100 days, {moved} of {before.Count} quotes moved");
             Assert.Greater(moved, 0, "the economy should actually be alive");
+            foreach (var quote in before)
+            {
+                (string system, string commodity) = quote.Key;
+                Assert.AreEqual(quote.Value, reference.Trade.Price(system, commodity),
+                    "a gameplay test must not change the shared content fixture's prices");
+                Assert.AreEqual(supplyBefore[quote.Key], reference.Trade.Supply(system, commodity),
+                    "a gameplay test must not change the shared content fixture's supply");
+            }
         }
     }
 }

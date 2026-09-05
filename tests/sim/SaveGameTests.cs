@@ -463,7 +463,9 @@ namespace EndlessSky.Tests
         [Test]
         public void ARealGameSavesAndReloads()
         {
-            GameData data = UpstreamData.Instance;
+            // Loading restores shared market state, so this test owns its universe.
+            var data = new GameData();
+            data.LoadDirectory(UpstreamData.RequiredPath);
 
             var player = new PlayerState(data);
             player.SetCredits(500_000);
@@ -475,10 +477,14 @@ namespace EndlessSky.Tests
             Planet start = data.Planets.Values.First(p => p.HasSpaceport && p.IsInhabited);
             player.EnterSystem(data.Systems.Values
                 .First(s => s.AllObjects().Any(o => o.PlanetName == start.Name)));
+            ship.CurrentSystem = player.CurrentSystem;
             player.Land(start);
+            data.StepEconomy(new Random(7));
 
             string save = SaveGame.Write(player);
-            PlayerState restored = SaveGame.Read(save, data);
+            var fresh = new GameData();
+            fresh.LoadDirectory(UpstreamData.RequiredPath);
+            PlayerState restored = SaveGame.Read(save, fresh);
 
             TestContext.WriteLine($"save is {save.Length} bytes for a one-ship game");
 
@@ -486,6 +492,7 @@ namespace EndlessSky.Tests
             Assert.AreEqual(start.Name, restored.CurrentPlanet!.Name);
             Assert.AreEqual("Star Barge", restored.Fleet.Flagship!.Definition.DisplayName);
             Assert.IsNotNull(restored.Fleet.Flagship.Government, "and it still flies a flag");
+            Assert.AreEqual(save, SaveGame.Write(restored), "a fresh universe retains the saved pilot and markets");
         }
     }
 }

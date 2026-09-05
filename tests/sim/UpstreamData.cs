@@ -17,7 +17,9 @@ namespace EndlessSky.Tests
     /// <c>external/endless-sky</c>, or keep a checkout beside the project as
     /// <c>../es-upstream</c>. Missing data fails dependent tests with setup instructions.
     ///
-    /// Loading the whole dataset takes a moment, so it is parsed once per test run.
+    /// Loading the whole dataset takes a moment, so read-only content tests share one
+    /// parsed instance. Tests that change the universe or restore a save must load
+    /// their own GameData from RequiredPath to avoid changing later tests' fixtures.
     /// </remarks>
     internal static class UpstreamData
     {
