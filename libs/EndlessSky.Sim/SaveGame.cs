@@ -227,7 +227,7 @@ namespace EndlessSky.Sim
                     case "account":
                         foreach (DataNode child in node.Children)
                             if (child.Token(0) == "credits" && child.Size >= 2)
-                                player.SetCredits((long)child.Value(1));
+                                player.SetCredits(ReadInteger(child, 1));
                         break;
 
                     case "ship" when node.Size >= 2:
@@ -273,7 +273,7 @@ namespace EndlessSky.Sim
                     case "conditions":
                         foreach (DataNode child in node.Children)
                             if (child.Size >= 2)
-                                player.Conditions.Set(child.Token(0), (long)child.Value(1));
+                                player.Conditions.Set(child.Token(0), ReadInteger(child, 1));
                         break;
 
                     case "mission" when node.Size >= 2 && missions != null:
@@ -400,6 +400,19 @@ namespace EndlessSky.Sim
                 return;
 
             missions.Restore(mission, node);
+        }
+
+        private static long ReadInteger(DataNode node, int index)
+        {
+            // Saved integers must never go through double: values above 2^53 lose
+            // bits, and long.MaxValue rounds past the signed range. Decimal also
+            // accepts exponent notation in older or hand-written save files.
+            if (decimal.TryParse(node.Token(index), NumberStyles.Float,
+                CultureInfo.InvariantCulture, out decimal value)
+                && value >= long.MinValue && value <= long.MaxValue)
+                return (long)value;
+
+            return 0;
         }
 
         private static DateTime? SafeDate(DataNode node)

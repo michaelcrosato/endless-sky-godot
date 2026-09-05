@@ -2226,8 +2226,41 @@ namespace EndlessSky.Game
                         }
                     }
                 }
+
+                // Loading a landed save must rebuild its port screen, and departure
+                // must clear the saved planet as well as the presentation state.
+                if (restored)
+                {
+                    StellarObject? port = _ship!.CurrentSystem?.AllObjects()
+                        .FirstOrDefault(o => _ship.CanEverLandOn(o));
+                    if (port == null)
+                    {
+                        GD.Print("[smoke] FAIL: no port for the landed save check");
+                        GetTree().Quit(1);
+                        return;
+                    }
+                    _ship.Position = port.Position;
+                    _ship.Velocity = Point.Zero;
+                    _ship.TargetStellar = port;
+                    TryLand();
+                    if (!_isLanded || !SaveTo(path))
+                    {
+                        GD.Print("[smoke] FAIL: could not save at a port");
+                        GetTree().Quit(1);
+                        return;
+                    }
+
+                    before = SaveGame.Write(_player, _missions);
+                    OnDepart();
+                    _jumpAutopilot = true;
+                    _landAutopilot = true;
+                    restored = LoadFrom(path) && before == SaveGame.Write(_player, _missions)
+                        && _isLanded && _landedOverlay != null && !_jumpAutopilot && !_landAutopilot;
+                    OnDepart();
+                    restored &= !_isLanded && _landedOverlay == null && _player.CurrentPlanet == null;
+                }
                 GD.Print(restored
-                    ? "[smoke] PASS: save round-tripped, including ship condition and cargo"
+                    ? "[smoke] PASS: flight and landed saves round-tripped; departure cleared the port"
                     : "[smoke] FAIL: restored state differs from the saved game");
                 GetTree().Quit(restored ? 0 : 1);
             }
@@ -2308,11 +2341,22 @@ namespace EndlessSky.Game
             BuildCombat(_universe);
             RebuildSystemViews(restored.CurrentSystem);
 
-            // A load can arrive while the player is standing in a spaceport; the
-            // overlay belongs to the old player and has to go with it.
-            _isLanded = false;
+            // Navigation commands and the old port screen belong to the previous
+            // session. Rebuild the screen from the saved landing state.
+            _jumpAutopilot = false;
+            _landAutopilot = false;
+            _landMessage = string.Empty;
             _landedOverlay?.QueueFree();
             _landedOverlay = null;
+            _isLanded = restored.CurrentPlanet != null;
+            if (restored.CurrentPlanet is { } planet)
+            {
+                _landedOverlay = LandedOverlay.Open(this, _player, _missions, planet,
+                    restored.CurrentSystem.Name, _universe);
+                _landedOverlay.Departed += OnDepart;
+            }
+            if (_ui != null)
+                _ui.Suspended = _isLanded;
 
             GD.Print($"[save] loaded {ProjectSettings.GlobalizePath(path)}: {_ship.Definition.DisplayName} at " +
                      $"{restored.CurrentSystem.Name}, {_player.Date:d MMM yyyy}, " +

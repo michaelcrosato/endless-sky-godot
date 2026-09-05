@@ -14,12 +14,14 @@ not artifacts available from a clone. CI runs the reproducible checks below.
 | Save state | Preserve each ship's name, crew, cargo, position, velocity, facing, system, shields, hull, energy, fuel, heat and overheating state. Read older saves with default values and fleet cargo. | Four new regressions cover distinct active/parked ships, overheating hysteresis, old saves and outfit-dependent capacity. |
 | Save files | Write and flush a temporary sibling before replacing a save; remove temporary files after failure. Save smoke uses its own temporary slot. | Two Godot tests check replacement and failure cleanup; runtime save smoke checks serialized state before and after restoring damaged resources. |
 | Load integration | Stop combat rebuilding from refilling the flagship's battery; free the previous effects node when rebuilding. | The stronger save smoke initially failed on `energy 5 -> energy 620`, then passed after the fix. |
+| Landed saves | Reopen the saved port against the restored player and clear obsolete navigation commands. | The runtime save check failed before the fix; now it verifies both flight and landed round trips and departure after loading. |
+| Integer persistence | Read credit balances and condition counters without converting through floating point. | Regressions cover positive/negative values above 2^53, both signed 64-bit limits, and legacy exponent notation. |
 | Engine test lifecycle | Build planet labels in `_Ready`, exercise them in the scene tree, and defer disposal. Remove the invalid remote-debug port workaround. | Godot tests run without text-server errors or resource leaks; a malformed script exits 1 without an interactive prompt. |
 | Quality gates | Run startup, landing, tutorial delivery, save/load and combat-resolution smokes in CI. Require completion markers, successful exit and no engine errors. | An unfinished landing run fails even with engine exit 0; missing startup data fails with exit 1. |
 | Cleanup | Share planet-to-system lookup and braking logic; remove redundant helpers and the unused save-path property. Enable existing nullable annotations in test sources. | Full regression suite and build. |
 | Presentation | Keep the bottom control legend inside the viewport; allow the tutorial's final confirmation to display and dismissal to hide it immediately. Give dismissal F3 so it does not also open F2 graphics options. | Real rendered flight capture and control binding review. |
 
-Latest local validation: **790 simulation tests, 15 engine tests, zero failures or
+Latest local validation: **795 simulation tests, 15 engine tests, zero failures or
 skips**, and Debug/Release builds with zero warnings or errors. All five runtime
 smokes passed their documented contract. The combat smoke ended in player defeat;
 the limitation below still applies.
@@ -48,7 +50,7 @@ still contain meaningful work and need further implementation and verification:
   Add a winning combat-to-hand-in scenario and wire boarding/capture into play.
 - **Persistence:** mission NPC state/history, changed universe data, reputation,
   transient jumps, and per-ship weapon mount assignments still need round-trip
-  coverage. Inspect load-time landed UI and escort reconstruction as well.
+  coverage. Inspect escort reconstruction and access to save/load while landed as well.
 - **Gameplay rules:** mission NPC spawn/despawn gates, landing permissions, the
   opening debt/conversation flow and turret firing arcs remain incomplete.
 - **Simulation boundary:** commodity transactions and much of the session's

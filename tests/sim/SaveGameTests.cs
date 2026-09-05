@@ -144,6 +144,35 @@ namespace EndlessSky.Tests
 
         // --- Round trip -----------------------------------------------------------
 
+        [TestCase(9_007_199_254_740_993L)]
+        [TestCase(-9_007_199_254_740_993L)]
+        [TestCase(long.MaxValue)]
+        [TestCase(long.MinValue)]
+        public void IntegerBalancesAndConditionsKeepAllSixtyFourBits(long value)
+        {
+            GameData data = Load();
+            PlayerState original = Populated(data);
+            original.SetCredits(value);
+            original.Conditions.Set("large counter", value);
+
+            PlayerState restored = SaveGame.Read(SaveGame.Write(original), data);
+
+            Assert.Multiple(() =>
+            {
+                Assert.AreEqual(value, restored.Credits);
+                Assert.AreEqual(value, restored.Conditions.Get("large counter"));
+            });
+        }
+
+        [Test]
+        public void LegacyExponentNotationStillLoadsForIntegerFields()
+        {
+            PlayerState restored = SaveGame.Read(
+                "account\n\tcredits 1.25e6\nconditions\n\tcounter -2.5e2\n", Load());
+            Assert.AreEqual(1_250_000, restored.Credits);
+            Assert.AreEqual(-250, restored.Conditions.Get("counter"));
+        }
+
         [Test]
         public void ShipsKeepTheirOwnConditionIdentityAndCargo()
         {
