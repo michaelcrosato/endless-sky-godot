@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using EndlessSky.Data;
 
 namespace EndlessSky.Sim
@@ -33,12 +34,13 @@ namespace EndlessSky.Sim
     /// and no market depth, so profit is just the difference between two systems'
     /// quotes times the tonnage you can carry. There is no order book to model.
     ///
-    /// INCOMPLETE, tracked rather than dropped: sale-driven supply, trade between
-    /// neighboring systems, economy persistence, and smuggling/illegal-goods fines.
-    /// Daily local supply drift is implemented below; shipyard and outfitter stock
-    /// belongs to the separate Trading service.
+    /// Sales affect the next day's supply, which also changes through production
+    /// and exchanges with neighboring systems. Supply, quotes and pending sales
+    /// survive save/load; shipyard and outfitter stock belongs to Trading.
+    /// INCOMPLETE, tracked rather than dropped: commodity cost basis and
+    /// smuggling/illegal-goods fines.
     /// </remarks>
-    public class TradeData
+    public partial class TradeData
     {
         private readonly Dictionary<string, Commodity> _commodities =
             new Dictionary<string, Commodity>(StringComparer.Ordinal);
@@ -54,6 +56,9 @@ namespace EndlessSky.Sim
 
         private readonly Dictionary<string, Dictionary<string, int>> _prices =
             new Dictionary<string, Dictionary<string, int>>(StringComparer.Ordinal);
+
+        // Upstream queues sales until the next day so prices stay fixed at the counter.
+        private readonly Dictionary<(string System, string Commodity), long> _purchases = new();
 
         public IReadOnlyDictionary<string, Commodity> Commodities => _commodities;
 
@@ -110,8 +115,10 @@ namespace EndlessSky.Sim
             }
         }
 
-        /// <summary>How much of last frame's supply a system keeps (upstream KEEP).</summary>
+        /// <summary>How much of yesterday's supply a system keeps (upstream KEEP).</summary>
         private const double SupplyKept = 0.89;
+
+        private const double SupplyExported = 0.10;
 
         /// <summary>Scale of the random daily swing in supply (upstream VOLUME).</summary>
         private const double SupplyVolume = 2000.0;
@@ -123,8 +130,8 @@ namespace EndlessSky.Sim
         private const double PriceSwing = 100.0;
 
         /// <summary>
-        /// Advances the economy one day: supply decays toward zero, takes a random
-        /// nudge, and prices follow it. Port of upstream <c>System::StepEconomy</c>.
+        /// Applies pending sales, local production and exchanges along the supplied
+        /// links. GameData supplies the topology; standalone callers model local markets.
         /// </summary>
         /// <remarks>
         /// Prices in the data files are BASES, not the price a player pays. Without
@@ -135,27 +142,63 @@ namespace EndlessSky.Sim
         ///
         /// Randomness is injected rather than ambient, so a test can pin the walk.
         /// </remarks>
-        public void StepEconomy(Func<double>? normal = null)
+        public void StepEconomy(Func<double>? normal = null,
+                                IReadOnlyDictionary<string, StarSystem>? systems = null)
         {
             var draw = normal ?? StandardNormal;
+            foreach (var purchase in _purchases)
+                SetSupply(purchase.Key.System, purchase.Key.Commodity,
+                    Supply(purchase.Key.System, purchase.Key.Commodity) - purchase.Value);
+            _purchases.Clear();
 
-            foreach (KeyValuePair<string, Dictionary<string, int>> system in _bases)
+            var exports = new Dictionary<(string System, string Commodity), double>();
+            foreach (var system in _bases.OrderBy(p => p.Key, StringComparer.Ordinal))
             {
-                if (!_supply.TryGetValue(system.Key, out Dictionary<string, double>? supplies))
+                foreach (var quote in system.Value.OrderBy(p => p.Key, StringComparer.Ordinal))
                 {
-                    supplies = new Dictionary<string, double>(StringComparer.Ordinal);
-                    _supply[system.Key] = supplies;
-                }
-
-                foreach (KeyValuePair<string, int> quote in system.Value)
-                {
-                    supplies.TryGetValue(quote.Key, out double supply);
-                    supply = supply * SupplyKept + draw() * SupplyVolume;
-                    supplies[quote.Key] = supply;
-
-                    SetPrice(system.Key, quote.Key, PriceFor(quote.Value, supply));
+                    double supply = Supply(system.Key, quote.Key);
+                    exports[(system.Key, quote.Key)] = supply * SupplyExported;
+                    SetSupply(system.Key, quote.Key, supply * SupplyKept + draw() * SupplyVolume);
                 }
             }
+
+            if (systems is null)
+                return;
+
+            // Exports are a snapshot from before local production, never the imports
+            // of a system visited earlier in this loop (GameData::StepEconomy).
+            foreach (var market in _bases)
+            {
+                if (!systems.TryGetValue(market.Key, out StarSystem? system) || system.Links.Count == 0)
+                    continue;
+                foreach (string commodity in market.Value.Keys)
+                {
+                    if (!_commodities.TryGetValue(commodity, out Commodity? good) || !good.IsTradeable)
+                        continue;
+                    double supply = Supply(market.Key, commodity);
+                    foreach (string name in system.Links)
+                        if (systems.TryGetValue(name, out StarSystem? neighbor) && neighbor.Links.Count > 0
+                            && exports.TryGetValue((name, commodity), out double sent))
+                            supply += sent / neighbor.Links.Count;
+                    SetSupply(market.Key, commodity, supply);
+                }
+            }
+        }
+
+        /// <summary>Records the signed quantity moved; only sales affect supply upstream.</summary>
+        public void AddPurchase(string systemName, string commodity, int tons)
+        {
+            if (tons < 0 && !string.IsNullOrEmpty(systemName) && !string.IsNullOrEmpty(commodity))
+                AddPendingPurchase(systemName, commodity, tons);
+        }
+
+        private void AddPendingPurchase(string systemName, string commodity, long tons)
+        {
+            var key = (systemName, commodity);
+            _purchases.TryGetValue(key, out long previous);
+            long combined = (long)Math.Clamp((decimal)previous + tons, long.MinValue, long.MaxValue);
+            if (combined == 0) _purchases.Remove(key);
+            else _purchases[key] = combined;
         }
 
         /// <summary>The price a base and a standing supply produce.</summary>
@@ -169,6 +212,18 @@ namespace EndlessSky.Sim
                 ? value
                 : 0.0;
 
+        /// <summary>Restores supply for an existing market and updates its price.</summary>
+        public void SetSupply(string systemName, string commodity, double supply)
+        {
+            if (!double.IsFinite(supply) || !_bases.TryGetValue(systemName, out var bases)
+                || !bases.TryGetValue(commodity, out int basePrice))
+                return;
+            if (!_supply.TryGetValue(systemName, out var supplies))
+                _supply[systemName] = supplies = new Dictionary<string, double>(StringComparer.Ordinal);
+            supplies[commodity] = supply;
+            SetPrice(systemName, commodity, PriceFor(basePrice, supply));
+        }
+
         /// <summary>The unmoved price a system's data file states.</summary>
         public int? BasePrice(string systemName, string commodity) =>
             systemName != null && _bases.TryGetValue(systemName, out Dictionary<string, int>? b) &&
@@ -179,10 +234,12 @@ namespace EndlessSky.Sim
         private static readonly Random SharedRandom = new Random();
 
         /// <summary>Box-Muller: a standard normal from two uniforms.</summary>
-        private static double StandardNormal()
+        private static double StandardNormal() => StandardNormal(SharedRandom);
+
+        internal static double StandardNormal(Random random)
         {
-            double u1 = 1.0 - SharedRandom.NextDouble();
-            double u2 = SharedRandom.NextDouble();
+            double u1 = 1.0 - random.NextDouble();
+            double u2 = random.NextDouble();
             return Math.Sqrt(-2.0 * Math.Log(u1)) * Math.Cos(2.0 * Math.PI * u2);
         }
 

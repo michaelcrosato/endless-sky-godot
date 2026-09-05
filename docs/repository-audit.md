@@ -37,8 +37,10 @@ not artifacts available from a clone. CI runs the reproducible checks below.
 | CI action runtime | Pin checkout, .NET setup, cache and artifact actions to reviewed commits that declare Node 24. Give the workflow read-only repository access and avoid persisting checkout credentials. | Earlier CI reported three Node 20 actions running under a forced Node 24 override. Release notes and runtime metadata were checked at each pinned commit; the workflow passes `actionlint`. |
 | Commodity transactions | Move commodity buying, selling and market availability into `Trading`. Reject unavailable quotes and unaffordable purchases before moving cargo; charge only for actual quantities and keep arithmetic within the credit balance's range. | Both new engine cases failed before the fix: a zero-price purchase added five free tons, and a large debt wrapped into one affordable ton. They now pass. Twenty-four simulation cases cover partial fills, current prices, unavailable markets, quantities, cargo mass and 64-bit payments. |
 | Cargo at port | Restrict commodity transactions and port cargo totals to active ships in the current system. Place purchased ships in that system immediately. | Buying and selling leave remote, parked and destroyed ships' cargo untouched; local escorts share the load. A newly bought ship can carry a purchase before its first departure. The rendered 1280×720 port remains readable. |
+| Daily markets | Apply deferred sales, normally distributed production changes and exchanges along current system links. Match upstream's export snapshot and division by each source system's link count; buying does not cancel the sales queue. | Hand-calculated graph, sale/buyback, changed-link and random-stream cases failed before the fix and now pass. Reversing system declaration order preserves the result. |
+| Market persistence | Save supply, displayed prices and pending trades; restore them when a valid pilot is accepted. Older saves reset to base prices. Share exact integer parsing for credits, conditions and pending quantities. | Sixteen new economy cases include fresh data, repeated reloads, upstream headers, invalid numbers and exact 64-bit queues. A price-boundary regression caught and fixed a one-credit change from supply rounding. The engine save scenario restores changed markets and rejects an invalid save without mutating the active game. |
 
-Latest local validation: **838 simulation tests, 27 engine tests, zero failures or
+Latest local validation: **854 simulation tests, 27 engine tests, zero failures or
 skips**, and Debug/Release builds with zero warnings or errors. All five runtime
 smokes passed their documented contract, including winning and collecting a bounty.
 The current Windows release also passed both bounty reloads and payment when launched
@@ -48,6 +50,10 @@ Older saves never recorded NPC ships or their history, so they recreate those
 targets once at load; missing historical kills cannot be recovered. New saves
 retain each NPC's mission template index and actual ships. Migration across changed
 mission templates and upstream UUID identity are still incomplete.
+
+Economy saves retain current displayed quotes even when supply's eight-digit
+serialization crosses a price boundary. They do not retain the random generator's
+state; future random production is not a replay of an abandoned session.
 
 CI action pins correspond to [checkout v7.0.1](https://github.com/actions/checkout/releases/tag/v7.0.1),
 [setup-dotnet v6.0.0](https://github.com/actions/setup-dotnet/releases/tag/v6.0.0),
@@ -84,10 +90,9 @@ still contain meaningful work and need further implementation and verification:
   reconstruction as well.
 - **Gameplay rules:** mission NPC spawn/despawn gates, landing permissions, the
   opening debt/conversation flow and turret firing arcs remain incomplete.
-- **Economy:** commodity cost basis, sale-driven supply, trade between linked
-  systems and economy persistence remain incomplete. The live daily supply shock
-  also uses a uniform draw where upstream uses a normal distribution. Individual
-  port services and per-ship landing clearance are not yet modeled.
+- **Economy:** commodity cost basis, individual port services and per-ship landing
+  clearance remain incomplete. Applied changes to market definitions share the
+  wider universe-persistence gap above.
 - **Simulation boundary:** much of the session's orchestration still lives in the
   presentation layer. Move rules into the engine-free layer with behavioral coverage.
   Commodity transactions now use that layer; preserve the actual player-facing flow.

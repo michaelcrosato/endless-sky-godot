@@ -106,6 +106,14 @@ namespace EndlessSky.Data
             return Value(_tokens[index]);
         }
 
+        /// <summary>
+        /// Reads an integer without losing bits through double. Decimal/exponent
+        /// notation is accepted and truncated; invalid or out-of-range values return 0.
+        /// </summary>
+        public long IntegerValue(int index) =>
+            decimal.TryParse(Token(index), NumberStyles.Float, CultureInfo.InvariantCulture, out decimal value)
+                && value >= long.MinValue && value <= long.MaxValue ? (long)value : 0;
+
         public bool IsNumber(int index)
         {
             return (uint)index < (uint)_tokens.Count

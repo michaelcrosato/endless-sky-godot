@@ -80,8 +80,8 @@ namespace EndlessSky.Sim
     /// stocks, an outfit must physically fit before it can be paid for, and the last
     /// flyable ship cannot be sold out from under its pilot.
     ///
-    /// INCOMPLETE, tracked rather than dropped: commodity cost basis and sale-driven
-    /// supply changes, individual port services and per-ship landing clearance,
+    /// INCOMPLETE, tracked rather than dropped: commodity cost basis,
+    /// individual port services and per-ship landing clearance,
     /// licences, outfits placed into cargo or
     /// planetary storage rather than installed, and trade-in when buying a
     /// replacement. Purchase ages ARE remembered now, per ship model and outfit rather
@@ -153,6 +153,7 @@ namespace EndlessSky.Sim
                 return TradeResult.NotOwned;
 
             player.AddCredits((long)sold * price);
+            data.Trade.AddPurchase(player.CurrentSystem!.Name, commodity, -sold);
             return TradeResult.Ok;
         }
 

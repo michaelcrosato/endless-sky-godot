@@ -6,7 +6,8 @@
   Covers startup, landing, tutorial delivery, save/load and a won bounty with payment.
   Mission uses a stock combat flagship, reloads during combat and after victory,
   and positions its travel legs; tutorial exercises flight and delivery.
-  Save drives the pause menu in flight and at ports, then changes the flagship
+  Save restores the pilot and changed markets through flight and port menus,
+  rejects an invalid save without changing the active game, then changes flagship
   and departs without altering its stock outfits. Both save checks use temporary slots.
 .PARAMETER Frames
   Maximum engine iterations per scenario. Reaching the limit without a PASS fails.

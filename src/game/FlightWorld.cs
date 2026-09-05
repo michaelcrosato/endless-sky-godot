@@ -2328,6 +2328,9 @@ namespace EndlessSky.Game
             string path = $"user://smoke-save-{Guid.NewGuid():N}.txt";
             try
             {
+                _universe.StepEconomy(() => 1.0);
+                TradeQuote market = _universe.Trade.Quotes(_ship!.CurrentSystem!.Name).First(q => q.Price > 0);
+                _universe.Trade.AddPurchase(market.SystemName, market.Commodity, -7);
                 _ship!.SetLevels(shields: Math.Min(10, _ship.MaxShields),
                     hull: Math.Max(_ship.MinimumHull + 1, _ship.MaxHull * 0.75),
                     energy: Math.Min(5, _ship.MaxEnergy), fuel: Math.Min(17, _ship.MaxFuel), heat: 100);
@@ -2363,6 +2366,7 @@ namespace EndlessSky.Game
                 _player.AddCredits(-123_456);
                 _player.AdvanceDays(9);
                 _ship.Recharge(RechargeType.All);
+                _universe.StepEconomy(() => -3.0);
 
                 if (!SmokeSaveMenu(path, load: true))
                 {
@@ -2373,6 +2377,16 @@ namespace EndlessSky.Game
                 string after = SaveGame.Write(_player, _missions);
                 bool restored = SavedStateMatches(before, after)
                     && HasOnlyPlayerCombat() && oldView.IsQueuedForDeletion();
+
+                // A bad save must not reset the live market while its pilot is being
+                // validated. This slot belongs only to the smoke and is replaced below.
+                if (restored)
+                {
+                    restored = SaveSlot.Save("economy\n", path) && !LoadFrom(path)
+                        && SavedStateMatches(after, SaveGame.Write(_player, _missions));
+                    GD.Print(restored ? "[smoke] invalid save left the pilot and markets intact"
+                        : "[smoke] FAIL: rejecting an invalid save changed the active game");
+                }
 
                 // Loading a landed save must rebuild its port screen, and departure
                 // must clear the saved planet as well as the presentation state.
@@ -2423,7 +2437,7 @@ namespace EndlessSky.Game
                         && stock.SequenceEqual(replacement.Outfits);
                 }
                 GD.Print(restored
-                    ? "[smoke] PASS: flight and port menus saved and loaded; old combat cleared; flagship departed with its stock outfits"
+                    ? "[smoke] PASS: flight and port menus restored pilot and markets; invalid save rejected; old combat cleared; flagship departed with its stock outfits"
                     : "[smoke] FAIL: restored state differs from the saved game");
                 GetTree().Quit(restored ? 0 : 1);
             }
@@ -2544,7 +2558,7 @@ namespace EndlessSky.Game
 
             MissionLog? restoredLog = null;
             PlayerState restored = SaveGame.Read(text, _universe,
-                player => restoredLog = new MissionLog(player));
+                player => restoredLog = new MissionLog(player), out Action restoreEconomy);
 
             Ship? flagship = restored.Fleet.Flagship;
             if (flagship is null || restored.CurrentSystem is null)
@@ -2553,6 +2567,7 @@ namespace EndlessSky.Game
                 return false;
             }
 
+            restoreEconomy();
             _player = restored;
             _missions = restoredLog ?? new MissionLog(restored);
             _credits = restored.Credits;
@@ -2607,11 +2622,9 @@ namespace EndlessSky.Game
             _currentDay = DaysSinceEpoch(_player.Date.Year, _player.Date.Month, _player.Date.Day);
             _ship?.CurrentSystem?.SetDate(_currentDay);
 
-            // Prices move with the days. StepEconomy had callers only in tests, so
-            // every world quoted the same number for the whole session: a trade route
-            // found once was the best route always, and there was no reason to ever
-            // look for another. Seeded, so a run stays reproducible.
-            _universe?.Trade.StepEconomy(() => _spawnRandom.NextDouble() * 2.0 - 1.0);
+            // Apply cargo sales, normal production shocks and exchanges along links.
+            // The session's random stream keeps a run reproducible.
+            _universe?.StepEconomy(_spawnRandom);
 
             // Events fire on their day. 416 of them were parsed and nothing ever fired
             // one, which is most of how the galaxy is supposed to change underneath the

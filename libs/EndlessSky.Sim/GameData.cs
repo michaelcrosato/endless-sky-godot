@@ -139,6 +139,12 @@ namespace EndlessSky.Sim
         /// <summary>Commodity definitions plus per-system prices.</summary>
         public TradeData Trade { get; } = new TradeData();
 
+        /// <summary>Advances commodity markets by one day.</summary>
+        public void StepEconomy(Func<double>? normal = null) => Trade.StepEconomy(normal, _systems);
+
+        /// <summary>Advances commodity markets using the session's random stream.</summary>
+        public void StepEconomy(Random random) => StepEconomy(() => TradeData.StandardNormal(random));
+
         /// <summary>Root-node keys that no loader claimed yet, with occurrence counts.</summary>
         public IReadOnlyDictionary<string, int> UnhandledNodes => _unhandled;
 

@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using EndlessSky.Data;
 
@@ -30,6 +29,10 @@ namespace EndlessSky.Sim
     /// Ship::Save. Energy, heat, velocity and facing also survive because this port
     /// permits saving in flight. Old saves without those fields retain their defaults.
     ///
+    /// The economy block restores supply, displayed quotes and pending sales. A
+    /// staged read lets the runtime validate the pilot before replacing shared markets.
+    /// Saves predating that block restart from base prices.
+    ///
     /// INCOMPLETE, tracked rather than dropped: pilot name, a jump in progress,
     /// applied universe changes, politics, and weapon mount assignments.
     /// </remarks>
@@ -57,6 +60,8 @@ namespace EndlessSky.Sim
             writer.BeginChild();
             writer.Write("credits", player.Credits);
             writer.EndChild();
+
+            player.Data?.Trade.WriteEconomy(writer);
 
             foreach (Ship ship in player.Fleet.Ships)
                 WriteShip(writer, ship, ReferenceEquals(ship, player.Fleet.Flagship));
@@ -232,12 +237,26 @@ namespace EndlessSky.Sim
         public static PlayerState Read(string text, GameData data,
                                        Func<PlayerState, MissionLog>? buildLog)
         {
+            PlayerState player = Read(text, data, buildLog, out Action restoreEconomy);
+            restoreEconomy();
+            return player;
+        }
+
+        /// <summary>
+        /// Stages a load. Call restoreEconomy after accepting the pilot, so a rejected
+        /// save cannot change the active game's prices or queued trades.
+        /// </summary>
+        public static PlayerState Read(string text, GameData data,
+                                       Func<PlayerState, MissionLog>? buildLog, out Action restoreEconomy)
+        {
             if (data is null)
                 throw new ArgumentNullException(nameof(data));
 
             var player = new PlayerState(data);
             MissionLog? missions = buildLog?.Invoke(player);
             var file = new DataFile(text ?? string.Empty, "save");
+            DataNode? economy = file.Nodes.LastOrDefault(n => n.Token(0) == "economy");
+            restoreEconomy = () => data.Trade.ReadEconomy(economy);
             string? system = null, planet = null;
 
             foreach (DataNode node in file.Nodes)
@@ -263,7 +282,7 @@ namespace EndlessSky.Sim
                     case "account":
                         foreach (DataNode child in node.Children)
                             if (child.Token(0) == "credits" && child.Size >= 2)
-                                player.SetCredits(ReadInteger(child, 1));
+                                player.SetCredits(child.IntegerValue(1));
                         break;
 
                     case "ship" when node.Size >= 2:
@@ -315,7 +334,7 @@ namespace EndlessSky.Sim
                     case "conditions":
                         foreach (DataNode child in node.Children)
                             if (child.Size >= 2)
-                                player.Conditions.Set(child.Token(0), ReadInteger(child, 1));
+                                player.Conditions.Set(child.Token(0), child.IntegerValue(1));
                         break;
 
                 }
@@ -482,19 +501,6 @@ namespace EndlessSky.Sim
                 return;
 
             missions.Restore(mission, node);
-        }
-
-        private static long ReadInteger(DataNode node, int index)
-        {
-            // Saved integers must never go through double: values above 2^53 lose
-            // bits, and long.MaxValue rounds past the signed range. Decimal also
-            // accepts exponent notation in older or hand-written save files.
-            if (decimal.TryParse(node.Token(index), NumberStyles.Float,
-                CultureInfo.InvariantCulture, out decimal value)
-                && value >= long.MinValue && value <= long.MaxValue)
-                return (long)value;
-
-            return 0;
         }
 
         private static DateTime? SafeDate(DataNode node)
