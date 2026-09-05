@@ -56,6 +56,9 @@ jobs:
       - name: Test
         run: pwsh tools/test.ps1 -Suite sim
 
+      - name: Packaging script regressions
+        run: pwsh tests/tools/PackageTests.ps1
+
       # universe/ is a build artifact with a source, and that claim is only worth
       # anything if it is checked. It was not: emit.py picked each job's NPC hull with
       # Python's salted hash(), so every regeneration produced a different jobs.txt and

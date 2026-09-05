@@ -65,3 +65,15 @@ function Initialize-Godot {
     $script:GodotBin = Resolve-GodotBinary
     $env:GODOT_BIN = $script:GodotBin
 }
+
+function Get-PresetExportPath {
+    param([Parameter(Mandatory)][string]$Name)
+
+    $inTargetPreset = $false
+    foreach ($line in Get-Content -LiteralPath (Join-Path $script:ProjectRoot 'export_presets.cfg')) {
+        if ($line -match '^\[') { $inTargetPreset = $false; continue }
+        if ($line -match '^name="(.*)"$') { $inTargetPreset = ($Matches[1] -eq $Name); continue }
+        if ($inTargetPreset -and $line -match '^export_path="(.*)"$') { return $Matches[1] }
+    }
+    return $null
+}

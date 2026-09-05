@@ -20,6 +20,7 @@ not artifacts available from a clone. CI runs the reproducible checks below.
 | Quality gates | Run startup, landing, tutorial delivery, save/load and combat-resolution smokes in CI. Require completion markers, successful exit and no engine errors. | An unfinished landing run fails even with engine exit 0; missing startup data fails with exit 1. |
 | Cleanup | Share planet-to-system lookup and braking logic; remove redundant helpers and the unused save-path property. Enable existing nullable annotations in test sources. | Full regression suite and build. |
 | Presentation | Keep the bottom control legend inside the viewport; allow the tutorial's final confirmation to display and dismissal to hide it immediately. Give dismissal F3 so it does not also open F2 graphics options. | Real rendered flight capture and control binding review. |
+| Packaging | Build in a fresh staging folder, replace the output only on success, guard replacement paths, and share preset lookup. Fail when the export artifact is missing or empty. | The old script retained an obsolete-data sentinel. The new release has exactly the 11 source data files; a copy outside the repository loaded its own dataset and passed flight/landed save smoke. Engine-free script regressions cover replacement, fallback data, export failure, preset selection, traversal and links. |
 
 Latest local validation: **795 simulation tests, 15 engine tests, zero failures or
 skips**, and Debug/Release builds with zero warnings or errors. All five runtime
@@ -33,6 +34,7 @@ pwsh tools/get-data.ps1
 pwsh tools/build.ps1
 pwsh tools/test.ps1
 pwsh tools/smoke.ps1 -NoBuild
+pwsh tests/tools/PackageTests.ps1
 python tools/worldgen/worldgen.py --out build/universe-check
 ```
 
@@ -59,8 +61,9 @@ still contain meaningful work and need further implementation and verification:
 - **Coverage:** required data fixtures may skip tests when missing; unhandled node
   coverage is mostly diagnostic. Strengthen those gates and assertions that currently
   only prove a call does not throw.
-- **Delivery:** audit packaged builds for stale files and missing data, verify a
-  clean checkout and release export, and review dependency/CI reproducibility.
+- **Delivery:** verify a clean checkout and Linux release export, and review
+  dependency/CI reproducibility. Windows release packaging and relocated startup
+  are verified above.
 - **UX and content:** inspect controls and tutorial recovery when a job is abandoned,
   UI layout at smaller windows, input remapping, audio, and representative Reach
   content for currently unused event/conversation/wormhole systems.

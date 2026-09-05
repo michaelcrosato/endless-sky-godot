@@ -6,7 +6,7 @@
   Two tiers, matching the directive's separation of simulation from rendering:
 
     sim    NUnit over libs/EndlessSky.{Data,Sim}. Those projects cannot see
-           GodotSharp, so these run on the bare .NET host in under a second.
+           GodotSharp, so these run on the bare .NET host without an engine.
            This is where behavioural parity with upstream is pinned down.
 
     godot  gdUnit4 over the presentation layer, which needs a real engine

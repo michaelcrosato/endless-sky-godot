@@ -25,19 +25,6 @@ param(
 Initialize-Godot
 Set-Location $script:ProjectRoot
 
-function Get-PresetExportPath {
-    <# Reads export_path out of the named [preset.N] block. #>
-    param([Parameter(Mandatory)][string]$Name)
-
-    $inTargetPreset = $false
-    foreach ($line in Get-Content 'export_presets.cfg') {
-        if ($line -match '^\[preset\.\d+\]')      { $inTargetPreset = $false; continue }
-        if ($line -match '^name="(.*)"$')         { $inTargetPreset = ($Matches[1] -eq $Name); continue }
-        if ($inTargetPreset -and $line -match '^export_path="(.*)"$') { return $Matches[1] }
-    }
-    return $null
-}
-
 $version = Get-GodotVersion $script:GodotBin      # e.g. 4.7.2.stable.mono.official.<hash>
 if ($version -notmatch '^(?<v>\d+\.\d+(\.\d+)?)') { throw "Could not parse Godot version from '$version'" }
 
@@ -65,5 +52,7 @@ Write-Host "[export] $mode '$Preset' -> $OutputPath"
 if ($LASTEXITCODE -ne 0) { throw "Export failed ($LASTEXITCODE)" }
 
 $artifact = Get-Item $OutputPath -ErrorAction SilentlyContinue
-if ($artifact) { Write-Host "[ok] $($artifact.FullName)  ($([math]::Round($artifact.Length/1MB,1)) MB)" }
-else           { Write-Warning "Export reported success but $OutputPath is missing." }
+if (-not $artifact -or $artifact.PSIsContainer -or $artifact.Length -eq 0) {
+    throw "Export reported success but $OutputPath is missing or empty."
+}
+Write-Host "[ok] $($artifact.FullName)  ($([math]::Round($artifact.Length/1MB,1)) MB)"

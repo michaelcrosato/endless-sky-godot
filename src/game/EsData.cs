@@ -6,10 +6,9 @@ using Godot;
 namespace EndlessSky.Game
 {
     /// <summary>
-    /// Locates and loads the upstream Endless Sky dataset once per process.
-    /// The dataset is not vendored; it is found the same way the sim test
-    /// suite finds it: $ENDLESS_SKY_DATA, else ../es-upstream/data, else
-    /// external/endless-sky/data beside the project root.
+    /// Loads the game dataset once per process: $ENDLESS_SKY_DATA, the shipped
+    /// universe/, the upstream reference clone, then a sibling es-upstream clone.
+    /// Exported builds resolve these paths beside the executable.
     /// </summary>
     public static class EsData
     {
@@ -31,9 +30,7 @@ namespace EndlessSky.Game
                 // scope here and collides with System.Environment.
                 string? fromEnv = System.Environment.GetEnvironmentVariable("ENDLESS_SKY_DATA");
                 string projectRoot = ProjectSettings.GlobalizePath("res://");
-                // Order: explicit env override, then the in-repo reference clone so a
-                // fresh checkout is self-contained (tools/get-data.ps1 populates it),
-                // then a sibling es-upstream checkout as developer convenience.
+                // Explicit override, shipped content, then reference checkouts.
                 string?[] candidates =
                 {
                     fromEnv,

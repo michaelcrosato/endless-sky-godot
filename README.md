@@ -102,6 +102,12 @@ pwsh tools/package.ps1        # exe + assemblies + dataset, ready to double-clic
 An export alone is not a runnable game: the dataset is read from disk with
 `System.IO`, so it can never come out of the `.pck`. `package.ps1` does the export
 and the copy together. The output folder is movable; the exe alone is not.
+Packaging replaces the whole output folder after a successful staged export, so
+obsolete data and assemblies cannot linger. Keep personal files outside that folder.
+Use `-OutputPath build/portable/endless-sky-3d.exe` for a separate package; package
+folders must be below `build/`. A failed export preserves the previous package.
+Run `pwsh tests/tools/PackageTests.ps1` to check replacement and failure handling
+without Godot or export templates.
 
 ## Status
 
