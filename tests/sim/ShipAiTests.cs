@@ -72,6 +72,25 @@ namespace EndlessSky.Tests
 
         // --- Target selection -----------------------------------------------------
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public void TargetsMustBeInTheSameSystem(bool attackDisabled)
+        {
+            (Government mine, Government theirs) = HostilePair();
+            var here = new StarSystem("Here");
+            Ship self = MakeShip("Self", Point.Zero, mine);
+            self.CurrentSystem = here;
+            Ship remote = MakeShip("Remote", new Point(10, 0), theirs);
+            remote.CurrentSystem = new StarSystem("Elsewhere");
+            Ship local = MakeShip("Local", new Point(100, 0), theirs);
+            local.CurrentSystem = here;
+
+            Assert.AreSame(local, ShipAi.FindTarget(self, new[] { remote, local },
+                attackDisabled: attackDisabled));
+            Assert.IsNull(ShipAi.FindTarget(self, new[] { remote },
+                attackDisabled: attackDisabled));
+        }
+
         [Test]
         public void TheNearestHostileShipIsChosen()
         {

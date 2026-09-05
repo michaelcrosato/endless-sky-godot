@@ -58,6 +58,11 @@ namespace EndlessSky.Sim
                 if (other is null || ReferenceEquals(other, self) || other.IsDestroyed)
                     continue;
 
+                // Combat coordinates are local to a system. A nearby coordinate in
+                // another system is not a nearby target (upstream GetShipsList).
+                if (!ReferenceEquals(other.CurrentSystem, self.CurrentSystem))
+                    continue;
+
                 // A crippled ship is no longer a threat; upstream looks for a live one.
                 if (other.IsDisabled && !attackDisabled)
                     continue;

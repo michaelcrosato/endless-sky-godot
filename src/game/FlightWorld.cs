@@ -708,7 +708,7 @@ namespace EndlessSky.Game
             // without a full port of upstream's personality-driven AI.
             foreach ((Ship npc, ShipView view) in _traffic)
             {
-                Ship? target = ShipAi.FindTarget(npc, _traffic.Select(t => t.Ship).Append(_ship));
+                Ship? target = ShipAi.FindTarget(npc, _field?.Ships);
                 Command command = target != null
                     ? ShipAi.Attack(npc, target)
                     : FleetOrders.MoveTo(npc, Point.Zero, Point.Zero, 400.0, 1.0);
@@ -925,6 +925,12 @@ namespace EndlessSky.Game
                 {
                     HandleArrival();
                     _ship.TargetSystem = null;
+                    if (!ReferenceEquals(_player.CurrentSystem, _ship.CurrentSystem) ||
+                        !_player.VisitedSystems.Contains(_ship.CurrentSystem!.Name))
+                    {
+                        GD.Print("[smoke] FAIL: arrival did not update the pilot's system and exploration history");
+                        GetTree().Quit(1);
+                    }
                 }
 
                 _shipView?.SyncWith(_ship);
@@ -1403,6 +1409,7 @@ namespace EndlessSky.Game
             }
 
             _lastSystem = system;
+            _player.EnterSystem(system);
 
             // A landing target belongs to the system it was chosen in. Carried across a
             // jump it names a body that is not here, at coordinates that mean something
@@ -1419,6 +1426,7 @@ namespace EndlessSky.Game
             // all. The counter is derived from the player's date afterwards so there is
             // one calendar rather than two that can drift apart.
             AdvanceDay();
+            ResetLocalCombat(_universe);
             RebuildSystemViews(system);
 
             GD.Print($"[flight] entered {system.Name} on day {_currentDay:0} " +
@@ -1492,14 +1500,6 @@ namespace EndlessSky.Game
         /// </remarks>
         private void BuildCombat(GameData universe)
         {
-            _field = new CombatField
-            {
-                // Null means "no such weapon"; the field skips those clusters.
-                WeaponLookup = name =>
-                    universe.Outfits.TryGetValue(name, out Outfit? outfit) ? outfit.Weapon : null!,
-            };
-            _field.Add(_ship!);
-
             _playerGovernment = new Government("Player") { IsPlayer = true };
             _ship!.Government = _playerGovernment;
 
@@ -1516,6 +1516,31 @@ namespace EndlessSky.Game
                 _ship.InstallWeapon(outfit);
             }
 
+            ResetLocalCombat(universe);
+        }
+
+        /// <summary>Replace the current system's transient combat state and visuals.</summary>
+        private void ResetLocalCombat(GameData universe)
+        {
+            foreach ((_, ShipView view) in _traffic)
+                view.QueueFree();
+            _traffic.Clear();
+            foreach ((_, ShipView view) in _missionShips)
+                view.QueueFree();
+            _missionShips.Clear();
+            if (_drone != null)
+            {
+                _droneView.QueueFree();
+                _drone = null;
+            }
+
+            _field = new CombatField
+            {
+                WeaponLookup = name =>
+                    universe.Outfits.TryGetValue(name, out Outfit? outfit) ? outfit.Weapon : null!,
+            };
+            _field.Add(_ship);
+
             _effects?.QueueFree();
             _effects = new CombatEffects { Name = "CombatEffects" };
             AddChild(_effects);
@@ -1531,6 +1556,7 @@ namespace EndlessSky.Game
             string droneType = universe.Ships.ContainsKey("Sparrow") ? "Sparrow" : _startShip;
             _drone = universe.BuildShip(droneType);
             _drone.Government = raider;
+            _drone.CurrentSystem = _ship!.CurrentSystem;
             _drone.BuildMounts();
             // Snapshot: InstallWeapon mutates the ship's outfit collection.
             foreach (Outfit outfit in _drone.Outfits.Where(o => o.IsWeapon).ToArray())
@@ -1613,11 +1639,7 @@ namespace EndlessSky.Game
             {
                 if (!npc.IsDisabled)
                 {
-                    IEnumerable<Ship> around = _traffic.Select(t => t.Ship)
-                        .Concat(_missionShips.Select(m => m.Ship))
-                        .Append(_ship);
-
-                    Ship? target = ShipAi.FindTarget(npc, around);
+                    Ship? target = ShipAi.FindTarget(npc, _field?.Ships);
                     npc.Step(target != null
                         ? ShipAi.Attack(npc, target)
                         : FleetOrders.MoveTo(npc, Point.Zero, Point.Zero, 400.0, 1.0));
@@ -1667,7 +1689,7 @@ namespace EndlessSky.Game
             // ships alone, so it is told not to: finishing the kill is the job.
             Ship? target = ShipAi.FindTarget(
                 _ship,
-                _traffic.Select(t => t.Ship).Concat(_missionShips.Select(m => m.Ship)),
+                _field.Ships,
                 attackDisabled: _smokeFire);
 
             // A person holding the key fires everything, aimed or not - that is what
@@ -1868,7 +1890,6 @@ namespace EndlessSky.Game
                 if (npc.System != null && !ReferenceEquals(_ship.CurrentSystem, npc.System))
                 {
                     _ship.CurrentSystem = npc.System;
-                    _player.EnterSystem(npc.System);
                     HandleArrival();
                 }
 
@@ -1933,8 +1954,13 @@ namespace EndlessSky.Game
                 if (!ReferenceEquals(_ship.CurrentSystem, destination))
                 {
                     _ship.CurrentSystem = destination;
-                    _player.EnterSystem(destination);
                     HandleArrival();
+                    if (!HasOnlyPlayerCombat())
+                    {
+                        GD.Print("[smoke] FAIL: ships or shots from the fight survived entering another system");
+                        GetTree().Quit(1);
+                        return;
+                    }
                 }
                 _ship.Position = port.Position;
                 _ship.Velocity = Point.Zero;
@@ -2240,6 +2266,26 @@ namespace EndlessSky.Game
                 _ship!.SetLevels(shields: Math.Min(10, _ship.MaxShields),
                     hull: Math.Max(_ship.MinimumHull + 1, _ship.MaxHull * 0.75),
                     energy: Math.Min(5, _ship.MaxEnergy), fuel: Math.Min(17, _ship.MaxFuel), heat: 100);
+
+                // Loading in the same system must retire the old traffic and shots,
+                // as well as replacing the player. Otherwise old ships become ghosts
+                // outside the new combat field, or stale shots hit the restored ship.
+                Ship oldTraffic = _universe.Ships.Keys.Select(_universe.BuildShip)
+                    .First(s => s.Mounts.Any(m => !m.IsEmpty));
+                oldTraffic.CurrentSystem = _ship.CurrentSystem;
+                oldTraffic.Recharge(RechargeType.All);
+                var oldView = new ShipView { Name = "SaveSmokeTraffic" };
+                AddChild(oldView);
+                oldView.SyncWith(oldTraffic);
+                _traffic.Add((oldTraffic, oldView));
+                _field!.Add(oldTraffic);
+                _field.Add(oldTraffic.FireAll(_ship, oldTraffic.Government));
+                if (_field.Projectiles.Count == 0)
+                {
+                    GD.Print("[smoke] FAIL: the old-traffic probe did not fire any shots");
+                    GetTree().Quit(1);
+                    return;
+                }
                 string before = SaveGame.Write(_player, _missions);
                 if (!SaveTo(path))
                 {
@@ -2260,7 +2306,7 @@ namespace EndlessSky.Game
                     return;
                 }
                 string after = SaveGame.Write(_player, _missions);
-                bool restored = before == after;
+                bool restored = before == after && HasOnlyPlayerCombat() && oldView.IsQueuedForDeletion();
                 if (!restored)
                 {
                     string[] savedLines = before.Split('\n'), loadedLines = after.Split('\n');
@@ -2309,7 +2355,7 @@ namespace EndlessSky.Game
                     restored &= !_isLanded && _landedOverlay == null && _player.CurrentPlanet == null;
                 }
                 GD.Print(restored
-                    ? "[smoke] PASS: flight and landed saves round-tripped; departure cleared the port"
+                    ? "[smoke] PASS: flight and landed saves round-tripped; old combat cleared; departure cleared the port"
                     : "[smoke] FAIL: restored state differs from the saved game");
                 GetTree().Quit(restored ? 0 : 1);
             }
@@ -2328,6 +2374,10 @@ namespace EndlessSky.Game
         /// unobservable, because the player's history was discarded at quit.
         /// </remarks>
         private bool SaveNow() => SaveTo(SaveSlot.DefaultPath);
+
+        private bool HasOnlyPlayerCombat() => _traffic.Count == 0 && _missionShips.Count == 0
+            && _field != null && _field.Projectiles.Count == 0
+            && _field.Ships.Count == 1 && ReferenceEquals(_field.Ships[0], _ship);
 
         private bool SaveTo(string path)
         {

@@ -25,9 +25,10 @@ not artifacts available from a clone. CI runs the reproducible checks below.
 | Fresh checkout | Fetch the pinned reference and import/build without using the original worktree's engine cache or data. | An isolated detached worktree passed 795 simulation tests, 15 engine tests, packaging regressions and all five smoke contracts; Debug build had zero warnings/errors. |
 | Build isolation | Exclude generated build, distribution and report directories from C# compilation. | A nested validation checkout caused duplicate-source and missing-NUnit build failures. The same build now succeeds with the checkout still present. |
 | Tutorial recovery | Return to finding work after losing a job or departing without one; refresh changed destinations and guide players back after leaving the delivery system. | All seven new recovery cases failed before the fix and now pass; the real tutorial still completes delivery and payment. |
-| Mission combat | Keep disabled mission ships stepping so drift and heat continue. Require the bounty smoke to take an offered job, win through normal combat, land and collect payment. | The disabled-ship probe failed before the controller fix. A stock Prism X defeated the bounty target and collected 91,297 credits after 261 combat frames. The smoke positions travel legs; the separate tutorial smoke flies its route. |
+| Mission combat | Keep disabled mission ships stepping so drift and heat continue. Require the bounty smoke to take an offered job, win through normal combat, land and collect payment. | The disabled-ship probe failed before the controller fix. A stock Prism X defeated the bounty target and collected 91,297 credits after 262 combat frames in the latest run. The smoke positions travel legs; the separate tutorial smoke flies its route. |
+| Combat scope and arrivals | Clear transient ships, shots and combat views on arrival and load without resetting the flagship's resources or armament. All pilots target the combat field's ships, with other systems excluded. Update the pilot's system and exploration history on real jumps. | Two target-selection regressions and runtime save, bounty-arrival and tutorial-arrival probes failed before the fixes. Reload clears a firing traffic ship and its view; arrival clears the previous fight; tutorial checks the pilot's location and visited system. |
 
-Latest local validation: **802 simulation tests, 15 engine tests, zero failures or
+Latest local validation: **804 simulation tests, 15 engine tests, zero failures or
 skips**, and Debug/Release builds with zero warnings or errors. All five runtime
 smokes passed their documented contract, including winning and collecting a bounty.
 
@@ -51,8 +52,9 @@ generation alone is not proof of reproducibility. `tools/smoke.ps1 -Scenario lan
 The audit is not complete merely because these checks pass. The following areas
 still contain meaningful work and need further implementation and verification:
 
-- **Combat and boarding:** wire boarding/capture into play; inspect target selection
-  across mission and ambient ships and ensure ships in other systems are excluded.
+- **Combat and boarding:** capture odds exist, but boarding approach, crew combat,
+  plunder, capture transfer and their UI still need implementation. Continue the
+  broader combat parity review (targeting personalities, turrets and other weapons).
 - **Persistence:** mission NPC state/history, changed universe data, reputation,
   transient jumps, and per-ship weapon mount assignments still need round-trip
   coverage. Inspect escort reconstruction and access to save/load while landed as well.
