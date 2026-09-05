@@ -8,11 +8,9 @@ namespace EndlessSky.Sim
     /// How much a used ship or outfit is worth. Port of upstream <c>Depreciation</c>.
     /// </summary>
     /// <remarks>
-    /// Endless Sky does not let the player buy a ship and sell it back for the same
-    /// money, which is what stops the shipyard from being an infinite-credit machine
-    /// and what makes an early ship purchase a real commitment. New stock sells at
-    /// full price; anything out of the player's own fleet is worth a fraction that
-    /// falls with age and bottoms out at a quarter.
+    /// New purchases keep their full value through a grace period. After that,
+    /// resale value falls with age and bottoms out at a quarter. Items with no
+    /// purchase history, including a starting ship's stock outfits, use that floor.
     /// </remarks>
     public static class Depreciation
     {
@@ -64,12 +62,13 @@ namespace EndlessSky.Sim
         NotOwned,
         NoSuchThing,
         LastShip,
+        InvalidAmount,
+        CreditLimit,
     }
 
     /// <summary>
-    /// The shipyard and outfitter counters: buying and selling ships and outfits.
-    /// Ports the transaction rules from upstream's <c>ShipyardPanel</c> and
-    /// <c>OutfitterPanel</c>.
+    /// Port transactions for commodities, ships and outfits. Ports the rules from
+    /// upstream's <c>TradingPanel</c>, <c>ShipyardPanel</c> and <c>OutfitterPanel</c>.
     /// </summary>
     /// <remarks>
     /// The directive names "ship purchasing" and "outfit installation" under Milestone
@@ -81,7 +80,9 @@ namespace EndlessSky.Sim
     /// stocks, an outfit must physically fit before it can be paid for, and the last
     /// flyable ship cannot be sold out from under its pilot.
     ///
-    /// INCOMPLETE, tracked rather than dropped: licences, outfits placed into cargo or
+    /// INCOMPLETE, tracked rather than dropped: commodity cost basis and sale-driven
+    /// supply changes, individual port services and per-ship landing clearance,
+    /// licences, outfits placed into cargo or
     /// planetary storage rather than installed, and trade-in when buying a
     /// replacement. Purchase ages ARE remembered now, per ship model and outfit rather
     /// than per individual hull, so two of the same model bought years apart are told
@@ -89,6 +90,88 @@ namespace EndlessSky.Sim
     /// </remarks>
     public static class Trading
     {
+        /// <summary>Tradeable goods quoted at the player's current port.</summary>
+        public static IEnumerable<TradeQuote> CommoditiesFor(GameData data, PlayerState player)
+        {
+            if (data is null || player?.CurrentPlanet is not { HasSpaceport: true }
+                || player.CurrentSystem is null)
+                return Enumerable.Empty<TradeQuote>();
+
+            return data.Trade.Quotes(player.CurrentSystem.Name)
+                .Where(q => q.Price > 0 && data.Trade.Commodities.TryGetValue(q.Commodity, out Commodity? c)
+                    && c.IsTradeable);
+        }
+
+        /// <summary>
+        /// Buys up to the requested tonnage, limited by credits and local cargo space.
+        /// Upstream TradingPanel::Buy charges only for cargo actually added.
+        /// </summary>
+        public static TradeResult BuyCommodity(PlayerState player, GameData data, string commodity,
+                                                int tons, out int bought)
+        {
+            bought = 0;
+            TradeResult result = CommodityPrice(player, data, commodity, out int price);
+            if (result != TradeResult.Ok)
+                return result;
+            if (tons <= 0)
+                return TradeResult.InvalidAmount;
+
+            // Clamp in 64 bits before narrowing. A negative balance divided by a
+            // price can otherwise wrap into a positive 32-bit affordable quantity.
+            int affordable = (int)Math.Min(tons, Math.Max(0L, player.Credits) / price);
+            if (affordable == 0)
+                return TradeResult.CannotAfford;
+
+            bought = player.Fleet.LoadCargo(commodity, affordable, player.CurrentSystem);
+            if (bought == 0)
+                return TradeResult.DoesNotFit;
+
+            player.AddCredits(-(long)bought * price);
+            return TradeResult.Ok;
+        }
+
+        /// <summary>Sells cargo from ships in this system, paying only for tons removed.</summary>
+        public static TradeResult SellCommodity(PlayerState player, GameData data, string commodity,
+                                                 int tons, out int sold)
+        {
+            sold = 0;
+            TradeResult result = CommodityPrice(player, data, commodity, out int price);
+            if (result != TradeResult.Ok)
+                return result;
+            if (tons <= 0)
+                return TradeResult.InvalidAmount;
+
+            // int tonnage times int price fits in a long. A positive existing balance
+            // can still overflow on receipt; leave the excess goods aboard instead.
+            if (player.Credits > 0)
+                tons = (int)Math.Min(tons, (long.MaxValue - player.Credits) / price);
+            if (tons == 0)
+                return TradeResult.CreditLimit;
+
+            sold = player.Fleet.UnloadCargo(commodity, tons, player.CurrentSystem);
+            if (sold == 0)
+                return TradeResult.NotOwned;
+
+            player.AddCredits((long)sold * price);
+            return TradeResult.Ok;
+        }
+
+        private static TradeResult CommodityPrice(PlayerState player, GameData data, string commodity,
+                                                  out int price)
+        {
+            price = 0;
+            if (player is null || data is null || string.IsNullOrWhiteSpace(commodity)
+                || !data.Trade.Commodities.TryGetValue(commodity, out Commodity? good))
+                return TradeResult.NoSuchThing;
+            if (!good.IsTradeable || player.CurrentPlanet is not { HasSpaceport: true }
+                || player.CurrentSystem is null)
+                return TradeResult.NotSold;
+
+            // A zero quote means unavailable in TradingPanel::Buy, not free cargo.
+            price = data.Trade.Price(player.CurrentSystem.Name, commodity) ?? 0;
+            return price > 0 ? TradeResult.Ok : TradeResult.NotSold;
+        }
+
         /// <summary>Every ship model this planet's shipyards stock.</summary>
         public static IEnumerable<string> ShipsFor(GameData data, Planet planet)
         {
@@ -141,6 +224,7 @@ namespace EndlessSky.Sim
                 return TradeResult.CannotAfford;
 
             player.AddCredits(-ship.Cost);
+            ship.CurrentSystem = player.CurrentSystem;
             ship.SetLevels(shields: ship.MaxShields, hull: ship.MaxHull,
                            energy: ship.MaxEnergy, fuel: ship.MaxFuel);
             player.Fleet.Add(ship);

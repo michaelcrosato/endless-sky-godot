@@ -21,7 +21,7 @@ namespace EndlessSky.Tests.Presentation
             public readonly MissionLog Missions;
             public int Saves, Loads, Departures;
 
-            public Session(int counter = 0)
+            public Session(int counter = 0, int price = 100)
             {
                 var data = new GameData();
                 data.LoadText("trade\n\tcommodity Food 50 100\n" +
@@ -30,8 +30,11 @@ namespace EndlessSky.Tests.Presentation
                     "system Sol\n\tpos 0 0\n\tobject Home\n\ttrade Food 100\n" +
                     "mission Delivery\n\tjob\n\tdestination Home\n" +
                     "\ton offer\n\t\tdialog Ready\n\ton accept\n\t\tpayment 20\n");
+                data.Trade.SetPrice("Sol", "Food", price);
                 Player = new PlayerState(data);
-                Player.Fleet.Add(data.BuildShip("Trader"));
+                Ship flagship = data.BuildShip("Trader");
+                flagship.CurrentSystem = data.Systems["Sol"];
+                Player.Fleet.Add(flagship);
                 Player.SetCredits(1000);
                 Player.EnterSystem(data.Systems["Sol"]);
                 Player.Land(data.Planets["Home"]);
@@ -77,6 +80,39 @@ namespace EndlessSky.Tests.Presentation
 
         [TestCase]
         [RequireGodotRuntime]
+        public async Task ZeroPriceCannotGiveAwayOrDiscardCargo()
+        {
+            var session = new Session(price: 0);
+            try
+            {
+                session.Player.Fleet.LoadCargo("Food", 7);
+                session.Tap(Key.B);
+                AssertThat(session.Player.Fleet.CargoCount("Food")).IsEqual(7);
+                session.Tap(Key.N);
+                AssertThat(session.Player.Fleet.CargoCount("Food")).IsEqual(7);
+                AssertThat(session.Player.Credits).IsEqual(1000L);
+            }
+            finally { await session.Release(); }
+        }
+
+        [TestCase]
+        [RequireGodotRuntime]
+        public async Task LargeDebtCannotWrapIntoAnAffordablePurchase()
+        {
+            var session = new Session();
+            try
+            {
+                const long debt = -429_496_729_500L;
+                session.Player.SetCredits(debt);
+                session.Tap(Key.B);
+                AssertThat(session.Player.Fleet.CargoCount("Food")).IsEqual(0);
+                AssertThat(session.Player.Credits).IsEqual(debt);
+            }
+            finally { await session.Release(); }
+        }
+
+        [TestCase]
+        [RequireGodotRuntime]
         public async Task LandedPilotsCanSaveAndLoadFromThePauseMenu()
         {
             var session = new Session();
@@ -117,6 +153,9 @@ namespace EndlessSky.Tests.Presentation
                 session.Tap(Key.B);
                 AssertThat(session.Player.Fleet.CargoCount("Food")).IsEqual(5);
                 AssertThat(session.Player.Credits).IsEqual(500L);
+                session.Tap(Key.N);
+                AssertThat(session.Player.Fleet.CargoCount("Food")).IsEqual(0);
+                AssertThat(session.Player.Credits).IsEqual(1000L);
                 session.Tap(Key.D);
                 AssertThat(session.Departures).IsEqual(1);
             }

@@ -159,9 +159,7 @@ namespace EndlessSky.Game
         /// <summary>Re-reads what this world has on offer.</summary>
         private void RefreshStock()
         {
-            _quotes = _universe.Trade.Quotes(_systemName)
-                .Where(q => _universe.Trade.Commodities.TryGetValue(q.Commodity, out Commodity? c) &&
-                            c.IsTradeable)
+            _quotes = Trading.CommoditiesFor(_universe, _player)
                 .OrderBy(q => q.Commodity, StringComparer.Ordinal)
                 .ToList();
 
@@ -394,14 +392,11 @@ namespace EndlessSky.Game
                 case Counter.Trade:
                 {
                     TradeQuote quote = _quotes[index];
-                    int affordable = quote.Price > 0
-                        ? (int)Math.Min(TonsPerPress, _player.Credits / quote.Price)
-                        : TonsPerPress;
-                    int bought = _player.Fleet.LoadCargo(quote.Commodity, Math.Max(0, affordable));
-                    _player.AddCredits(-(long)bought * quote.Price);
-                    _message = bought > 0
+                    TradeResult result = Trading.BuyCommodity(_player, _universe, quote.Commodity,
+                        TonsPerPress, out int bought);
+                    _message = result == TradeResult.Ok
                         ? $"bought {bought} t of {quote.Commodity}"
-                        : "no room, or not enough credits";
+                        : Explain(result);
                     break;
                 }
 
@@ -494,9 +489,10 @@ namespace EndlessSky.Game
                 case Counter.Trade:
                 {
                     TradeQuote quote = _quotes[index];
-                    int sold = _player.Fleet.UnloadCargo(quote.Commodity, TonsPerPress);
-                    _player.AddCredits((long)sold * quote.Price);
-                    _message = sold > 0 ? $"sold {sold} t of {quote.Commodity}" : "nothing to sell";
+                    TradeResult result = Trading.SellCommodity(_player, _universe, quote.Commodity,
+                        TonsPerPress, out int sold);
+                    _message = result == TradeResult.Ok
+                        ? $"sold {sold} t of {quote.Commodity}" : Explain(result);
                     break;
                 }
 
@@ -560,6 +556,8 @@ namespace EndlessSky.Game
             TradeResult.DoesNotFit => "it will not fit",
             TradeResult.NotOwned => "you do not own that",
             TradeResult.LastShip => "you cannot sell your only ship",
+            TradeResult.InvalidAmount => "quantity must be positive",
+            TradeResult.CreditLimit => "credit balance limit reached",
             _ => "no",
         };
 
@@ -618,7 +616,7 @@ namespace EndlessSky.Game
             Ship? flagship = _player.Fleet.Flagship;
             string hold = flagship is null
                 ? ""
-                : $"   cargo {_player.Fleet.CargoUsed()}/{_player.Fleet.CargoCapacity()} t" +
+                : $"   cargo {_player.Fleet.CargoUsed(_player.CurrentSystem)}/{_player.Fleet.CargoCapacity(_player.CurrentSystem)} t" +
                   $"   fuel {flagship.Fuel:0}";
 
             _statusLine.Text =
@@ -657,7 +655,7 @@ namespace EndlessSky.Game
                     for (int i = 0; i < _quotes.Count; i++)
                     {
                         TradeQuote quote = _quotes[i];
-                        int held = _player.Fleet.CargoCount(quote.Commodity);
+                        int held = _player.Fleet.CargoCount(quote.Commodity, _player.CurrentSystem);
                         lines.Add($"{Cursor(i, selected)}{quote.Commodity,-18} {quote.Price,6} cr/t" +
                                   $"   hold {held,3} t");
                     }

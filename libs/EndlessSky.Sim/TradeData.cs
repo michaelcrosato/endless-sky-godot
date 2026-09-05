@@ -33,9 +33,10 @@ namespace EndlessSky.Sim
     /// and no market depth, so profit is just the difference between two systems'
     /// quotes times the tonnage you can carry. There is no order book to model.
     ///
-    /// INCOMPLETE, tracked rather than dropped: price drift over time, the
-    /// "shipyard"/"outfitter" stock lists, smuggling and illegal-goods fines, and
-    /// per-planet price modifiers.
+    /// INCOMPLETE, tracked rather than dropped: sale-driven supply, trade between
+    /// neighboring systems, economy persistence, and smuggling/illegal-goods fines.
+    /// Daily local supply drift is implemented below; shipyard and outfitter stock
+    /// belongs to the separate Trading service.
     /// </remarks>
     public class TradeData
     {
