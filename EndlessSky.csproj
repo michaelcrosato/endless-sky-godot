@@ -23,6 +23,9 @@
   <ItemGroup>
     <Compile Remove="libs/**/*.cs" />
     <Compile Remove="external/**/*.cs" />
+    <!-- Generated output and isolated validation checkouts are not game source.
+         Godot's .gdignore does not constrain MSBuild's recursive C# glob. -->
+    <Compile Remove="build/**/*.cs;dist/**/*.cs;reports/**/*.cs" />
     <!-- tests/sim is its own NUnit project against the engine-free libraries.
          Globbing it here would compile NUnit attributes into the Godot
          assembly, which has no NUnit reference. -->
