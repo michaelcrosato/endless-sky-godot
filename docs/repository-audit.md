@@ -25,12 +25,21 @@ not artifacts available from a clone. CI runs the reproducible checks below.
 | Fresh checkout | Fetch the pinned reference and import/build without using the original worktree's engine cache or data. | An isolated detached worktree passed 795 simulation tests, 15 engine tests, packaging regressions and all five smoke contracts; Debug build had zero warnings/errors. |
 | Build isolation | Exclude generated build, distribution and report directories from C# compilation. | A nested validation checkout caused duplicate-source and missing-NUnit build failures. The same build now succeeds with the checkout still present. |
 | Tutorial recovery | Return to finding work after losing a job or departing without one; refresh changed destinations and guide players back after leaving the delivery system. | All seven new recovery cases failed before the fix and now pass; the real tutorial still completes delivery and payment. |
-| Mission combat | Keep disabled mission ships stepping so drift and heat continue. Require the bounty smoke to take an offered job, win through normal combat, land and collect payment. | The disabled-ship probe failed before the controller fix. A stock Prism X defeated the bounty target and collected 91,297 credits after 262 combat frames in the latest run. The smoke positions travel legs; the separate tutorial smoke flies its route. |
+| Mission combat | Keep disabled mission ships stepping so drift and heat continue. Require the bounty smoke to take an offered job, win through normal combat, land and collect payment. | The disabled-ship probe failed before the controller fix. A stock Prism X defeated the bounty target and collected 91,297 credits. The smoke positions travel legs; the separate tutorial smoke flies its route. |
 | Combat scope and arrivals | Clear transient ships, shots and combat views on arrival and load without resetting the flagship's resources or armament. All pilots target the combat field's ships, with other systems excluded. Update the pilot's system and exploration history on real jumps. | Two target-selection regressions and runtime save, bounty-arrival and tutorial-arrival probes failed before the fixes. Reload clears a firing traffic ship and its view; arrival clears the previous fight; tutorial checks the pilot's location and visited system. |
+| Mission persistence | Save actual NPC ships, their allegiance, condition, locations and individual objective events, plus mission passengers. Restore missions after pilot placement; recover missing targets in older saves without repeating acceptance. | All ten new cases failed before the fix. They cover partial bounties, escorts that jumped, mission failure, payload, legacy placement, empty instances, aggregate-only records and repeated saves. The real bounty now reloads during combat and after victory, then lands and collects payment. |
+| Weapon duplication and cleanup | Let mount reconstruction arm existing outfits without installing additional copies. Share ship serialization and smoke diagnostics; remove the unused NPC placement flag and the load overload that attached missions to a different player. | The stronger bounty smoke caught a cannon count doubling from 2 to 4 on load. It now passes both reloads with the stock loadout; existing ship and save regressions still pass. |
 
-Latest local validation: **804 simulation tests, 15 engine tests, zero failures or
+Latest local validation: **814 simulation tests, 15 engine tests, zero failures or
 skips**, and Debug/Release builds with zero warnings or errors. All five runtime
 smokes passed their documented contract, including winning and collecting a bounty.
+The current Windows release also passed both bounty reloads and payment when launched
+from an unrelated working directory with no data override.
+
+Older saves never recorded NPC ships or their history, so they recreate those
+targets once at load; missing historical kills cannot be recovered. New saves
+retain each NPC's mission template index and actual ships. Migration across changed
+mission templates and upstream UUID identity are still incomplete.
 
 Run validation from the repository root:
 
@@ -55,9 +64,9 @@ still contain meaningful work and need further implementation and verification:
 - **Combat and boarding:** capture odds exist, but boarding approach, crew combat,
   plunder, capture transfer and their UI still need implementation. Continue the
   broader combat parity review (targeting personalities, turrets and other weapons).
-- **Persistence:** mission NPC state/history, changed universe data, reputation,
-  transient jumps, and per-ship weapon mount assignments still need round-trip
-  coverage. Inspect escort reconstruction and access to save/load while landed as well.
+- **Persistence:** changed universe data, reputation, transient jumps, and per-ship
+  weapon mount assignments still need round-trip coverage. Inspect escort
+  reconstruction and access to save/load while landed as well.
 - **Gameplay rules:** mission NPC spawn/despawn gates, landing permissions, the
   opening debt/conversation flow and turret firing arcs remain incomplete.
 - **Simulation boundary:** commodity transactions and much of the session's
@@ -68,9 +77,11 @@ still contain meaningful work and need further implementation and verification:
 - **Delivery:** verify a Linux release export and review dependency/CI
   reproducibility. Fresh checkout validation, Windows release packaging and
   relocated startup are verified above.
-- **UX and content:** inspect controls, UI layout at smaller windows, input remapping,
-  audio, and representative Reach
-  content for currently unused event/conversation/wormhole systems.
+- **UX and content:** the rendered reload check shows the large Prism X fills much
+  of the combat view while its target is outside the frame; review camera framing
+  by hull size and add readable combat condition information. Also inspect smaller
+  windows, input remapping, audio, and Reach content for currently unused
+  event/conversation/wormhole systems.
 
 `docs/MILESTONES.md` and `rg -n INCOMPLETE libs src` retain the broader parity
 inventory. Do not delete unfinished systems to make the audit appear complete.

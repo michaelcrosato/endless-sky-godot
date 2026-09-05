@@ -4,8 +4,9 @@
   Runs real engine scenarios, requiring both a successful exit and completion.
 .DESCRIPTION
   Covers startup, landing, tutorial delivery, save/load and a won bounty with payment.
-  Mission uses a stock combat flagship and positions its travel legs; tutorial
-  exercises flight and delivery. Save uses a temporary slot.
+  Mission uses a stock combat flagship, reloads during combat and after victory,
+  and positions its travel legs; tutorial exercises flight and delivery.
+  Both save checks use temporary slots.
 .PARAMETER Frames
   Maximum engine iterations per scenario. Reaching the limit without a PASS fails.
 #>

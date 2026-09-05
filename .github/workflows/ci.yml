@@ -115,7 +115,7 @@ jobs:
 
       # Requires explicit completion, no engine errors and a successful exit.
       # Save smoke uses a temporary slot. Tutorial proves flight and delivery;
-      # mission requires winning an offered bounty and collecting its payment.
+      # mission reloads during combat and after victory before collecting payment.
       - name: Runtime smoke scenarios
         run: pwsh tools/smoke.ps1 -NoBuild
 

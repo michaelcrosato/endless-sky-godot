@@ -407,10 +407,9 @@ namespace EndlessSky.Sim
         /// </summary>
         /// <remarks>
         /// This records the event against the NPC BLOCK, so it lands on every hull the
-        /// block placed. That is the right granularity for a restored save, where the
-        /// ships have been rebuilt but the record of what happened to each was kept at
-        /// block level; <see cref="ReportShipEvent"/> is the per-hull path the running
-        /// game uses.
+        /// block placed. It also supports logs without physical instances.
+        /// <see cref="ReportShipEvent"/> is the per-hull path the running game uses;
+        /// saves preserve those individual records instead of broadcasting them.
         /// </remarks>
         public void RecordNpcEvent(ActiveMission taken, MissionNpc npc, ShipEvent happened)
         {
@@ -559,7 +558,9 @@ namespace EndlessSky.Sim
             DateTime accepted = _player.Date, deadline = default;
             bool hasDeadline = false;
             int cargo = 0;
+            int passengers = mission.Passengers;
             string? destination = null;
+            DataNode? savedNpcs = null;
 
             foreach (DataNode child in node.Children)
             {
@@ -582,8 +583,16 @@ namespace EndlessSky.Sim
                         cargo = (int)child.Value(1);
                         break;
 
+                    case "passengers" when child.Size >= 2:
+                        passengers = (int)child.Value(1);
+                        break;
+
                     case "destination" when child.Size >= 2:
                         destination = child.Token(1);
+                        break;
+
+                    case "npcs":
+                        savedNpcs = child;
                         break;
                 }
             }
@@ -591,12 +600,35 @@ namespace EndlessSky.Sim
             var taken = new ActiveMission(mission, accepted, hasDeadline ? deadline : null)
             {
                 CargoLoaded = cargo,
+                PassengersCarried = passengers,
 
                 // Saves written before destinations were recorded have none; resolving
                 // one now is better than leaving the job with nowhere to be handed in.
                 Destination = destination
                     ?? mission.ResolveDestination(_player.Data, _player.CurrentSystem?.Name),
             };
+
+            if (savedNpcs != null)
+            {
+                foreach (DataNode child in savedNpcs.Children)
+                {
+                    if (child.Size < 2 || !int.TryParse(child.Token(1), out int index)
+                        || index < 0 || index >= mission.Npcs.Count)
+                        continue;
+                    MissionNpc template = mission.Npcs[index];
+                    if (child.Token(0) == "npc" && _player.Data != null)
+                        taken.Npcs.Add(SaveGame.ReadNpc(child, template, _player.Data));
+                    else if (child.Token(0) == "events" && child.Size >= 3)
+                        taken.NpcEvents[template] = (ShipEvent)(int)child.Value(2);
+                }
+            }
+            else if (_npcs != null)
+            {
+                // Older saves omitted NPCs entirely. Recover playable targets once;
+                // lost historical kills cannot be recovered from those files.
+                StarSystem? goingTo = taken.Destination is null ? null : FindSystemOf(taken.Destination);
+                taken.Npcs.AddRange(_npcs.Place(mission, _player.CurrentSystem, goingTo));
+            }
 
             // No progress counters here on purpose: this is the load path, and the
             // condition store is saved and restored whole, so the counters come back

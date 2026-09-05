@@ -31,7 +31,7 @@ namespace EndlessSky.Sim
     /// permits saving in flight. Old saves without those fields retain their defaults.
     ///
     /// INCOMPLETE, tracked rather than dropped: pilot name, a jump in progress,
-    /// applied universe changes, politics, and the mission log's NPC event history.
+    /// applied universe changes, politics, and weapon mount assignments.
     /// </remarks>
     public static class SaveGame
     {
@@ -59,39 +59,7 @@ namespace EndlessSky.Sim
             writer.EndChild();
 
             foreach (Ship ship in player.Fleet.Ships)
-            {
-                writer.Write("ship", ship.Definition.DisplayName);
-                writer.BeginChild();
-
-                if (ReferenceEquals(ship, player.Fleet.Flagship))
-                    writer.Write("flagship");
-
-                if (ship.IsParked)
-                    writer.Write("parked");
-
-                if (ship.GivenName != null)
-                    writer.Write("name", ship.GivenName);
-                if (ship.CurrentSystem != null)
-                    writer.Write("system", ship.CurrentSystem.Name);
-                writer.Write("position", ship.Position.X, ship.Position.Y);
-                writer.Write("velocity", ship.Velocity.X, ship.Velocity.Y);
-                writer.Write("facing", ship.Facing.Degrees);
-                writer.Write("crew", ship.Crew);
-                writer.Write("shields", ship.Shields);
-                writer.Write("hull", ship.Hull);
-                writer.Write("energy", ship.Energy);
-                writer.Write("fuel", ship.Fuel);
-                writer.Write("heat", ship.Heat);
-                if (ship.IsOverheated)
-                    writer.Write("overheated");
-
-                // Grouped so a ship carrying four of something writes one line.
-                foreach (IGrouping<string, Outfit> group in ship.Outfits.GroupBy(o => o.Name))
-                    writer.Write("outfit", group.Key, group.Count());
-
-                WriteCargo(writer, ship.Cargo);
-                writer.EndChild();
-            }
+                WriteShip(writer, ship, ReferenceEquals(ship, player.Fleet.Flagship));
 
             foreach (string system in player.VisitedSystems.OrderBy(s => s, StringComparer.Ordinal))
                 writer.Write("visited", system);
@@ -112,11 +80,13 @@ namespace EndlessSky.Sim
                                      taken.Deadline.Value.Month, taken.Deadline.Value.Year);
                     if (taken.CargoLoaded > 0)
                         writer.Write("cargo", taken.CargoLoaded);
+                    writer.Write("passengers", taken.PassengersCarried);
                     // The destination was chosen when the job was taken; a job whose
                     // filter matches several worlds would otherwise pick a different
                     // one on reload and send the player somewhere they were never told.
                     if (taken.Destination != null)
                         writer.Write("destination", taken.Destination);
+                    WriteNpcs(writer, taken);
                     writer.EndChild();
                 }
             }
@@ -161,6 +131,73 @@ namespace EndlessSky.Sim
             return writer.ToString();
         }
 
+        private static void WriteShip(DataWriter writer, Ship ship, bool flagship = false,
+                                      ShipEvent actions = ShipEvent.None)
+        {
+            writer.Write("ship", ship.Definition.DisplayName);
+            writer.BeginChild();
+            if (flagship)
+                writer.Write("flagship");
+            if (ship.IsParked)
+                writer.Write("parked");
+            if (ship.GivenName != null)
+                writer.Write("name", ship.GivenName);
+            if (ship.CurrentSystem != null)
+                writer.Write("system", ship.CurrentSystem.Name);
+            // An NPC can fly a different flag from the faction that sells its model.
+            writer.Write("government", ship.Government?.Name ?? string.Empty);
+            writer.Write("position", ship.Position.X, ship.Position.Y);
+            writer.Write("velocity", ship.Velocity.X, ship.Velocity.Y);
+            writer.Write("facing", ship.Facing.Degrees);
+            writer.Write("crew", ship.Crew);
+            writer.Write("shields", ship.Shields);
+            writer.Write("hull", ship.Hull);
+            writer.Write("energy", ship.Energy);
+            writer.Write("fuel", ship.Fuel);
+            writer.Write("heat", ship.Heat);
+            if (ship.IsOverheated)
+                writer.Write("overheated");
+
+            // Grouped so a ship carrying four of something writes one line.
+            foreach (IGrouping<string, Outfit> group in ship.Outfits.GroupBy(o => o.Name))
+                writer.Write("outfit", group.Key, group.Count());
+            WriteCargo(writer, ship.Cargo);
+            if (actions != ShipEvent.None)
+                writer.Write("actions", (int)actions);
+            writer.EndChild();
+        }
+
+        private static void WriteNpcs(DataWriter writer, ActiveMission taken)
+        {
+            // Even an empty collection is explicit: only older saves without this
+            // block need fresh placement. Objectives still refer to the mission's
+            // templates, by index; each instantiated ship retains its own events.
+            writer.Write("npcs");
+            writer.BeginChild();
+            for (int index = 0; index < taken.Mission.Npcs.Count; index++)
+            {
+                MissionNpc template = taken.Mission.Npcs[index];
+                if (taken.NpcEvents.TryGetValue(template, out ShipEvent aggregate))
+                    writer.Write("events", index, (int)aggregate);
+
+                foreach (NpcInstance npc in taken.Npcs.Where(n => ReferenceEquals(n.Template, template)))
+                {
+                    writer.Write("npc", index);
+                    writer.BeginChild();
+                    if (npc.System != null)
+                        writer.Write("system", npc.System.Name);
+                    if (npc.Planet != null)
+                        writer.Write("planet", npc.Planet);
+                    // Dead hulls are retained: a kill must neither resurrect a target
+                    // nor get credited to the surviving members of the same group.
+                    foreach (Ship ship in npc.Ships)
+                        WriteShip(writer, ship, actions: npc.EventsFor(ship));
+                    writer.EndChild();
+                }
+            }
+            writer.EndChild();
+        }
+
         private static void WriteCargo(DataWriter writer, CargoHold cargo)
         {
             if (cargo.IsEmpty)
@@ -176,8 +213,7 @@ namespace EndlessSky.Sim
         /// Restores a player from a save. Ships and places are resolved against the
         /// universe, so a save is meaningless without the data it was made with.
         /// </summary>
-        public static PlayerState Read(string text, GameData data, MissionLog? missions = null) =>
-            Read(text, data, missions is null ? null : _ => missions);
+        public static PlayerState Read(string text, GameData data) => Read(text, data, null);
 
         /// <summary>
         /// Restores a player, building its mission log from the restored player itself.
@@ -231,7 +267,13 @@ namespace EndlessSky.Sim
                         break;
 
                     case "ship" when node.Size >= 2:
-                        ReadShip(node, data, player);
+                        Ship? ship = ReadShip(node, data);
+                        if (ship != null)
+                        {
+                            player.Fleet.Add(ship);
+                            if (node.Children.Any(c => c.Token(0) == "flagship"))
+                                player.Fleet.SetFlagship(ship);
+                        }
                         break;
 
                     case "visited" when node.Size >= 2:
@@ -276,9 +318,6 @@ namespace EndlessSky.Sim
                                 player.Conditions.Set(child.Token(0), ReadInteger(child, 1));
                         break;
 
-                    case "mission" when node.Size >= 2 && missions != null:
-                        ReadMission(node, data, missions);
-                        break;
                 }
             }
 
@@ -295,13 +334,20 @@ namespace EndlessSky.Sim
             if (planet != null && data.Planets.TryGetValue(planet, out Planet? landed))
                 player.Land(landed);
 
+            // Mission fallback destinations and legacy NPC placement need the loaded
+            // location, date and conditions, regardless of the save's field order.
+            if (missions != null)
+                foreach (DataNode node in file.Nodes)
+                    if (node.Token(0) == "mission" && node.Size >= 2)
+                        ReadMission(node, data, missions);
+
             return player;
         }
 
-        private static void ReadShip(DataNode node, GameData data, PlayerState player)
+        private static Ship? ReadShip(DataNode node, GameData data)
         {
             if (!data.Ships.ContainsKey(node.Token(1)))
-                return;
+                return null;
 
             // Built as a bare hull, then given exactly the outfits the save records:
             // BuildShip would install the stock loadout on top of them.
@@ -318,19 +364,15 @@ namespace EndlessSky.Sim
                     ship.AddOutfit(outfit, count);
             }
 
-            bool isFlagship = false;
             bool parked = false;
             bool overheated = false;
+            string? government = data.GovernmentOf(ship.Definition.DisplayName);
             double? shields = null, hull = null, energy = null, fuel = null, heat = null;
 
             foreach (DataNode child in node.Children)
             {
                 switch (child.Token(0))
                 {
-                    case "flagship":
-                        isFlagship = true;
-                        break;
-
                     case "parked":
                         parked = true;
                         break;
@@ -341,6 +383,9 @@ namespace EndlessSky.Sim
                     case "system" when child.Size >= 2:
                         if (data.Systems.TryGetValue(child.Token(1), out StarSystem? system))
                             ship.CurrentSystem = system;
+                        break;
+                    case "government" when child.Size >= 2:
+                        government = child.Token(1);
                         break;
                     case "position" when child.Size >= 3:
                         ship.Position = new Point(child.Value(1), child.Value(2));
@@ -380,7 +425,6 @@ namespace EndlessSky.Sim
                 }
             }
 
-            string? government = data.GovernmentOf(ship.Definition.DisplayName);
             if (government != null && data.Governments.TryGetValue(government, out Government? faction))
                 ship.Government = faction;
 
@@ -389,9 +433,47 @@ namespace EndlessSky.Sim
                            energy: energy ?? ship.MaxEnergy, fuel: fuel ?? ship.MaxFuel,
                            heat: heat ?? 0.0, overheated: overheated);
 
-            player.Fleet.Add(ship);
-            if (isFlagship)
-                player.Fleet.SetFlagship(ship);
+            return ship;
+        }
+
+        internal static NpcInstance ReadNpc(DataNode node, MissionNpc template, GameData data)
+        {
+            StarSystem? system = null;
+            string? planet = null;
+            var ships = new List<(Ship Ship, ShipEvent Actions)>();
+            foreach (DataNode child in node.Children)
+            {
+                if (child.Size < 2)
+                    continue;
+                switch (child.Token(0))
+                {
+                    case "system":
+                        data.Systems.TryGetValue(child.Token(1), out system);
+                        break;
+                    case "planet":
+                        planet = child.Token(1);
+                        break;
+                    case "ship":
+                        Ship? ship = ReadShip(child, data);
+                        if (ship != null)
+                        {
+                            ShipEvent actions = ShipEvent.None;
+                            foreach (DataNode field in child.Children)
+                                if (field.Token(0) == "actions" && field.Size >= 2)
+                                    actions |= (ShipEvent)(int)field.Value(1);
+                            ships.Add((ship, actions));
+                        }
+                        break;
+                }
+            }
+
+            var npc = new NpcInstance(template, system, planet, ships.Select(s => s.Ship));
+            foreach (var entry in ships)
+            {
+                entry.Ship.CurrentSystem ??= system;
+                npc.Record(entry.Ship, entry.Actions);
+            }
+            return npc;
         }
 
         private static void ReadMission(DataNode node, GameData data, MissionLog missions)

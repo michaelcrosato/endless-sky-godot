@@ -385,11 +385,10 @@ namespace EndlessSky.Tests
 
             string save = SaveGame.Write(player, log);
 
-            var restoredPlayer = new PlayerState(data);
-            var restoredLog = new MissionLog(restoredPlayer);
-            restoredPlayer = SaveGame.Read(save, data, restoredLog);
+            MissionLog? restoredLog = null;
+            SaveGame.Read(save, data, p => restoredLog = new MissionLog(p));
 
-            Assert.AreEqual(1, restoredLog.Active.Count);
+            Assert.AreEqual(1, restoredLog!.Active.Count);
             ActiveMission back = restoredLog.Active[0];
 
             Assert.AreEqual("Deliver Grain", back.Mission.Name);
@@ -408,8 +407,7 @@ namespace EndlessSky.Tests
             long credits = player.Credits;
             string save = SaveGame.Write(player, log);
 
-            var restoredLog = new MissionLog(new PlayerState(data));
-            PlayerState restored = SaveGame.Read(save, data, restoredLog);
+            PlayerState restored = SaveGame.Read(save, data, p => new MissionLog(p));
 
             Assert.AreEqual(credits, restored.Credits,
                 "reloading is not a way to farm mission advances");

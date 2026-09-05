@@ -16,7 +16,7 @@ player-facing path or saved state is complete.
 | M3 Travel | **Sim complete; view wired** | `Ship.Travel.cs` ports IsReadyToJump/DoHyperspaceLogic (hyperdrive path) with hand-derived tests (exact 100-frame phases, fuel drain, 4-jump tank); FlightWorld: J-key best-aligned-link targeting, brake-and-face autopilot, arrival advances the date and rebuilds the system. Full protocol: docs/upstream-reference.md §jump. |
 | M4 Landing economy | **Playable; the opening debt is not built** | Commodity/TradeData/CargoHold/Outfitting, `Trading` (buy/sell ships and outfits with upstream's `Depreciation`), a moving economy (`StepEconomy`), and a landed screen with trade, shipyard, outfitter and job counters. |
 | M5 Missions | **Done** | Parsing, conditions, conversations (inline and top-level), events (416, incl. universe patching), NPC entities (1,186 across 587 missions), the full accept/carry/complete/fail lifecycle with deadlines, and text substitution so jobs read as prose rather than templates. |
-| M6 Fleet gameplay | **Done in the sim; boarding is unreachable from the cockpit** | Multiple owned ships, escorts, fleet commands (escort/gather/hold/attack on upstream's `MoveTo` + `StoppingPoint`), salaries, cargo distribution, boarding, capturing, parking and flagship selection. |
+| M6 Fleet gameplay | **Partial; boarding and capture still need implementation** | Multiple owned ships, fleet commands (escort/gather/hold/attack on upstream's `MoveTo` + `StoppingPoint`), salaries, cargo distribution, parking and flagship selection. Capture odds exist; boarding approach, crew combat, plunder, capture transfer and their UI remain incomplete. |
 | M7 Content compatibility | **Ahead of schedule** | The loader already ingests the FULL upstream dataset (902 ships / 920 outfits / 694 systems, zero parse diagnostics) — M7's "progressively larger portions" started at 100% for parsing; behavior coverage still tracks the other milestones. `GameData.UnhandledNodes` counts what the model doesn't yet understand. |
 | M8 Visual production | Done | Hulls generated per ship from ShipAppearance; faction plating from fleets/shipyards. See `docs/art-direction.md`. |
 | M9 Full gauntlet | **Running — see below** | Scenario suite across all nine dimensions. Four combat-breaking defects found and fixed in the first pass; the directive's own wording ("continue correcting discrepancies") makes this milestone open-ended by design. See `docs/m9-gauntlet.md`. |
@@ -88,11 +88,10 @@ throughout; none of these were visible from inside the simulation layer.
 | `AI::MoveToAttack`'s second thrust clause was missing | Ships that passed each other coasted apart forever, full energy, out of range, closing on nothing | Thrust also when velocity carries the ship away from its target |
 | Generated engines were far weaker than upstream's | Median turn **0.30°/frame against upstream's 2.68**; 83 of 100 hulls turned slower than 1°/frame, so nothing could come about in a dogfight | Engine output rescaled; the fleet now measures 2.69°/frame and 0.097px/f² against upstream's 2.68 and 0.098 |
 
-Verified in a real engine process, not only under test: `pwsh tools/run.ps1
--Headless -Frames 20000 -UserArgs '--mission-smoke'` takes a bounty, flies to
-where the job points, fights it, and reports whether the objective was met.
-Before this pass the fight never resolved; it now ends in 500–2800 frames, and
-the player — in the cheapest hull the starting world sells — wins some of them.
+The current runtime check is `pwsh tools/smoke.ps1 -Scenario mission`: it takes
+an offered bounty with a stock combat flagship, reloads during the fight and after
+victory, then lands and collects payment. Travel legs are positioned; the separate
+tutorial smoke flies its route. Defeat and an unfinished objective fail the check.
 
 ### Still incomplete here (tracked, not deleted)
 
@@ -100,7 +99,7 @@ the player — in the cheapest hull the starting world sells — wins some of th
   and boards it, to capture or to strip it. `CaptureOdds` exists in the sim and
   is not wired to anything, so a crippled ship is neither captured nor finished,
   and a fight between two ships that both end up disabled simply stops. The
-  smoke run names this explicitly when it happens rather than reporting a stall.
+  bounty smoke fails if the player is disabled or cannot finish the objective.
 - **Mission NPCs never despawn**, and the template's `to spawn` condition gate is
   parsed but not consulted.
 - **NPC ships do not jump under their own power.** Escorts are carried with the

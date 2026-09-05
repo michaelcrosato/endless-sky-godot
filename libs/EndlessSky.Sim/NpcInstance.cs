@@ -47,12 +47,6 @@ namespace EndlessSky.Sim
 
         public IReadOnlyList<Ship> Ships => _ships;
 
-        /// <summary>
-        /// Whether these hulls are currently in the running simulation. Placement is
-        /// the view layer's business; this is the flag that stops it happening twice.
-        /// </summary>
-        public bool IsPlaced { get; set; }
-
         /// <summary>Whether this ship is one of ours.</summary>
         public bool Owns(Ship? ship) => ship is not null && _ships.Contains(ship);
 

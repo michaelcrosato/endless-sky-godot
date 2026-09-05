@@ -125,6 +125,7 @@ namespace EndlessSky.Game
         private string? _cachedDestinationSystem;
         private bool _smokeFire;
         private ActiveMission? _smokeJob;
+        private int _smokeReloads;
         private Ship? _smokeTarget;
         private int _smokeFrames;
         private bool _fireKeyWasDown;
@@ -1509,13 +1510,6 @@ namespace EndlessSky.Game
             // Every NPC in the game called this; the player alone never did.
             _ship.BuildMounts();
 
-            // Weapons carried have to be installed in mounts before any of them can
-            // fire. Snapshot first: InstallWeapon mutates the outfit collection.
-            foreach (Outfit outfit in _ship.Outfits.Where(o => o.IsWeapon).ToArray())
-            {
-                _ship.InstallWeapon(outfit);
-            }
-
             ResetLocalCombat(universe);
         }
 
@@ -1558,12 +1552,6 @@ namespace EndlessSky.Game
             _drone.Government = raider;
             _drone.CurrentSystem = _ship!.CurrentSystem;
             _drone.BuildMounts();
-            // Snapshot: InstallWeapon mutates the ship's outfit collection.
-            foreach (Outfit outfit in _drone.Outfits.Where(o => o.IsWeapon).ToArray())
-            {
-                _drone.InstallWeapon(outfit);
-            }
-
             _drone.Position = _ship!.Position + new Point(190.0, -150.0);
             _drone.Facing = new Angle(180.0);
             // Firing costs stored energy, so charge the battery.
@@ -1802,7 +1790,8 @@ namespace EndlessSky.Game
         }
 
         /// <summary>
-        /// --mission-smoke: take an offered bounty, win it, land and collect payment.
+        /// --mission-smoke: take an offered bounty, reload mid-fight and after victory,
+        /// land and collect payment.
         /// </summary>
         /// <remarks>
         /// Every part of this chain has unit coverage, and the chain still has to be
@@ -1922,6 +1911,12 @@ namespace EndlessSky.Game
                 return;
             }
 
+            if (_smokeReloads == 0 && _smokeFrames >= 60 && !ReloadMissionSmoke("during combat"))
+            {
+                GetTree().Quit(1);
+                return;
+            }
+
             Ship[] survivors = _smokeJob.Npcs.SelectMany(n => n.Survivors).ToArray();
             int alive = survivors.Length;
             _smokeTarget = survivors.FirstOrDefault();
@@ -1939,6 +1934,11 @@ namespace EndlessSky.Game
 
             if (_smokeJob.Npcs.All(n => n.HasSucceeded(_ship.CurrentSystem)))
             {
+                if (_smokeReloads < 2 && !ReloadMissionSmoke("after victory"))
+                {
+                    GetTree().Quit(1);
+                    return;
+                }
                 _smokeFire = false;
                 StarSystem? destination = _universe.SystemOf(_smokeJob.Destination);
                 StellarObject? port = destination?.AllObjects()
@@ -1990,6 +1990,39 @@ namespace EndlessSky.Game
                 GD.Print($"[smoke] FAIL: {alive} target(s) still alive after {_smokeFrames} frames");
                 GetTree().Quit(1);
             }
+        }
+
+        /// <summary>Reload the live bounty through the same file and session path as the menu.</summary>
+        private bool ReloadMissionSmoke(string stage)
+        {
+            string path = $"user://smoke-bounty-{Guid.NewGuid():N}.txt";
+            try
+            {
+                ActiveMission previous = _smokeJob!;
+                ShipView[] oldViews = _missionShips.Select(m => m.View).ToArray();
+                string before = SaveGame.Write(_player, _missions);
+                if (!SaveTo(path) || !LoadFrom(path))
+                {
+                    GD.Print($"[smoke] FAIL: could not reload the bounty {stage}");
+                    return false;
+                }
+
+                _smokeJob = _missions!.Active.FirstOrDefault(m => m.Mission.Name == previous.Mission.Name);
+                if (_smokeJob == null || ReferenceEquals(previous, _smokeJob)
+                    || _smokeJob.Npcs.Count != previous.Npcs.Count
+                    || !SavedStateMatches(before, SaveGame.Write(_player, _missions))
+                    || !HasOnlyPlayerCombat() || oldViews.Any(v => !v.IsQueuedForDeletion()))
+                {
+                    GD.Print($"[smoke] FAIL: bounty state or old combat views changed incorrectly on reload {stage}");
+                    return false;
+                }
+
+                _smokeTarget = _smokeJob.Npcs.SelectMany(n => n.Survivors).FirstOrDefault();
+                _smokeReloads++;
+                GD.Print($"[smoke] bounty reloaded {stage}: ships, condition and objective history retained");
+                return true;
+            }
+            finally { DirAccess.RemoveAbsolute(ProjectSettings.GlobalizePath(path)); }
         }
 
         /// <summary>Fly and fire the demo drone; StepCombat advances its projectiles.</summary>
@@ -2306,21 +2339,8 @@ namespace EndlessSky.Game
                     return;
                 }
                 string after = SaveGame.Write(_player, _missions);
-                bool restored = before == after && HasOnlyPlayerCombat() && oldView.IsQueuedForDeletion();
-                if (!restored)
-                {
-                    string[] savedLines = before.Split('\n'), loadedLines = after.Split('\n');
-                    for (int i = 0; i < Math.Max(savedLines.Length, loadedLines.Length); i++)
-                    {
-                        string savedLine = i < savedLines.Length ? savedLines[i] : "(missing)";
-                        string loadedLine = i < loadedLines.Length ? loadedLines[i] : "(missing)";
-                        if (savedLine != loadedLine)
-                        {
-                            GD.Print($"[smoke] save difference at line {i + 1}: {savedLine} -> {loadedLine}");
-                            break;
-                        }
-                    }
-                }
+                bool restored = SavedStateMatches(before, after)
+                    && HasOnlyPlayerCombat() && oldView.IsQueuedForDeletion();
 
                 // Loading a landed save must rebuild its port screen, and departure
                 // must clear the saved planet as well as the presentation state.
@@ -2349,7 +2369,7 @@ namespace EndlessSky.Game
                     OnDepart();
                     _jumpAutopilot = true;
                     _landAutopilot = true;
-                    restored = LoadFrom(path) && before == SaveGame.Write(_player, _missions)
+                    restored = LoadFrom(path) && SavedStateMatches(before, SaveGame.Write(_player, _missions))
                         && _isLanded && _landedOverlay != null && !_jumpAutopilot && !_landAutopilot;
                     OnDepart();
                     restored &= !_isLanded && _landedOverlay == null && _player.CurrentPlanet == null;
@@ -2374,6 +2394,25 @@ namespace EndlessSky.Game
         /// unobservable, because the player's history was discarded at quit.
         /// </remarks>
         private bool SaveNow() => SaveTo(SaveSlot.DefaultPath);
+
+        private static bool SavedStateMatches(string before, string after)
+        {
+            if (before == after)
+                return true;
+
+            string[] savedLines = before.Split('\n'), loadedLines = after.Split('\n');
+            for (int i = 0; i < Math.Max(savedLines.Length, loadedLines.Length); i++)
+            {
+                string savedLine = i < savedLines.Length ? savedLines[i] : "(missing)";
+                string loadedLine = i < loadedLines.Length ? loadedLines[i] : "(missing)";
+                if (savedLine != loadedLine)
+                {
+                    GD.Print($"[smoke] save difference at line {i + 1}: {savedLine} -> {loadedLine}");
+                    break;
+                }
+            }
+            return false;
+        }
 
         private bool HasOnlyPlayerCombat() => _traffic.Count == 0 && _missionShips.Count == 0
             && _field != null && _field.Projectiles.Count == 0
@@ -2426,7 +2465,6 @@ namespace EndlessSky.Game
             // one has to be pointed at the new one: the view, the camera, the combat
             // field and the mission log's idea of who the player is.
             _ship = flagship;
-            _ship.BuildMounts();
             _startShip = _ship.Definition.DisplayName;
             _shipView.SyncWith(_ship);
             _camera?.Snap(_ship);
