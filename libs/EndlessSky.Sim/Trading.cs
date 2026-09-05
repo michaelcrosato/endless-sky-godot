@@ -80,7 +80,7 @@ namespace EndlessSky.Sim
     /// stocks, an outfit must physically fit before it can be paid for, and the last
     /// flyable ship cannot be sold out from under its pilot.
     ///
-    /// INCOMPLETE, tracked rather than dropped: commodity cost basis,
+    /// INCOMPLETE, tracked rather than dropped: cost accounting for jettisoned cargo,
     /// individual port services and per-ship landing clearance,
     /// licences, outfits placed into cargo or
     /// planetary storage rather than installed, and trade-in when buying a
@@ -122,19 +122,32 @@ namespace EndlessSky.Sim
             if (affordable == 0)
                 return TradeResult.CannotAfford;
 
+            affordable = (int)Int128.Min(affordable,
+                ((Int128)long.MaxValue - player.TotalBasis(commodity)) / price);
+            if (affordable == 0)
+                return TradeResult.CreditLimit;
+
             bought = player.Fleet.LoadCargo(commodity, affordable, player.CurrentSystem);
             if (bought == 0)
                 return TradeResult.DoesNotFit;
 
-            player.AddCredits(-(long)bought * price);
+            long cost = (long)bought * price;
+            player.AdjustBasis(commodity, cost);
+            player.AddCredits(-cost);
             return TradeResult.Ok;
         }
 
         /// <summary>Sells cargo from ships in this system, paying only for tons removed.</summary>
         public static TradeResult SellCommodity(PlayerState player, GameData data, string commodity,
-                                                 int tons, out int sold)
+                                                 int tons, out int sold) =>
+            SellCommodity(player, data, commodity, tons, out sold, out _);
+
+        /// <summary>Reports sale proceeds minus the proportional purchase cost of those tons.</summary>
+        public static TradeResult SellCommodity(PlayerState player, GameData data, string commodity,
+                                                 int tons, out int sold, out long profit)
         {
             sold = 0;
+            profit = 0;
             TradeResult result = CommodityPrice(player, data, commodity, out int price);
             if (result != TradeResult.Ok)
                 return result;
@@ -148,11 +161,23 @@ namespace EndlessSky.Sim
             if (tons == 0)
                 return TradeResult.CreditLimit;
 
+            tons = (int)Math.Min(tons, player.Fleet.CargoCount(commodity, player.CurrentSystem));
+            if (tons == 0)
+                return TradeResult.NotOwned;
+            // Compute the share before unloading, once for the entire transaction.
+            // Applying rounding separately to each carrier changes the sale's cost.
+            long basis = player.GetBasis(commodity, tons);
+            Int128 margin = (Int128)tons * price - basis;
+            if (margin > long.MaxValue || margin < long.MinValue)
+                return TradeResult.CreditLimit;
+
             sold = player.Fleet.UnloadCargo(commodity, tons, player.CurrentSystem);
             if (sold == 0)
                 return TradeResult.NotOwned;
 
             player.AddCredits((long)sold * price);
+            player.AdjustBasis(commodity, -basis);
+            profit = (long)margin;
             data.Trade.AddPurchase(player.CurrentSystem!.Name, commodity, -sold);
             return TradeResult.Ok;
         }

@@ -44,8 +44,9 @@ not artifacts available from a clone. CI runs the reproducible checks below.
 | Linux release and relocation | Add `smoke-package.ps1` and make the Linux release export and relocated save/bounty scenarios gate CI. | Windows and Linux release packages passed from temporary copies outside the repository with an unrelated working directory and no data override. The smoke requires the loaded dataset to be inside that copy. Linux runtime validation passed in WSL and native Ubuntu CI; graphical Linux rendering is not yet verified. |
 | Fleet servicing | Limit port repairs and refuelling to ships in the current system; remote ships receive only their own regeneration. Ignore takeoff requests without a landed pilot, system and flagship. | Eight new cases failed before the fix. They now cover remote ships with no generator or each of four generator types, plus invalid takeoff states. The existing local-escort, parked and disabled checks remain in place. |
 | Mission freight | Give each accepted job its own freight identity and require the whole load to fit in local holds. Freight uses space and mass but cannot be sold or substituted for another job. Completion, abort, expiry and failure release only that job's load; missing or destroyed carriers fail the job at the next mission check. | Twelve initial cases failed before separation, and four carrier-loss cases failed before lifecycle integration. Twenty-one simulation cases now cover those paths, remote freight, zero-ton parcels, legacy partial loads and repeated per-ship reloads. Two engine cases exercise acceptance and selling at the actual port counters. |
+| Commodity purchase costs | Track remaining cost across all owned commodities and remove a proportional share on sale or ship loss. Keep exact integer rounding across multiple holds, save the basis, and show average cost and realized profit at the trade counter. Refresh displayed quotes after a change. | Twenty-two new simulation cases cover mixed prices, partial trades, remote and parked stock, freight exclusion, free goods, missing legacy costs, 64-bit limits and combined ship losses. Eleven initial cases failed before implementation; later loss checks caught retained wrecks and per-ship rounding. The engine test and 1280×720 captures verify the average, actual sale price and profit. The runtime save smoke also changes and restores commodity costs. |
 
-Latest local validation: **884 simulation tests, 29 engine tests, zero failures or
+Latest local validation: **906 simulation tests, 30 engine tests, zero failures or
 skips**, and Debug/Release builds with zero warnings or errors. All five runtime
 smokes passed their documented contract, including winning and collecting a bounty.
 The Windows and Linux release packages also passed save/load, both bounty reloads
@@ -67,6 +68,8 @@ load does not qualify for full delivery payment.
 Economy saves retain current displayed quotes even when supply's eight-digit
 serialization crosses a price boundary. They do not retain the random generator's
 state; future random production is not a replay of an abandoned session.
+Commodity basis is saved as exact integers. Saves without it have zero recorded
+purchase cost; historical costs cannot be recovered from current market prices.
 
 CI action pins correspond to [checkout v7.0.1](https://github.com/actions/checkout/releases/tag/v7.0.1),
 [setup-dotnet v6.0.0](https://github.com/actions/setup-dotnet/releases/tag/v6.0.0),
@@ -95,6 +98,16 @@ generation alone is not proof of reproducibility. `tools/smoke.ps1 -Scenario lan
 Use `-Preset Linux` for Linux packaging and package smokes; run the resulting
 executable on Linux. `tools/smoke-package.ps1 -Frames 1` is also a failure probe.
 
+Running the port engine suite with a display also writes
+`reports/port-average-cost.png` and `reports/port-sale-profit.png`:
+
+```powershell
+. tools/_env.ps1
+Initialize-Godot
+& $script:GodotBin --path . --resolution 1280x720 --windowed --ignore-error-breaks `
+    --script res://addons/gdUnit4/bin/GdUnitCmdTool.gd -a tests/godot/PortMenuTest.cs
+```
+
 ## Remaining work
 
 The audit is not complete merely because these checks pass. The following areas
@@ -108,9 +121,10 @@ still contain meaningful work and need further implementation and verification:
   reconstruction as well.
 - **Gameplay rules:** mission NPC spawn/despawn gates, landing permissions, the
   opening debt/conversation flow and turret firing arcs remain incomplete.
-- **Economy:** commodity cost basis, individual port services and per-ship landing
-  clearance remain incomplete. Landed cargo pooling and redistribution when selling
-  a loaded ship are also missing; removing its hold currently loses its freight.
+- **Economy:** individual port services and per-ship landing clearance remain
+  incomplete. Cargo jettison/plunder needs cost accounting when those flows are
+  implemented. Landed cargo pooling and redistribution when selling a loaded ship
+  are also missing; removing its hold currently loses its freight.
   Applied changes to market definitions share the wider universe-persistence gap above.
 - **Simulation boundary:** much of the session's orchestration still lives in the
   presentation layer. Move rules into the engine-free layer with behavioral coverage.

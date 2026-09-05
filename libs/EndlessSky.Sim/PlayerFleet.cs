@@ -17,6 +17,9 @@ namespace EndlessSky.Sim
     {
         private readonly List<Ship> _ships = new List<Ship>();
 
+        /// <summary>Notifies ownership accounting before these ships' cargo leaves the fleet.</summary>
+        internal event Action<IReadOnlyList<Ship>>? RemovingShips;
+
         /// <summary>Every owned ship, flagship first once one is set.</summary>
         public IReadOnlyList<Ship> Ships => _ships;
 
@@ -42,13 +45,22 @@ namespace EndlessSky.Sim
 
         public bool Remove(Ship ship)
         {
-            if (ship is null || !_ships.Remove(ship))
+            if (ship is null || !_ships.Contains(ship))
                 return false;
 
-            if (ReferenceEquals(Flagship, ship))
-                Flagship = _ships.FirstOrDefault(s => !s.IsParked && !s.IsDestroyed) ?? _ships.FirstOrDefault();
-
+            RemoveShips(new[] { ship });
             return true;
+        }
+
+        internal void RemoveDestroyed() => RemoveShips(_ships.Where(s => s.IsDestroyed).ToArray());
+
+        private void RemoveShips(IReadOnlyList<Ship> ships)
+        {
+            if (ships.Count == 0) return;
+            RemovingShips?.Invoke(ships);
+            foreach (Ship ship in ships) _ships.Remove(ship);
+            if (Flagship != null && !_ships.Contains(Flagship))
+                Flagship = _ships.FirstOrDefault(s => !s.IsParked && !s.IsDestroyed) ?? _ships.FirstOrDefault();
         }
 
         /// <summary>Promotes a ship the player already owns to flagship.</summary>
@@ -151,8 +163,8 @@ namespace EndlessSky.Sim
         }
 
         /// <summary>How much of a commodity the fleet is carrying in total.</summary>
-        public int CargoCount(string commodity, StarSystem? system = null) =>
-            Ordered(system).Sum(s => s.Cargo.Count(commodity));
+        public long CargoCount(string commodity, StarSystem? system = null) =>
+            Ordered(system).Sum(s => (long)s.Cargo.Count(commodity));
 
         /// <summary>What the fleet's cargo would fetch at a system's prices.</summary>
         public long CargoValueAt(TradeData trade, string systemName) =>

@@ -37,6 +37,9 @@ namespace EndlessSky.Sim
     /// staged read lets the runtime validate the pilot before replacing shared markets.
     /// Saves predating that block restart from base prices.
     ///
+    /// The basis block stores exact remaining commodity purchase costs. Older saves
+    /// without a basis have zero recorded cost; historical prices cannot be recovered.
+    ///
     /// INCOMPLETE, tracked rather than dropped: pilot name, a jump in progress,
     /// applied universe changes, politics, and weapon mount assignments.
     /// </remarks>
@@ -66,6 +69,15 @@ namespace EndlessSky.Sim
             writer.EndChild();
 
             player.Data?.Trade.WriteEconomy(writer);
+
+            if (player.CostBasis.Count > 0)
+            {
+                writer.Write("basis");
+                writer.BeginChild();
+                foreach (var entry in player.CostBasis.OrderBy(e => e.Key, StringComparer.Ordinal))
+                    writer.Write(entry.Key, entry.Value);
+                writer.EndChild();
+            }
 
             foreach (Ship ship in player.Fleet.Ships)
                 WriteShip(writer, ship, ReferenceEquals(ship, player.Fleet.Flagship));
@@ -292,6 +304,12 @@ namespace EndlessSky.Sim
                         foreach (DataNode child in node.Children)
                             if (child.Token(0) == "credits" && child.Size >= 2)
                                 player.SetCredits(child.IntegerValue(1));
+                        break;
+
+                    case "basis":
+                        foreach (DataNode child in node.Children)
+                            if (child.Size >= 2)
+                                player.AdjustBasis(child.Token(0), child.IntegerValue(1));
                         break;
 
                     case "ship" when node.Size >= 2:

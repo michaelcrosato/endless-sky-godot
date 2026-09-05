@@ -159,10 +159,6 @@ namespace EndlessSky.Game
         /// <summary>Re-reads what this world has on offer.</summary>
         private void RefreshStock()
         {
-            _quotes = Trading.CommoditiesFor(_universe, _player)
-                .OrderBy(q => q.Commodity, StringComparer.Ordinal)
-                .ToList();
-
             _shipyardStock = Trading.ShipsFor(_universe, _planet)
                 .Where(_universe.Ships.ContainsKey)
                 .OrderBy(s => s, StringComparer.Ordinal)
@@ -493,9 +489,9 @@ namespace EndlessSky.Game
                 {
                     TradeQuote quote = _quotes[index];
                     TradeResult result = Trading.SellCommodity(_player, _universe, quote.Commodity,
-                        TonsPerPress, out int sold);
+                        TonsPerPress, out int sold, out long profit);
                     _message = result == TradeResult.Ok
-                        ? $"sold {sold} t of {quote.Commodity}" : Explain(result);
+                        ? $"sold {sold} t of {quote.Commodity} · profit {profit:+#,0;-#,0;0} cr" : Explain(result);
                     break;
                 }
 
@@ -607,6 +603,9 @@ namespace EndlessSky.Game
 
         private void Refresh()
         {
+            _quotes = Trading.CommoditiesFor(_universe, _player)
+                .OrderBy(q => q.Commodity, StringComparer.Ordinal)
+                .ToList();
             _tabLabel.Text = string.Join("   ", Enum.GetValues<Counter>()
                 .Select(c => c == _counter ? $"[ {Title(c)} ]" : $"  {Title(c)}  "));
 
@@ -658,9 +657,10 @@ namespace EndlessSky.Game
                     for (int i = 0; i < _quotes.Count; i++)
                     {
                         TradeQuote quote = _quotes[i];
-                        int held = _player.Fleet.CargoCount(quote.Commodity, _player.CurrentSystem);
+                        long held = _player.Fleet.CargoCount(quote.Commodity, _player.CurrentSystem);
                         lines.Add($"{Cursor(i, selected)}{quote.Commodity,-18} {quote.Price,6} cr/t" +
-                                  $"   hold {held,3} t");
+                                  $"   hold {held,3} t" +
+                                  (held > 0 ? $"   avg {_player.GetBasis(quote.Commodity):n0} cr/t" : ""));
                     }
 
                     if (lines.Count == 0) lines.Add("   (no market on this world)");

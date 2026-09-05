@@ -26,7 +26,7 @@ namespace EndlessSky.Sim
     /// Reading one returns 0 through the ordinary stored-value path rather than
     /// throwing, which is upstream's behaviour for an unknown condition anyway.
     /// </remarks>
-    public class PlayerState
+    public partial class PlayerState
     {
         /// <summary>
         /// Upstream's epoch. Endless Sky starts on 16 November 3013, and "days since
@@ -47,6 +47,7 @@ namespace EndlessSky.Sim
             _data = data;
             Conditions = conditions ?? new Conditions();
             Fleet = new PlayerFleet();
+            Fleet.RemovingShips += RemoveShipsBasis;
             Date = Epoch;
             StartDate = Epoch;
             RegisterAutoConditions();
@@ -111,7 +112,12 @@ namespace EndlessSky.Sim
         {
             CurrentPlanet = planet;
             if (planet != null)
+            {
                 _visitedPlanets.Add(planet.Name);
+                // PlayerInfo::Land removes destroyed hulls and their share of the
+                // cargo cost before the port can trade the surviving goods.
+                Fleet.RemoveDestroyed();
+            }
         }
 
         public void Depart() => CurrentPlanet = null;

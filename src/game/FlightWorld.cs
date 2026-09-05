@@ -2327,6 +2327,14 @@ namespace EndlessSky.Game
                 _universe.StepEconomy(() => 1.0);
                 TradeQuote market = _universe.Trade.Quotes(_ship!.CurrentSystem!.Name).First(q => q.Price > 0);
                 _universe.Trade.AddPurchase(market.SystemName, market.Commodity, -7);
+                int cargo = _ship.LoadCargo(market.Commodity, 3);
+                _player.AdjustBasis(market.Commodity, (long)cargo * market.Price);
+                if (cargo != 3)
+                {
+                    GD.Print("[smoke] FAIL: no room for the commodity cost save probe");
+                    GetTree().Quit(1);
+                    return;
+                }
                 _ship!.SetLevels(shields: Math.Min(10, _ship.MaxShields),
                     hull: Math.Max(_ship.MinimumHull + 1, _ship.MaxHull * 0.75),
                     energy: Math.Min(5, _ship.MaxEnergy), fuel: Math.Min(17, _ship.MaxFuel), heat: 100);
@@ -2360,6 +2368,7 @@ namespace EndlessSky.Game
 
                 // Change the world so a load that does nothing cannot pass.
                 _player.AddCredits(-123_456);
+                _player.AdjustBasis(market.Commodity, 12345);
                 _player.AdvanceDays(9);
                 _ship.Recharge(RechargeType.All);
                 _universe.StepEconomy(() => -3.0);
@@ -2433,7 +2442,7 @@ namespace EndlessSky.Game
                         && stock.SequenceEqual(replacement.Outfits);
                 }
                 GD.Print(restored
-                    ? "[smoke] PASS: flight and port menus restored pilot and markets; invalid save rejected; old combat cleared; flagship departed with its stock outfits"
+                    ? "[smoke] PASS: flight and port menus restored pilot, cargo costs and markets; invalid save rejected; old combat cleared; flagship departed with its stock outfits"
                     : "[smoke] FAIL: restored state differs from the saved game");
                 GetTree().Quit(restored ? 0 : 1);
             }

@@ -1,6 +1,7 @@
 namespace EndlessSky.Tests.Presentation
 {
     using System.Collections.Generic;
+    using System.Linq;
     using System.Threading.Tasks;
     using EndlessSky.Game;
     using EndlessSky.Sim;
@@ -77,6 +78,40 @@ namespace EndlessSky.Tests.Presentation
                 SceneTree tree = (SceneTree)Engine.GetMainLoop();
                 await tree.ToSignal(tree, SceneTree.SignalName.ProcessFrame);
             }
+
+            public async Task Capture(string name)
+            {
+                if (DisplayServer.GetName() == "headless") return;
+                await Ui.ToSignal(Ui.GetTree(), SceneTree.SignalName.ProcessFrame);
+                RenderingServer.ForceDraw();
+                using Image capture = Ui.GetViewport().GetTexture().GetImage();
+                AssertThat(capture.SavePng(ProjectSettings.GlobalizePath($"res://reports/{name}.png")))
+                    .IsEqual(Error.Ok);
+            }
+        }
+
+        [TestCase]
+        [RequireGodotRuntime]
+        public async Task TradeCounterShowsAverageCostAndRealizedProfit()
+        {
+            var session = new Session();
+            try
+            {
+                session.Tap(Key.B);
+                AssertBool(session.Port.FindChildren("*", "Label", true, false).OfType<Label>()
+                    .Any(label => label.Text.Contains("avg 100 cr/t"))).IsTrue();
+                await session.Capture("port-average-cost");
+                session.Player.Data!.Trade.SetPrice("Sol", "Food", 200);
+                session.Tap(Key.N);
+                AssertBool(session.Port.FindChildren("*", "Label", true, false).OfType<Label>()
+                    .Any(label => label.Text.Contains("200 cr/t"))).IsTrue();
+                AssertBool(session.Port.FindChildren("*", "Label", true, false).OfType<Label>()
+                    .Any(label => label.Text.Contains("profit +500 cr"))).IsTrue();
+                AssertThat(session.Player.Credits).IsEqual(1500L);
+                AssertThat(session.Player.CostBasis.Count).IsEqual(0);
+                await session.Capture("port-sale-profit");
+            }
+            finally { await session.Release(); }
         }
 
         [TestCase]
