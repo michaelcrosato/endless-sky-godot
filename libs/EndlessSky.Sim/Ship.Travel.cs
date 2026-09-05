@@ -388,6 +388,47 @@ namespace EndlessSky.Sim
         }
 
         /// <summary>
+        /// The stellar object the pilot has selected to land on, if any. Upstream's
+        /// <c>Ship::targetPlanet</c> (<c>Ship.h</c>), the landing counterpart of
+        /// <see cref="TargetSystem"/>.
+        /// </summary>
+        /// <remarks>
+        /// This is a SELECTION, not a permission: it says where the pilot intends to
+        /// put down, and says nothing about whether they have arrived, slowed down or
+        /// are welcome. <see cref="CanLandOn"/> remains the only gate on actually
+        /// landing.
+        /// </remarks>
+        public StellarObject? TargetStellar { get; set; }
+
+        /// <summary>
+        /// Whether this ship could ever put down on <paramref name="where"/> — as
+        /// opposed to whether it may do so this frame, which is
+        /// <see cref="CanLandOn"/>.
+        /// </summary>
+        /// <remarks>
+        /// Upstream's test is <c>object.HasValidPlanet() &amp;&amp;
+        /// GetPlanet()->IsAccessible(ship)</c> (AI.cpp:4605). A star, or a body the
+        /// dataset names but defines no planet for, is scenery: you can fly into it all
+        /// day and never land. This is what separates the objects worth labelling and
+        /// cycling through from the ones that are only in the way.
+        ///
+        /// INCOMPLETE, tracked rather than dropped: <c>IsAccessible</c> also gates on a
+        /// world's "requires" attributes, which <see cref="Planet"/> does not model —
+        /// the same gap <see cref="CanLandOn"/> already documents.
+        /// </remarks>
+        public bool CanEverLandOn(StellarObject? where) =>
+            where?.Planet is not null && !where.IsStar;
+
+        /// <summary>
+        /// Whether landing on <paramref name="where"/> would refuel the ship. Upstream
+        /// asks <c>Port::CanRecharge(Fuel)</c> when ranking landing targets
+        /// (AI.cpp:4677) and pushes everything else 10,000 units down the list, because
+        /// the nearest rock is rarely the world the pilot meant.
+        /// </summary>
+        public static bool WouldRefuelAt(StellarObject? where) =>
+            where?.Planet is { HasServices: true };
+
+        /// <summary>
         /// Whether this ship may put down on a stellar object right now. Port of
         /// upstream <c>Ship::CanLand</c> (<c>Ship.cpp:2344-2358</c>).
         /// </summary>

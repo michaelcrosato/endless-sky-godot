@@ -47,6 +47,59 @@ braking, which is what upstream's slowdown-distance calculation is for.
 landing outside the node list maps to `Endpoint::DECLINE`. A caller treating
 "none" as acceptance hands out missions the player never agreed to.
 
+**Pressing the jump key spun the ship in circles forever.** Reported from play,
+round 2. Two independent defects, either of which alone would have been survivable:
+
+- No drive in `universe/` stated `"jump speed"`, so `JumpSpeedLimit` read 0 for
+  every ship in the played galaxy. Upstream's velocity gate is a strict
+  `|v| > jump speed`, so a zero limit means *only an exact standstill is ever
+  legal* — not a slow jump, no jump at all. Upstream states .2 on the Hyperdrive
+  and .3 on the Jump Drive; a drive that omits the number is not a slower drive,
+  it is a broken one.
+- The autopilot's brake was an invention living in the flight scene, not a port of
+  `AI::Stop`. It never raised `Command.Stop` (upstream's dead-stop cheat) and had
+  no `VELOCITY_ZERO` floor, so it retro-thrust at an exact zero that thrust
+  overshoots and drag only ever approaches. Once velocity decayed far enough that
+  `(-v).Unit()` returned the zero vector, `TurnToward`'s documented zero-vector
+  case took over and turned the ship at full rate, one direction, every frame:
+  64.7 full circles in the 5,000-frame reproduction.
+
+Neither half was reachable by the suite. The rule was on the view side of a
+boundary the architecture test only checks the *direction* of, and every fixture
+drive in the suite stated a jump speed while no drive in the galaxy did — so the
+one number that made the jump impossible was the one number no test ever read.
+`ShipAi.PrepareForHyperspace`/`Stop` now hold the rule, and
+`UniverseTests.EveryDriveStatesTheSpeedItWillJumpAt` reads the number.
+
+**A new game opened under fire.** Reported from play, round 2. `emit.start()` chose
+the player's home world on connectivity and a shipyard alone — the docstring said
+"a quiet, inhabited world" and nothing in the filter meant it. The best-connected
+inhabited system belonged to a `zealot` faction, which the generator writes at
+`"player reputation" -50`; since `Government::IsEnemy`'s player branch makes the
+player an enemy exactly while standing is negative, a new pilot was born an enemy
+of the government owning the space they were sitting in. Its patrols spawned
+hostile, as did a second faction's at -1000, and the game began with the player
+being shot at before they had touched a key.
+
+The fix is structural rather than a nudge to the filter: the standing a faction
+starts the player at is now decided in ONE function, which both the government
+writer and the start chooser consult. A generator free to write -50 in one place
+and pick a home in another will eventually disagree with itself again.
+
+**A job could be taken but never handed in.** Found while building the tutorial's
+last step. `MissionLog.Complete` existed, was correct, and was covered by the
+simulation suite — and nothing in the game ever called it. The only caller anywhere
+outside `tests/` was the test suite itself. A player could accept work, carry it to
+the right world, land beside the person waiting for it, and find no key that would
+finish the job; the JOBS counter answered "already carrying that one" and no payment
+ever arrived. `B` on a carried mission now hands it in, and says *where* it hands in
+when the world is wrong, because "cannot complete" on a world that looks right is
+indistinguishable from a broken button.
+
+The general shape is worth naming: a green simulation suite proves a rule is right,
+never that anything invokes it. Both defects in this section found the same way —
+by trying to play the sequence rather than by testing the pieces.
+
 ## Traps in our own structure
 
 **Ship-level booleans must not live in `Attributes`.** `ShipDefinition.InheritFrom`
@@ -96,6 +149,8 @@ was understood.
 | Modulo by zero (conditions) | returns the dividend | same |
 | `and` vs `or` precedence | equal | mixed inline expressions re-associate |
 | `port` node | an alias for `spaceport` | 19 worlds cannot refuel |
+| `"jump speed"` on a drive | .2 hyperdrive, .3 jump drive | omitted reads 0, and only a dead stop may jump |
+| `AI::Stop` at maxSpeed 0 | floors at `VELOCITY_ZERO` (.001) | braking never terminates; the ship spins |
 
 ## Method
 

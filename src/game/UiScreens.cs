@@ -71,16 +71,17 @@ namespace EndlessSky.Game
             ("S / Down", "retrograde brake", "flight"),
             ("A / D, Left / Right", "turn", "flight"),
             ("Mouse wheel", "zoom", "flight"),
-            ("L", "land on a nearby planet", "flight"),
+            ("L", "autopilot to a planet; press again to cycle", "flight"),
             ("J", "jump to the targeted system", "flight"),
             ("M", "galaxy map", "anywhere"),
             ("I", "status: ship, fleet, cargo, missions", "anywhere"),
             ("F1", "this screen", "anywhere"),
             ("F2", "graphics options", "anywhere"),
+            ("F3", "dismiss the opening tutorial", "anywhere"),
             ("Esc", "pause menu, or close a screen", "anywhere"),
             ("Tab", "switch counter", "landed"),
             ("Up / Down", "select", "landed"),
-            ("B", "buy, or accept a job", "landed"),
+            ("B", "buy, accept a job, or hand it in", "landed"),
             ("N", "sell, or abandon a job", "landed"),
             ("D", "depart", "landed"),
             ("Up / Down", "cycle destination", "map"),
@@ -259,7 +260,7 @@ namespace EndlessSky.Game
             Column.AddChild(UiTheme.Heading("MAKING MONEY"));
             Lines(new[]
             {
-                "  Fly near a planet, slow down, press L to land.",
+                "  Press L to fly to a planet and land. Press it again to cycle worlds.",
                 "  TAB cycles the counters: TRADE buys and sells cargo, JOBS lists work,",
                 "  SHIPYARD and OUTFITTER sell hulls and equipment. D departs.",
                 "  Buy a commodity where it is cheap, carry it somewhere it is dear.",

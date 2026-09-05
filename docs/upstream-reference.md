@@ -143,7 +143,19 @@ best aligned with current facing (max dot of facing·direction); then the
 autopilot latches and every frame runs PrepareForHyperspace — brake to jump
 speed (AI::Stop) + TurnToward(direction) — plus `command |= JUMP` until
 IsReadyToJump passes at the commit point (DoInitializeMovement). Any manual
-input cancels the autopilot.
+input cancels the autopilot. A jump drive skips the TurnToward entirely and only
+stops (AI.cpp:2784), because it tears its hole where the ship already is.
+
+**AI::Stop's zero-speed floor** (AI.cpp:2666) is load-bearing, not a rounding
+courtesy: asked to stop at 0 it settles for `VELOCITY_ZERO = .001` **and** raises
+`Command::STOP`, upstream's cheat that snaps the along-facing velocity component
+to zero once one frame of braking would cover it. Chasing a literal zero instead
+never terminates — thrust overshoots it and drag only decays toward it — and the
+degenerate `TurnToward(zero vector)` that follows returns −1, i.e. full-rate
+rotation forever. Note this only ever *arises* when a drive fails to state
+`"jump speed"`; every upstream drive does (Hyperdrive .2, Jump Drive .3), and
+IsReadyToJump's own velocity gate has no epsilon, so a drive missing the number
+cannot jump at all. It is a content bug that presents as a control bug.
 
 **Sequence** (DoHyperspaceLogic, Ship.cpp:4596): commit frame still moves
 normally; then each outbound frame: `acceleration = 0`,
@@ -172,5 +184,36 @@ object for the new day, and the economy steps.
 distance` true, adding `clamp(habitable, 500, 5000)` px and aiming at the
 SYSTEM CENTER; the classic "11,000 px out aimed at the target planet" is the
 `extraArrivalDistance == 0` branch. Pick one and document it.
+
+## Finding somewhere to land (AI.cpp:4590, 2592, 2604, 3669)
+
+**The L key** builds the list of landable objects in the system — the test is
+`HasValidPlanet() && GetPlanet()->IsAccessible(ship)`, so stars and unnamed bodies
+are excluded — then picks one of three ways:
+
+1. **Hovering.** A ship inside an object's radius and slower than
+   `MIN_LANDING_VELOCITY / 60` (= 80/60 px/f, AI.h:255) is *considering* that world,
+   and it wins outright. This is what stops the selection overriding a player who has
+   already flown themselves somewhere.
+2. **Cycling.** With a target set and the key pressed again inside the repeat
+   cooldown (`Engine.cpp:2241` raises `WAIT`), step to the next landable — EXCEPT
+   when already inside the current target's radius, where the target stands, so the
+   last press before touchdown does not throw the approach away.
+3. **Fresh.** Nearest, with everything that cannot recharge fuel pushed **+10,000**
+   down the ranking. This is the load-bearing detail: systems are full of bare rocks
+   nearer than the port, and plain "nearest" picks one every time.
+
+**Then it flies there:** `autoPilot |= LAND`, and each frame `MoveToPlanet` →
+`MoveTo(target->Position(), Point(), target->Radius(), 1.)`. `MoveTo` steers at
+`target − StoppingPoint(...)`, NOT at the target: the stopping point is where the
+ship would come to rest if it turned and braked now, and substituting it is what
+makes the approach converge instead of overshooting and looping forever. Arrival is
+`dp.Length() < radius && speed < slow` — the same two conditions as `Ship::CanLand`.
+Any manual input cancels the autopilot (AI.cpp:558).
+
+**Planet labels** (PlanetLabel.cpp:138-160) draw name + government beside each world
+in flight, coloured from the government and dimmed when `!planet.CanLand()`; a
+wormhole takes its link colour instead. Upstream's radar is ship-centred at a fixed
+scale, which works because its main view is already a wide 2D one.
 
 Landing (M4): `pos = 0.97·pos + 0.03·target` per frame while zoom shrinks.

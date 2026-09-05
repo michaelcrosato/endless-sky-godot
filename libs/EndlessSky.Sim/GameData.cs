@@ -78,6 +78,28 @@ namespace EndlessSky.Sim
 
         public IReadOnlyDictionary<string, StarSystem> Systems => _systems;
 
+        /// <summary>
+        /// The system a named world orbits in, or null if nothing in the galaxy carries
+        /// that name.
+        /// </summary>
+        /// <remarks>
+        /// Worlds are named globally but live inside a system's object tree, so going
+        /// the other way is a search rather than a lookup. Missions, text substitution
+        /// and the tutorial share this walk so they resolve the same destination.
+        /// </remarks>
+        public StarSystem? SystemOf(string? planetName)
+        {
+            if (string.IsNullOrEmpty(planetName))
+                return null;
+
+            foreach (StarSystem system in _systems.Values)
+                foreach (StellarObject obj in system.AllObjects())
+                    if (obj.PlanetName == planetName)
+                        return system;
+
+            return null;
+        }
+
         public IReadOnlyDictionary<string, Planet> Planets => _planets;
 
         public IReadOnlyDictionary<string, Sale> Shipyards => _shipyards;

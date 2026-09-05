@@ -376,6 +376,7 @@ outfit "Terran Hyperdrive"
 	"outfit space" -25
 	hyperdrive 1
 	"hyperdrive fuel" 100
+	"jump speed" 0.2
 	description `Follows the lanes, like almost everyone else.`
 
 outfit "Terran Fuel Tank"
@@ -926,6 +927,7 @@ outfit "Vashari Hyperdrive"
 	"outfit space" -25
 	hyperdrive 1
 	"hyperdrive fuel" 100
+	"jump speed" 0.2
 	description `Follows the lanes, like almost everyone else.`
 
 outfit "Vashari Fuel Tank"
@@ -943,6 +945,7 @@ outfit "Vashari Jump Drive"
 	"outfit space" -45
 	"jump drive" 1
 	"jump drive fuel" 200
+	"jump speed" 0.3
 	"jump range" 140
 	description `Ignores the lanes entirely. Goes where the links do not.`
 
@@ -1486,6 +1489,7 @@ outfit "Kel'Toth Hyperdrive"
 	"outfit space" -25
 	hyperdrive 1
 	"hyperdrive fuel" 100
+	"jump speed" 0.2
 	description `Follows the lanes, like almost everyone else.`
 
 outfit "Kel'Toth Fuel Tank"
@@ -2036,6 +2040,7 @@ outfit "Morrow Hyperdrive"
 	"outfit space" -25
 	hyperdrive 1
 	"hyperdrive fuel" 100
+	"jump speed" 0.2
 	description `Follows the lanes, like almost everyone else.`
 
 outfit "Morrow Fuel Tank"
@@ -2586,6 +2591,7 @@ outfit "Ixil Hyperdrive"
 	"outfit space" -25
 	hyperdrive 1
 	"hyperdrive fuel" 100
+	"jump speed" 0.2
 	description `Follows the lanes, like almost everyone else.`
 
 outfit "Ixil Fuel Tank"
@@ -2603,6 +2609,7 @@ outfit "Ixil Jump Drive"
 	"outfit space" -45
 	"jump drive" 1
 	"jump drive fuel" 200
+	"jump speed" 0.3
 	"jump range" 100
 	description `Ignores the lanes entirely. Goes where the links do not.`
 
@@ -3146,6 +3153,7 @@ outfit "Sarn Hyperdrive"
 	"outfit space" -25
 	hyperdrive 1
 	"hyperdrive fuel" 100
+	"jump speed" 0.2
 	description `Follows the lanes, like almost everyone else.`
 
 outfit "Sarn Fuel Tank"
@@ -3696,6 +3704,7 @@ outfit "Ythera Hyperdrive"
 	"outfit space" -25
 	hyperdrive 1
 	"hyperdrive fuel" 100
+	"jump speed" 0.2
 	description `Follows the lanes, like almost everyone else.`
 
 outfit "Ythera Fuel Tank"
@@ -3713,6 +3722,7 @@ outfit "Ythera Jump Drive"
 	"outfit space" -45
 	"jump drive" 1
 	"jump drive fuel" 200
+	"jump speed" 0.3
 	"jump range" 140
 	description `Ignores the lanes entirely. Goes where the links do not.`
 
@@ -4256,6 +4266,7 @@ outfit "Drell Hyperdrive"
 	"outfit space" -25
 	hyperdrive 1
 	"hyperdrive fuel" 100
+	"jump speed" 0.2
 	description `Follows the lanes, like almost everyone else.`
 
 outfit "Drell Fuel Tank"
@@ -4806,6 +4817,7 @@ outfit "Orokh Hyperdrive"
 	"outfit space" -25
 	hyperdrive 1
 	"hyperdrive fuel" 100
+	"jump speed" 0.2
 	description `Follows the lanes, like almost everyone else.`
 
 outfit "Orokh Fuel Tank"
@@ -5356,6 +5368,7 @@ outfit "Lumen Hyperdrive"
 	"outfit space" -25
 	hyperdrive 1
 	"hyperdrive fuel" 100
+	"jump speed" 0.2
 	description `Follows the lanes, like almost everyone else.`
 
 outfit "Lumen Fuel Tank"
@@ -5373,6 +5386,7 @@ outfit "Lumen Jump Drive"
 	"outfit space" -45
 	"jump drive" 1
 	"jump drive fuel" 200
+	"jump speed" 0.3
 	"jump range" 140
 	description `Ignores the lanes entirely. Goes where the links do not.`
 
@@ -5916,6 +5930,7 @@ outfit "Grask Hyperdrive"
 	"outfit space" -25
 	hyperdrive 1
 	"hyperdrive fuel" 100
+	"jump speed" 0.2
 	description `Follows the lanes, like almost everyone else.`
 
 outfit "Grask Fuel Tank"
@@ -6466,6 +6481,7 @@ outfit "Tessarai Hyperdrive"
 	"outfit space" -25
 	hyperdrive 1
 	"hyperdrive fuel" 100
+	"jump speed" 0.2
 	description `Follows the lanes, like almost everyone else.`
 
 outfit "Tessarai Fuel Tank"
@@ -6483,6 +6499,7 @@ outfit "Tessarai Jump Drive"
 	"outfit space" -45
 	"jump drive" 1
 	"jump drive fuel" 200
+	"jump speed" 0.3
 	"jump range" 140
 	description `Ignores the lanes entirely. Goes where the links do not.`
 
@@ -7026,6 +7043,7 @@ outfit "Voth Hyperdrive"
 	"outfit space" -25
 	hyperdrive 1
 	"hyperdrive fuel" 100
+	"jump speed" 0.2
 	description `Follows the lanes, like almost everyone else.`
 
 outfit "Voth Fuel Tank"
@@ -7043,6 +7061,7 @@ outfit "Voth Jump Drive"
 	"outfit space" -45
 	"jump drive" 1
 	"jump drive fuel" 200
+	"jump speed" 0.3
 	"jump range" 100
 	description `Ignores the lanes entirely. Goes where the links do not.`
 
@@ -7586,6 +7605,7 @@ outfit "Ceph Hyperdrive"
 	"outfit space" -25
 	hyperdrive 1
 	"hyperdrive fuel" 100
+	"jump speed" 0.2
 	description `Follows the lanes, like almost everyone else.`
 
 outfit "Ceph Fuel Tank"
@@ -7603,6 +7623,7 @@ outfit "Ceph Jump Drive"
 	"outfit space" -45
 	"jump drive" 1
 	"jump drive fuel" 200
+	"jump speed" 0.3
 	"jump range" 100
 	description `Ignores the lanes entirely. Goes where the links do not.`
 
@@ -8146,6 +8167,7 @@ outfit "Karn Hyperdrive"
 	"outfit space" -25
 	hyperdrive 1
 	"hyperdrive fuel" 100
+	"jump speed" 0.2
 	description `Follows the lanes, like almost everyone else.`
 
 outfit "Karn Fuel Tank"
@@ -8696,6 +8718,7 @@ outfit "Silane Hyperdrive"
 	"outfit space" -25
 	hyperdrive 1
 	"hyperdrive fuel" 100
+	"jump speed" 0.2
 	description `Follows the lanes, like almost everyone else.`
 
 outfit "Silane Fuel Tank"
@@ -9246,6 +9269,7 @@ outfit "Aurei Hyperdrive"
 	"outfit space" -25
 	hyperdrive 1
 	"hyperdrive fuel" 100
+	"jump speed" 0.2
 	description `Follows the lanes, like almost everyone else.`
 
 outfit "Aurei Fuel Tank"
@@ -9263,6 +9287,7 @@ outfit "Aurei Jump Drive"
 	"outfit space" -45
 	"jump drive" 1
 	"jump drive fuel" 200
+	"jump speed" 0.3
 	"jump range" 140
 	description `Ignores the lanes entirely. Goes where the links do not.`
 
@@ -9806,6 +9831,7 @@ outfit "Bracken Hyperdrive"
 	"outfit space" -25
 	hyperdrive 1
 	"hyperdrive fuel" 100
+	"jump speed" 0.2
 	description `Follows the lanes, like almost everyone else.`
 
 outfit "Bracken Fuel Tank"
@@ -9823,6 +9849,7 @@ outfit "Bracken Jump Drive"
 	"outfit space" -45
 	"jump drive" 1
 	"jump drive fuel" 200
+	"jump speed" 0.3
 	"jump range" 100
 	description `Ignores the lanes entirely. Goes where the links do not.`
 
@@ -10366,6 +10393,7 @@ outfit "Nyx Hyperdrive"
 	"outfit space" -25
 	hyperdrive 1
 	"hyperdrive fuel" 100
+	"jump speed" 0.2
 	description `Follows the lanes, like almost everyone else.`
 
 outfit "Nyx Fuel Tank"
@@ -10916,6 +10944,7 @@ outfit "Hollow Hyperdrive"
 	"outfit space" -25
 	hyperdrive 1
 	"hyperdrive fuel" 100
+	"jump speed" 0.2
 	description `Follows the lanes, like almost everyone else.`
 
 outfit "Hollow Fuel Tank"

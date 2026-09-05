@@ -4,10 +4,10 @@
 # the starting scenario
 start reach
 	name "The Reach"
-	description `You begin on Holpsalmhol, in the Cantholoss Deep system, under Hollow Choir. The Reach is twenty peoples deep and nobody has mapped all of it.`
+	description `You begin on Silveydoss Roost, in the Silmarimari system, under Silane Factors. The Reach is twenty peoples deep and nobody has mapped all of it.`
 	date 16 11 3013
-	system "Cantholoss Deep"
-	planet Holpsalmhol
+	system Silmarimari
+	planet "Silveydoss Roost"
 	account
 		credits 480000
 	set "start: reach"

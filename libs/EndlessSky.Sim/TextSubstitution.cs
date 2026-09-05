@@ -45,7 +45,7 @@ namespace EndlessSky.Sim
             // have a real planet chosen before its text can be filled in.
             string destination = mission.ResolveDestination(data, player?.CurrentSystem?.Name) ?? "";
             subs["<planet>"] = destination;
-            subs["<system>"] = SystemOf(destination, data);
+            subs["<system>"] = data?.SystemOf(destination)?.Name ?? "";
             subs["<destination>"] = destination.Length == 0
                 ? ""
                 : subs["<system>"].Length > 0
@@ -141,19 +141,6 @@ namespace EndlessSky.Sim
         public static string DescriptionOf(Mission mission, PlayerState? player, GameData? data,
                                            DateTime? deadline = null) =>
             Apply(mission?.Description, For(mission!, player, data, deadline));
-
-        private static string SystemOf(string planetName, GameData? data)
-        {
-            if (data is null || string.IsNullOrEmpty(planetName))
-                return "";
-
-            foreach (StarSystem system in data.Systems.Values)
-                foreach (StellarObject obj in system.AllObjects())
-                    if (obj.PlanetName == planetName)
-                        return system.Name;
-
-            return "";
-        }
 
         private static string Tons(int tons) =>
             tons == 1 ? "1 ton" : $"{tons.ToString("n0", CultureInfo.InvariantCulture)} tons";

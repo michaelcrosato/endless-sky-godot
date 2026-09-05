@@ -145,6 +145,99 @@ namespace EndlessSky.Tests
         // --- Round trip -----------------------------------------------------------
 
         [Test]
+        public void ShipsKeepTheirOwnConditionIdentityAndCargo()
+        {
+            GameData data = Load();
+            data.Ships["Shuttle"].Attributes.Set("shields", 300);
+            data.Ships["Shuttle"].Attributes.Set("fuel capacity", 500);
+            data.Ships["Shuttle"].Attributes.Set("bunks", 10);
+            PlayerState original = Populated(data);
+            Ship flagship = original.Fleet.Flagship!;
+            Ship parked = original.Fleet.Ships[1];
+            flagship.GivenName = "Homeward Bound";
+            flagship.Crew = 7;
+            flagship.CurrentSystem = data.Systems["Sol"];
+            flagship.Position = new Point(320.5, -185.25);
+            flagship.Velocity = new Point(1.25, -0.5);
+            flagship.Facing = new Angle(93.0);
+            flagship.SetLevels(shields: 21.5, hull: 300, energy: 9.5, heat: 700, fuel: 45.25);
+
+            parked.GivenName = "Waiting Here";
+            parked.CurrentSystem = data.Systems["Vega"];
+            parked.LoadCargo("Metal", 19);
+            parked.SetLevels(hull: 12, energy: 0, heat: 300);
+
+            PlayerState restored = SaveGame.Read(SaveGame.Write(original), data);
+            Ship back = restored.Fleet.Flagship!;
+            Ship parkedBack = restored.Fleet.Ships[1];
+            Assert.Multiple(() =>
+            {
+                Assert.AreEqual("Homeward Bound", back.GivenName);
+                Assert.AreEqual(7, back.Crew);
+                Assert.AreEqual(21.5, back.Shields);
+                Assert.AreEqual(300, back.Hull);
+                Assert.AreEqual(9.5, back.Energy);
+                Assert.AreEqual(700, back.Heat);
+                Assert.AreEqual(45.25, back.Fuel);
+                Assert.AreEqual(flagship.Position, back.Position);
+                Assert.AreEqual(flagship.Velocity, back.Velocity);
+                Assert.AreEqual(flagship.Facing, back.Facing);
+                Assert.AreSame(data.Systems["Sol"], back.CurrentSystem);
+                Assert.AreEqual(15, back.Cargo.Count("Grain"));
+                Assert.AreEqual("Waiting Here", parkedBack.GivenName);
+                Assert.IsTrue(parkedBack.IsParked);
+                Assert.IsTrue(parkedBack.IsDisabled);
+                Assert.AreEqual(12, parkedBack.Hull);
+                Assert.AreEqual(0, parkedBack.Energy);
+                Assert.AreEqual(19, parkedBack.Cargo.Count("Metal"));
+                Assert.AreEqual(19, parkedBack.CargoMass);
+                Assert.AreSame(data.Systems["Vega"], parkedBack.CurrentSystem);
+            });
+        }
+
+        [Test]
+        public void OverheatingHysteresisSurvivesAReload()
+        {
+            GameData data = Load();
+            PlayerState original = Populated(data);
+            Ship ship = original.Fleet.Flagship!;
+            ship.SetLevels(heat: ship.MaxHeat * 1.1);
+            ship.StepResources();
+            ship.SetLevels(heat: ship.MaxHeat * 0.95);
+            Assert.IsTrue(ship.IsOverheated);
+
+            Ship restored = SaveGame.Read(SaveGame.Write(original), data).Fleet.Flagship!;
+            Assert.IsTrue(restored.IsOverheated);
+            Assert.IsTrue(restored.IsDisabled);
+            restored.StepResources();
+            Assert.IsTrue(restored.IsDisabled, "loading must not bypass the 90% cooling threshold");
+        }
+
+        [Test]
+        public void LegacySavesStillLoadFleetCargoAndFullDefaultLevels()
+        {
+            PlayerState restored = SaveGame.Read(
+                "ship Shuttle\n\tflagship\nship Freighter\n\tparked\n" +
+                "cargo\n\tcommodity Grain 12\nsystem Sol\n", Load());
+            Assert.AreEqual(12, restored.Fleet.CargoCount("Grain"));
+            Assert.AreEqual(600, restored.Fleet.Flagship!.Hull);
+            Assert.AreEqual(100, restored.Fleet.Flagship.Energy);
+            Assert.AreSame(restored.CurrentSystem, restored.Fleet.Flagship.CurrentSystem);
+        }
+
+        [Test]
+        public void SavedLevelsUseInstalledCapacityRegardlessOfFieldOrder()
+        {
+            GameData data = Load();
+            data.LoadText("outfit Tank\n\t\"fuel capacity\" 500\n");
+            PlayerState restored = SaveGame.Read(
+                "ship Shuttle\n\tfuel 350\n\toutfit Tank\n\thull -1\n", data);
+            Assert.AreEqual(350, restored.Fleet.Flagship!.Fuel);
+            Assert.IsTrue(restored.Fleet.Flagship.IsDestroyed,
+                "loading must not resurrect a destroyed escort");
+        }
+
+        [Test]
         public void MoneyAndTheCalendarSurvive()
         {
             GameData data = Load();

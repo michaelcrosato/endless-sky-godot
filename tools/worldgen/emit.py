@@ -26,6 +26,42 @@ from races import RACES, attitude
 from ships import CLASSES, Outfit, Ship
 
 
+def player_reputation(faction) -> int:
+    """Standing a new pilot begins at with this faction.
+
+    Hostility toward the PLAYER is reputation, not the attitude matrix — upstream
+    scopes the matrix to government-vs-government and asks standing for anything
+    involving the player, who is an enemy exactly while standing is negative.
+    Without a negative here, every raider in the Reach flies past a defenceless
+    freighter without a second look and no bounty is ever a fight.
+
+    This is the ONLY place the number is decided. It used to be inlined in
+    `governments()`, which left `start()` free to plant a new pilot's home on a
+    zealot world at -50 — hostile from the first frame, with the owner's own
+    patrols spawning and opening fire before the player had touched a key.
+    """
+    if faction.role == "fringe":
+        return -1000
+    if faction.role == "zealot":
+        return -50
+    return 1
+
+
+def _player_tolerant_factions() -> set:
+    """Factions that will not shoot a pilot who has done nothing yet."""
+    return {
+        faction.name
+        for race in RACES
+        for faction in race.factions
+        if player_reputation(faction) >= 0
+    }
+
+
+def _fleet_faction(fleet_name: str) -> str:
+    """The faction behind a fleet name, which `_assign_fleets` builds as "<faction> Patrol"."""
+    return fleet_name[:-len(" Patrol")] if fleet_name.endswith(" Patrol") else fleet_name
+
+
 def quote(value) -> str:
     """One token, quoted only as much as it needs to be."""
     text = str(value)
@@ -97,17 +133,7 @@ def governments(root: str) -> int:
         default = -0.2 if race.temperament in ("predatory", "expansionist") else 0.0
         w.line(1, quote("default attitude"), number(default))
 
-        # Hostility toward the PLAYER is reputation, not the attitude matrix -
-        # upstream scopes the matrix to government-vs-government and asks standing
-        # for anything involving the player. Without this every raider in the Reach
-        # flies past a defenceless freighter without a second look, and no bounty
-        # is ever a fight.
-        if faction.role == "fringe":
-            w.line(1, quote("player reputation"), number(-1000))
-        elif faction.role == "zealot":
-            w.line(1, quote("player reputation"), number(-50))
-        else:
-            w.line(1, quote("player reputation"), number(1))
+        w.line(1, quote("player reputation"), number(player_reputation(faction)))
 
         w.line(1, quote("attitude toward"))
         for other_race, other in pairs:
@@ -426,16 +452,42 @@ def missions(root: str, work: List[Job], fleet: List[Ship]) -> int:
 
 
 def start(root: str, galaxy: List[System]) -> int:
-    """Where a new pilot begins: a quiet, inhabited world with a shipyard."""
+    """Where a new pilot begins: a quiet, inhabited world with a shipyard.
+
+    "Quiet" is the load-bearing word and it used to be decoration. The filter asked
+    for connectivity and a shipyard and nothing else, so the best-connected
+    inhabited system won — which turned out to belong to a zealot faction sitting
+    at -50 standing toward the player. A new pilot spawned already an enemy of the
+    government that owned the space they were in, its patrols spawned hostile, and
+    the game opened with the player under fire before they had touched a key.
+
+    So the owner has to tolerate a stranger, and so does everything that spawns
+    there: a friendly system that a hostile neighbour patrols is not quiet either.
+    """
     w = Writer()
+
+    tolerant = _player_tolerant_factions()
+
+    def peaceful(system: System) -> bool:
+        if system.government not in tolerant:
+            return False
+        return all(_fleet_faction(name) in tolerant for name, _ in system.fleets)
 
     candidates = [
         (system, world)
         for system in galaxy
-        if system.race is not None and len(system.links) >= 2
+        if system.race is not None and len(system.links) >= 2 and peaceful(system)
         for world in system.worlds
         if world.inhabited and world.shipyard
     ]
+
+    if not candidates:
+        raise SystemExit(
+            "worldgen: no system is both connected, serviced and peaceful enough to "
+            "start in. Widen the search rather than starting a pilot somewhere they "
+            "will be shot: the alternative is a game that opens under fire."
+        )
+
     candidates.sort(key=lambda pair: (-len(pair[0].links), pair[0].name))
     system, world = candidates[0]
 

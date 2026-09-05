@@ -415,13 +415,17 @@ namespace EndlessSky.Sim
 
         /// <summary>Sets levels directly. For tests and for restoring a saved game.</summary>
         public void SetLevels(double? shields = null, double? hull = null,
-                              double? energy = null, double? heat = null, double? fuel = null)
+                              double? energy = null, double? heat = null, double? fuel = null,
+                              bool? overheated = null)
         {
             if (shields.HasValue) _shields = Math.Min(shields.Value, MaxShields);
             if (hull.HasValue) _hull = Math.Min(hull.Value, MaxHull);
             if (energy.HasValue) _energy = Math.Min(energy.Value, MaxEnergy);
             if (fuel.HasValue) _fuel = Math.Min(fuel.Value, MaxFuel);
             if (heat.HasValue) Heat = heat.Value;
+            // Between 90% and 100% heat, the previous shutdown state matters.
+            // Restoring only Heat would let a loaded ship restart too early.
+            if (overheated.HasValue) IsOverheated = overheated.Value;
 
             IsDisabled = ComputeDisabled();
         }

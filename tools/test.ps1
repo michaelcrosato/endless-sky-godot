@@ -59,11 +59,11 @@ if ($Suite -in 'all', 'godot') {
         Write-Host "[godot] $(Get-GodotVersion $script:GodotBin)"
         # --ignoreHeadlessMode: headless Godot delivers no InputEvents, so gdUnit4
         #   refuses to start without it. Safe unless a suite drives simulated input.
-        # --remote-debug on a never-bound port is refused instantly, which stops a
-        #   parse error from dropping Godot into its interactive `debug>` prompt.
+        # Do not enable the interactive local debugger (-d) in automation.
+        # Parse failures exit nonzero; error breaks must never wait for input.
         $path = if ($Filter) { $Filter } else { 'tests/godot' }
-        & $script:GodotBin --headless --path . -s -d --remote-debug tcp://127.0.0.1:0 `
-            res://addons/gdUnit4/bin/GdUnitCmdTool.gd -a $path --ignoreHeadlessMode
+        & $script:GodotBin --headless --path . --ignore-error-breaks `
+            --script res://addons/gdUnit4/bin/GdUnitCmdTool.gd -a $path --ignoreHeadlessMode
         if ($LASTEXITCODE -ne 0) { $failures.Add("godot (exit $LASTEXITCODE)") }
         Write-Host ''
     }

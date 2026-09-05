@@ -282,7 +282,7 @@ namespace EndlessSky.Sim
                     continue;
 
                 // A planet's own system is what distance terms measure against.
-                string? system = SystemOf(data, planet.Name);
+                string? system = data.SystemOf(planet.Name)?.Name;
                 if (!DestinationFilter.Matches(planet, system, data, originSystem))
                     continue;
 
@@ -291,17 +291,6 @@ namespace EndlessSky.Sim
             }
 
             return best;
-        }
-
-        /// <summary>The system a planet sits in, or null if nothing lists it.</summary>
-        private static string? SystemOf(GameData data, string planetName)
-        {
-            foreach (StarSystem system in data.Systems.Values)
-                foreach (StellarObject obj in system.AllObjects())
-                    if (obj.PlanetName == planetName)
-                        return system.Name;
-
-            return null;
         }
 
         /// <summary>

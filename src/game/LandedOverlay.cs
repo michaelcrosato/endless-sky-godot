@@ -430,11 +430,35 @@ namespace EndlessSky.Game
 
                 case Counter.Jobs:
                 {
-                    // The rows past the offered jobs are missions already in progress;
-                    // there is nothing to accept on one.
+                    // The rows past the offered jobs are missions already in progress.
+                    // On one of those, this key HANDS IT IN — which is the other half
+                    // of a job and had no way to happen at all: nothing outside the
+                    // test suite ever called MissionLog.Complete, so a player could
+                    // accept work, carry it to the right world and stand on the ground
+                    // beside the person waiting for it with no key that would finish
+                    // it, and no payment ever arrived.
                     if (index >= _jobs.Count)
                     {
-                        _message = "already carrying that one";
+                        ActiveMission carrying = _missions.Active[index - _jobs.Count];
+                        long before = _player.Credits;
+
+                        if (_missions.Complete(carrying))
+                        {
+                            _message = $"delivered: {carrying.Mission.DisplayName} " +
+                                       $"(+{_player.Credits - before:n0})";
+                        }
+                        else if (carrying.Destination != null &&
+                                 carrying.Destination != _planet.Name)
+                        {
+                            // Say WHERE, not just no. "Cannot complete" on a world that
+                            // looks right is indistinguishable from a broken button.
+                            _message = $"hand that one in at {carrying.Destination}";
+                        }
+                        else
+                        {
+                            _message = "that job is not finished yet";
+                        }
+
                         break;
                     }
 
@@ -611,7 +635,7 @@ namespace EndlessSky.Game
             Counter.Trade => "B buy 5t · N sell 5t",
             Counter.Shipyard => "B buy ship · N sell ship",
             Counter.Outfitter => "B install · N remove",
-            Counter.Jobs => "B accept · N abandon",
+            Counter.Jobs => "B accept / hand in · N abandon",
             _ => "",
         };
 

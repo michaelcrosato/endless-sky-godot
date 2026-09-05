@@ -26,11 +26,12 @@ namespace EndlessSky.Sim
     /// down would both bloat the file and, worse, let a stale copy shadow the real
     /// value - a saved "credits" would fight the account it was copied from.
     ///
-    /// INCOMPLETE, tracked rather than dropped: pilot name, per-ship damage levels and
-    /// individual ship names, cargo held by specific ships rather than the fleet as a
-    /// whole, purchase records for depreciation, event schedules, and the mission log's
-    /// NPC event history. Ships are saved by model and outfit list, which restores a
-    /// fleet's capability but not its scars.
+    /// Ship names, crew, cargo, shields, hull, fuel and positions follow upstream
+    /// Ship::Save. Energy, heat, velocity and facing also survive because this port
+    /// permits saving in flight. Old saves without those fields retain their defaults.
+    ///
+    /// INCOMPLETE, tracked rather than dropped: pilot name, a jump in progress,
+    /// applied universe changes, politics, and the mission log's NPC event history.
     /// </remarks>
     public static class SaveGame
     {
@@ -68,10 +69,27 @@ namespace EndlessSky.Sim
                 if (ship.IsParked)
                     writer.Write("parked");
 
+                if (ship.GivenName != null)
+                    writer.Write("name", ship.GivenName);
+                if (ship.CurrentSystem != null)
+                    writer.Write("system", ship.CurrentSystem.Name);
+                writer.Write("position", ship.Position.X, ship.Position.Y);
+                writer.Write("velocity", ship.Velocity.X, ship.Velocity.Y);
+                writer.Write("facing", ship.Facing.Degrees);
+                writer.Write("crew", ship.Crew);
+                writer.Write("shields", ship.Shields);
+                writer.Write("hull", ship.Hull);
+                writer.Write("energy", ship.Energy);
+                writer.Write("fuel", ship.Fuel);
+                writer.Write("heat", ship.Heat);
+                if (ship.IsOverheated)
+                    writer.Write("overheated");
+
                 // Grouped so a ship carrying four of something writes one line.
                 foreach (IGrouping<string, Outfit> group in ship.Outfits.GroupBy(o => o.Name))
                     writer.Write("outfit", group.Key, group.Count());
 
+                WriteCargo(writer, ship.Cargo);
                 writer.EndChild();
             }
 
@@ -125,24 +143,6 @@ namespace EndlessSky.Sim
                 writer.EndChild();
             }
 
-            // Cargo in the hold, by commodity.
-            var cargo = player.Fleet.Ships
-                .SelectMany(s => s.Cargo.Commodities)
-                .GroupBy(entry => entry.Key, entry => entry.Value)
-                .Select(g => (Commodity: g.Key, Tons: g.Sum()))
-                .Where(entry => entry.Tons > 0)
-                .OrderBy(entry => entry.Commodity, StringComparer.Ordinal)
-                .ToList();
-
-            if (cargo.Count > 0)
-            {
-                writer.Write("cargo");
-                writer.BeginChild();
-                foreach ((string commodity, int tons) in cargo)
-                    writer.Write("commodity", commodity, tons);
-                writer.EndChild();
-            }
-
             // Stored conditions only. Provided ones are recomputed on load.
             var stored = player.Conditions.Values
                 .Where(entry => !player.Conditions.IsProvided(entry.Key))
@@ -159,6 +159,17 @@ namespace EndlessSky.Sim
             }
 
             return writer.ToString();
+        }
+
+        private static void WriteCargo(DataWriter writer, CargoHold cargo)
+        {
+            if (cargo.IsEmpty)
+                return;
+            writer.Write("cargo");
+            writer.BeginChild();
+            foreach (var entry in cargo.Commodities.OrderBy(e => e.Key, StringComparer.Ordinal))
+                writer.Write("commodity", entry.Key, entry.Value);
+            writer.EndChild();
         }
 
         /// <summary>
@@ -276,6 +287,11 @@ namespace EndlessSky.Sim
             if (system != null && data.Systems.TryGetValue(system, out StarSystem? current))
                 player.EnterSystem(current);
 
+            // Older saves recorded only the player's system. A per-ship location
+            // wins when present, particularly for ships parked somewhere else.
+            foreach (Ship ship in player.Fleet.Ships)
+                ship.CurrentSystem ??= player.CurrentSystem;
+
             if (planet != null && data.Planets.TryGetValue(planet, out Planet? landed))
                 player.Land(landed);
 
@@ -292,8 +308,20 @@ namespace EndlessSky.Sim
             var ship = new Ship(data.Ships[node.Token(1)]);
             ship.BuildMounts();
 
+            // Restore capacity before levels and cargo, irrespective of field order.
+            foreach (DataNode child in node.Children)
+            {
+                if (child.Token(0) != "outfit" || child.Size < 2)
+                    continue;
+                int count = child.Size >= 3 && child.IsNumber(2) ? (int)child.Value(2) : 1;
+                if (count > 0 && data.Outfits.TryGetValue(child.Token(1), out Outfit? outfit))
+                    ship.AddOutfit(outfit, count);
+            }
+
             bool isFlagship = false;
             bool parked = false;
+            bool overheated = false;
+            double? shields = null, hull = null, energy = null, fuel = null, heat = null;
 
             foreach (DataNode child in node.Children)
             {
@@ -307,10 +335,47 @@ namespace EndlessSky.Sim
                         parked = true;
                         break;
 
-                    case "outfit" when child.Size >= 2:
-                        int count = child.Size >= 3 && child.IsNumber(2) ? (int)child.Value(2) : 1;
-                        if (data.Outfits.TryGetValue(child.Token(1), out Outfit? outfit))
-                            ship.AddOutfit(outfit, count);
+                    case "name" when child.Size >= 2:
+                        ship.GivenName = child.Token(1);
+                        break;
+                    case "system" when child.Size >= 2:
+                        if (data.Systems.TryGetValue(child.Token(1), out StarSystem? system))
+                            ship.CurrentSystem = system;
+                        break;
+                    case "position" when child.Size >= 3:
+                        ship.Position = new Point(child.Value(1), child.Value(2));
+                        break;
+                    case "velocity" when child.Size >= 3:
+                        ship.Velocity = new Point(child.Value(1), child.Value(2));
+                        break;
+                    case "facing" when child.Size >= 2:
+                        ship.Facing = new Angle(child.Value(1));
+                        break;
+                    case "crew" when child.Size >= 2:
+                        ship.Crew = (int)child.Value(1);
+                        break;
+                    case "shields" when child.Size >= 2:
+                        shields = child.Value(1);
+                        break;
+                    case "hull" when child.Size >= 2:
+                        hull = child.Value(1);
+                        break;
+                    case "energy" when child.Size >= 2:
+                        energy = child.Value(1);
+                        break;
+                    case "fuel" when child.Size >= 2:
+                        fuel = child.Value(1);
+                        break;
+                    case "heat" when child.Size >= 2:
+                        heat = child.Value(1);
+                        break;
+                    case "overheated":
+                        overheated = true;
+                        break;
+                    case "cargo":
+                        foreach (DataNode entry in child.Children)
+                            if (entry.Token(0) == "commodity" && entry.Size >= 3)
+                                ship.LoadCargo(entry.Token(1), (int)entry.Value(2));
                         break;
                 }
             }
@@ -320,8 +385,9 @@ namespace EndlessSky.Sim
                 ship.Government = faction;
 
             ship.IsParked = parked;
-            ship.SetLevels(shields: ship.MaxShields, hull: ship.MaxHull,
-                           energy: ship.MaxEnergy, fuel: ship.MaxFuel);
+            ship.SetLevels(shields: shields ?? ship.MaxShields, hull: hull ?? ship.MaxHull,
+                           energy: energy ?? ship.MaxEnergy, fuel: fuel ?? ship.MaxFuel,
+                           heat: heat ?? 0.0, overheated: overheated);
 
             player.Fleet.Add(ship);
             if (isFlagship)

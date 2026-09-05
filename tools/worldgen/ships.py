@@ -193,7 +193,12 @@ def build_outfits() -> List[Outfit]:
         # Travel.
         outfits.append(Outfit(
             f"{prefix} Hyperdrive", "Drives", int(180_000 * race.cost),
-            {"mass": 30, "outfit space": -25, "hyperdrive": 1, "hyperdrive fuel": 100},
+            # "jump speed" is not decoration: it is the speed at or below which
+            # Ship::IsReadyToJump will let the ship go. A drive that omits it reads as
+            # zero, and then only an exact dead stop is ever legal. Upstream's stock
+            # Hyperdrive states .2 (data/human/outfits.txt).
+            {"mass": 30, "outfit space": -25, "hyperdrive": 1,
+             "hyperdrive fuel": 100, "jump speed": 0.2},
             description="Follows the lanes, like almost everyone else.",
         ))
         outfits.append(Outfit(
@@ -204,8 +209,11 @@ def build_outfits() -> List[Outfit]:
         if race.temperament in ("ancient", "insular"):
             outfits.append(Outfit(
                 f"{prefix} Jump Drive", "Drives", int(2_400_000 * race.cost),
+                # Upstream's Jump Drive states .3 -- it tears its hole rather than
+                # riding a lane, so it tolerates more speed than a hyperdrive.
                 {"mass": 55, "outfit space": -45, "jump drive": 1,
-                 "jump drive fuel": 200, "jump range": 100 + 40 * (race.cost > 1.2)},
+                 "jump drive fuel": 200, "jump speed": 0.3,
+                 "jump range": 100 + 40 * (race.cost > 1.2)},
                 description="Ignores the lanes entirely. Goes where the links do not.",
             ))
 

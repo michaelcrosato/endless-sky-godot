@@ -24,11 +24,13 @@ namespace EndlessSky.Game
                 Object = obj,
             };
             view.VisualRadius = RadiusFor(obj);
+
             return view;
         }
 
         public override void _Ready()
         {
+            BuildLabel();
             var mesh = new SphereMesh
             {
                 Radius = VisualRadius,
@@ -118,6 +120,110 @@ namespace EndlessSky.Game
             AddChild(instance);
             SyncPosition();
         }
+
+        /// <summary>
+        /// Name and government, drawn beside the body, coloured by whether a ship can
+        /// put down there. Upstream's <c>PlanetLabel</c> (PlanetLabel.cpp).
+        /// </summary>
+        /// <remarks>
+        /// Scenery gets no label. Upstream builds one label per object that HAS a
+        /// planet, which is exactly the set worth flying to — stars and unnamed bodies
+        /// are things to avoid, not destinations, and labelling them buries the three
+        /// worlds that matter under a dozen that do not.
+        ///
+        /// The colour carries the information the player asked for: whether landing
+        /// there does anything. A world with a port is worth crossing a system for; a
+        /// bare rock is somewhere to hide.
+        /// </remarks>
+        private void BuildLabel()
+        {
+            if (Object.Planet is null)
+            {
+                return;
+            }
+
+            bool hasPort = Object.Planet.HasServices;
+            _label = new Label3D
+            {
+                Name = "Label",
+                Text = Object.PlanetName + (hasPort ? "\n" + PortLine(Object.Planet) : "\n(no port)"),
+                Modulate = hasPort ? PortLabel : RockLabel,
+                FontSize = 48,
+                OutlineSize = 12,
+                OutlineModulate = new Color(0f, 0f, 0f, 0.7f),
+                Billboard = BaseMaterial3D.BillboardModeEnum.Enabled,
+                // Fixed on-screen size: a label that shrinks with distance is illegible
+                // exactly when the player most needs it, which is while deciding where
+                // in the system to go.
+                FixedSize = true,
+                PixelSize = 0.00045f,
+                NoDepthTest = true,
+                RenderPriority = 2,
+                Position = new Vector3(0f, VisualRadius + 0.6f, 0f),
+            };
+            AddChild(_label);
+
+            // The selection ring lies in the orbital plane rather than facing the
+            // camera: gameplay is planar, so a flat ring reads as "on the map" from the
+            // angled chase view without any billboarding.
+            float ringRadius = Math.Max(VisualRadius * 1.8f, WorldSpace.Length(Object.LandingRadius));
+            _targetRing = new MeshInstance3D
+            {
+                Name = "TargetRing",
+                Mesh = new TorusMesh
+                {
+                    InnerRadius = ringRadius,
+                    OuterRadius = ringRadius * 1.06f,
+                    RingSegments = 48,
+                },
+                MaterialOverride = new StandardMaterial3D
+                {
+                    ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
+                    Transparency = BaseMaterial3D.TransparencyEnum.Alpha,
+                    AlbedoColor = SelectedLabel,
+                    DisableReceiveShadows = true,
+                },
+                CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
+                Visible = false,
+            };
+            AddChild(_targetRing);
+        }
+
+        private static string PortLine(Planet planet)
+        {
+            if (planet.HasShipyard && planet.HasOutfitter) return "shipyard · outfitter";
+            if (planet.HasShipyard) return "shipyard";
+            if (planet.HasOutfitter) return "outfitter";
+            return "spaceport";
+        }
+
+        private Label3D? _label;
+        private MeshInstance3D? _targetRing;
+
+        /// <summary>Whether this is the world the pilot has selected to land on.</summary>
+        public void SetSelected(bool selected)
+        {
+            if (_targetRing != null)
+            {
+                _targetRing.Visible = selected;
+            }
+
+            if (_label != null)
+            {
+                _label.Modulate = selected
+                    ? SelectedLabel
+                    : Object.Planet is { HasServices: true } ? PortLabel : RockLabel;
+            }
+        }
+
+        /// <summary>A world with a port: somewhere worth crossing a system for.</summary>
+        private static readonly Color PortLabel = new Color(0.62f, 0.88f, 0.70f, 0.92f);
+
+        /// <summary>Landable, but nothing there.</summary>
+        private static readonly Color RockLabel = new Color(0.58f, 0.64f, 0.72f, 0.72f);
+
+        /// <summary>The current landing target.</summary>
+        private static readonly Color SelectedLabel = new Color(1.0f, 0.82f, 0.42f, 1.0f);
 
         /// <summary>Reposition from the sim (stellar positions change only with the date).</summary>
         public void SyncPosition()

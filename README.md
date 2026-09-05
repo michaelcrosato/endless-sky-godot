@@ -54,7 +54,7 @@ simulation is a build error, and `tests/sim/ArchitectureTests.cs` fails if
 someone re-opens that door.
 
 The payoff is test speed: the data and simulation suites are plain NUnit on the
-bare .NET host and finish in under a second, with no engine to boot.
+bare .NET host, with no engine to boot. Full content suites also load both datasets.
 
 ```
 libs/EndlessSky.Data    DataFile, DataNode, DataWriter
@@ -73,6 +73,7 @@ pwsh tools/test.ps1                                              # everything
 pwsh tools/test.ps1 -Suite sim                                   # engine-free only
 pwsh tools/test.ps1 -Suite sim -Filter "FullyQualifiedName~ShipPhysics"
 pwsh tools/test.ps1 -Suite godot                                 # in-engine only
+pwsh tools/smoke.ps1                                            # real game scenarios
 ```
 
 The simulation-only command needs .NET and the upstream dataset, with no Godot
@@ -107,10 +108,11 @@ and the copy together. The output folder is movable; the exe alone is not.
 See `docs/MILESTONES.md` for what is done, what is in flight, and what is
 explicitly incomplete. The short version: the data parser reads both datasets with
 zero diagnostics, the simulation ports upstream's physics, combat, missions,
-economy and travel rules with ~690 engine-free tests over them, and the game is
+economy and travel rules with engine-free regression tests, and the game is
 playable end to end — fly, fight, land, trade, outfit, take jobs, jump, save and
 load. Incomplete systems are marked as such in the source rather than dropped;
-`grep -rn INCOMPLETE libs/ src/` is the honest inventory.
+`rg -n INCOMPLETE libs src` is the inventory. The current audit, validation
+evidence and remaining work are tracked in [the repository audit](docs/repository-audit.md).
 
 ## Contributing
 

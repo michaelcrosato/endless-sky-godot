@@ -35,6 +35,8 @@ owned by a different session. This repo is the Godot arm of that comparison.
 | Headless smoke | `pwsh tools/run.ps1 -Headless` |
 | Mission/combat smoke | `pwsh tools/run.ps1 -Headless -Frames 20000 -UserArgs '--mission-smoke'` |
 | Save round-trip smoke | `pwsh tools/run.ps1 -Headless -Frames 400 -UserArgs '--save-smoke'` |
+| Landing smoke (select + fly + land) | `pwsh tools/run.ps1 -Headless -Frames 20000 -UserArgs '--land-smoke'` |
+| Tutorial smoke (land → job → jump → deliver) | `pwsh tools/run.ps1 -Headless -Frames 20000 -UserArgs '--tutorial-smoke'` |
 | Regenerate the universe | `python tools/worldgen/worldgen.py` |
 | Open the editor | `pwsh tools/editor.ps1` |
 | Export a build | `pwsh tools/export.ps1 -Preset "Windows Desktop" -Release` |
@@ -57,7 +59,7 @@ tools/                  build / test / run / editor / export scripts
 ```
 
 Two test tiers, deliberately: `sim` is plain NUnit on the bare .NET host and
-finishes in under a second, which is where behavioural parity gets pinned down.
+also loads both content datasets, which is where behavioural parity gets pinned down.
 `godot` spawns an engine and is reserved for things that genuinely need one.
 
 `EndlessSky.csproj` is the Godot project. It references the two libraries as
@@ -133,10 +135,11 @@ edit the generator rather than the output.
   Test packages in `EndlessSky.csproj` are gated to `Configuration == Debug` so
   the adapter, gdUnit4 API and Roslyn stay out of shipped builds.
 - **gdUnit4's CLI needs `--ignoreHeadlessMode`.** Headless Godot delivers no
-  `InputEvent`s, so gdUnit4 refuses to start without it. Add
-  `--remote-debug tcp://127.0.0.1:0` too: the never-bound port is refused
-  instantly, which stops a parse error from dropping Godot into its interactive
-  `debug>` prompt and hanging CI.
+  `InputEvent`s, so gdUnit4 refuses to start without it. Omit the interactive
+  debugger (`-d`) and use `--ignore-error-breaks` in automation. The former
+  workaround, `--remote-debug tcp://127.0.0.1:0`, logged engine errors on every
+  successful run. A malformed-script probe confirms parse errors exit nonzero
+  without the debugger.
 - **GDScript cannot name a C# class at parse time** unless the assembly is built
   — it is a hard parse error that kills the whole script. Load it dynamically
   and check `can_instantiate()`.

@@ -122,26 +122,11 @@ jobs:
       - name: Build
         run: dotnet build EndlessSky.sln --nologo -v minimal
 
-      # Boots the real main scene against the real dataset: catches broken
-      # scenes, missing data and C# load failures that compilation alone misses.
-      - name: Headless smoke run
-        run: |
-          set -euo pipefail
-          output=$($GODOT_BIN --headless --path . --quit-after 60 2>&1)
-          echo "$output"
-          echo "$output" | grep -q '^\[flight\]' \
-            || { echo "::error::flight scene did not report startup state"; exit 1; }
-
-      # Plays a bounty end to end -- accept, fly, fight, report. This is the only
-      # check that exercises libs/ and src/game/ together, and it is where the
-      # defect class that unit tests cannot see has actually been caught before.
-      - name: Mission and combat smoke run
-        run: |
-          set -euo pipefail
-          output=$($GODOT_BIN --headless --path . --quit-after 20000 -- --mission-smoke 2>&1)
-          echo "$output"
-          echo "$output" | grep -q '^\[smoke\] PASS' \
-            || { echo "::error::mission smoke did not reach its objective"; exit 1; }
+      # Requires explicit completion, no engine errors and a successful exit.
+      # Save smoke uses a temporary slot. Tutorial proves delivery and payment;
+      # mission currently proves combat resolution, including possible player loss.
+      - name: Runtime smoke scenarios
+        run: pwsh tools/smoke.ps1 -NoBuild
 
       # The presentation suites need a real engine, so they cannot run in the sim
       # job. This was non-gating on its first run and it earned that caution: it

@@ -40,6 +40,15 @@ namespace EndlessSky.Game
         private CameraRig _camera = null!;    // set with _ship; guarded by _ship != null
         private readonly List<StellarObjectView> _stellarViews = new();
         private Label? _statusLabel;
+
+        /// <summary>The system dial: where everything in this system is, and what is landable.</summary>
+        private SystemRadar? _radar;
+
+        /// <summary>
+        /// The current system's objects, cached for the radar so the HUD does not
+        /// rebuild the list on every physics frame.
+        /// </summary>
+        private readonly List<StellarObject> _radarObjects = new();
         private string? _capturePath;
         private int _captureFrames = 90;
         private int _renderedFrames;
@@ -54,6 +63,12 @@ namespace EndlessSky.Game
         private Label? _titleLabel;
         private double _currentDay;
         private bool _jumpAutopilot;
+
+        /// <summary>Flying to <c>_ship.TargetStellar</c> to land, upstream's autoPilot LAND.</summary>
+        private bool _landAutopilot;
+
+        /// <summary>What the last landing key press had to say, shown in the HUD.</summary>
+        private string _landMessage = string.Empty;
         private bool _jumpKeyWasDown;
         private bool _landKeyWasDown;
         private bool _landAtStart;
@@ -85,6 +100,29 @@ namespace EndlessSky.Game
         private readonly Random _spawnRandom = new Random(SpawnSeed);
         private bool _missionSmoke;
         private bool _saveSmoke;
+
+        /// <summary>Headless "press land and get to the ground" run; see StepLandSmoke.</summary>
+        private bool _landSmoke;
+
+        /// <summary>Headless run through the whole opening tutorial; see StepTutorialSmoke.</summary>
+        private bool _tutorialSmoke;
+
+        /// <summary>The opening tutorial, and the one panel that shows it.</summary>
+        private readonly Tutorial _tutorial = new();
+
+        private TutorialPanel? _tutorialPanel;
+
+        private bool _dismissKeyWasDown;
+
+        /// <summary>Job-board count, taken once per landing rather than once per frame.</summary>
+        private bool _jobBoardCounted;
+
+        private int _jobsOnOffer;
+
+        /// <summary>Destination world → its system, remembered across frames.</summary>
+        private string? _cachedDestinationPlanet;
+
+        private string? _cachedDestinationSystem;
         private bool _smokeFire;
         private ActiveMission? _smokeJob;
         private Ship? _smokeTarget;
@@ -141,6 +179,7 @@ namespace EndlessSky.Game
                     : $"System \"{_startSystem}\" missing from dataset at {EsData.DataPath}.";
                 GD.Print($"[flight] data=missing — {message.Replace('\n', ' ')}");
                 BuildHud(message);
+                if (DisplayServer.GetName() == "headless") GetTree().Quit(1);
                 return;
             }
 
@@ -157,6 +196,8 @@ namespace EndlessSky.Game
                 AddChild(view);
                 _stellarViews.Add(view);
             }
+
+            RefreshRadarObjects();
 
             // The system's own asteroid belts, which the data has always carried.
             _asteroidField = AsteroidFieldView.Create(system);
@@ -268,6 +309,21 @@ namespace EndlessSky.Game
                 _ui.Suspended = _isLanded;
             }
 
+            // Before the landed early-out, because half the tutorial happens at a port:
+            // "take a job" is a step the player can only complete while the simulation
+            // is stopped, so a tutorial that only ticked in flight would sit on step two
+            // watching them do it and never notice.
+            StepTutorial();
+
+            // Before the landed early-out for the same reason StepTutorial is: taking a
+            // job and leaving the ground both happen while the simulation is stopped,
+            // and a driver that only ran in flight would land on step one and never act
+            // again.
+            if (_tutorialSmoke && StepTutorialSmoke())
+            {
+                return;
+            }
+
             if (_isLanded)
             {
                 return;
@@ -300,6 +356,11 @@ namespace EndlessSky.Game
                 return;
             }
 
+            if (_landSmoke && StepLandSmoke())
+            {
+                return;
+            }
+
             // The game opens on its menu. Captures, the landed-at-start path and the
             // smoke runs skip it: a screenshot of the menu is not a screenshot of the
             // game, and a headless run that sits on the menu steps the simulation
@@ -323,6 +384,10 @@ namespace EndlessSky.Game
                 }
             }
 
+            // L picks somewhere to land and flies there. Pressing it again with a
+            // target already chosen steps to the next world (upstream cycles on a rapid
+            // re-press; the key-repeat cooldown that distinguishes the two is an input
+            // concern, so the rule takes it as a parameter).
             bool landKeyDown = Input.IsPhysicalKeyPressed(Key.L);
             if (landKeyDown && !_landKeyWasDown)
             {
@@ -332,6 +397,19 @@ namespace EndlessSky.Game
                     _landKeyWasDown = landKeyDown;
                     return;
                 }
+
+                LandingChoice choice = ShipAi.SelectLandingTarget(_ship, cycle: _landAutopilot);
+                _landMessage = choice.Message;
+                _landAutopilot = choice.Succeeded;
+                if (_landAutopilot)
+                {
+                    // One autopilot at a time: a ship cannot both line up for a jump
+                    // and fly an approach.
+                    _jumpAutopilot = false;
+                }
+
+                SyncLandingTargetRings();
+                GD.Print($"[flight] {choice.Message}");
             }
 
             _landKeyWasDown = landKeyDown;
@@ -383,17 +461,43 @@ namespace EndlessSky.Game
                     _jumpAutopilot = false;
                     command = Command.None;
                 }
-                else if (_ship.Velocity.Length > _ship.JumpSpeedLimit)
+                else
                 {
-                    // Brake first: the reverse-key translation flips the ship
-                    // retrograde; thrust once roughly aligned.
-                    bool retroAligned =
-                        _ship.Facing.Unit().Dot((-_ship.Velocity).Unit()) > 0.96;
-                    command = FlightControls.BuildPlayerCommand(_ship, retroAligned, back: true, turnInput: 0.0);
+                    // Braking and lining up are one rule, and it is upstream's
+                    // (AI::PrepareForHyperspace), so it lives in the sim where the
+                    // suite can see it. What stood here was an invention: a brake with
+                    // no terminal condition that spun the ship in circles forever
+                    // rather than ever committing the jump.
+                    command = ShipAi.PrepareForHyperspace(_ship);
+                }
+            }
+            else if (_landAutopilot)
+            {
+                bool manual = !_autopilot &&
+                              (Input.IsPhysicalKeyPressed(Key.W) || Input.IsPhysicalKeyPressed(Key.Up) ||
+                               Input.IsPhysicalKeyPressed(Key.S) || Input.IsPhysicalKeyPressed(Key.Down) ||
+                               Input.IsPhysicalKeyPressed(Key.A) || Input.IsPhysicalKeyPressed(Key.Left) ||
+                               Input.IsPhysicalKeyPressed(Key.D) || Input.IsPhysicalKeyPressed(Key.Right));
+                if (manual || _ship.TargetStellar == null)
+                {
+                    // Any manual input cancels the autopilot, as upstream. The TARGET
+                    // survives it: the pilot who nudges the stick has not changed their
+                    // mind about where they are going, and clearing it would make the
+                    // ring vanish and the next press start over.
+                    _landAutopilot = false;
+                    command = Command.None;
                 }
                 else
                 {
-                    command = new Command { Turn = FlightControls.TurnToward(_ship, _ship.JumpDirection) };
+                    command = ShipAi.MoveToPlanet(_ship, out bool arrived);
+                    if (arrived)
+                    {
+                        TryLand();
+                        if (_isLanded)
+                        {
+                            return;
+                        }
+                    }
                 }
             }
             else if (_missionSmoke && _smokeTarget != null && !_smokeTarget.IsDestroyed)
@@ -676,6 +780,473 @@ namespace EndlessSky.Game
             GD.Print($"[flight] course set for {system.Name}");
         }
 
+        /// <summary>
+        /// Headless proof that a player can press land and get to the ground: select a
+        /// world, let the autopilot fly the approach, and report what happened.
+        /// </summary>
+        /// <remarks>
+        /// The sim suite already pins the selection rule and the approach, but neither
+        /// can see the wiring — which key runs them, whether the ring and the HUD track
+        /// the target, whether arrival actually hands off to <see cref="TryLand"/>.
+        /// That wiring is exactly where the equivalent jump defect lived, so it gets a
+        /// smoke run of its own.
+        /// </remarks>
+        private bool StepLandSmoke()
+        {
+            if (_ship == null || _isLanded)
+            {
+                return false;
+            }
+
+            if (!_landAutopilot && _ship.TargetStellar == null)
+            {
+                // The player spawns sitting on their starting world, where "fly me
+                // there" is answered before it is asked. Push the ship out past the
+                // outermost body first, so the run exercises an actual approach.
+                double outermost = _ship.CurrentSystem?.AllObjects()
+                    .Select(o => o.Position.Length)
+                    .DefaultIfEmpty(0.0)
+                    .Max() ?? 0.0;
+                _ship.Position = new Point(0.0, -(outermost + 4000.0));
+                _ship.Velocity = Point.Zero;
+
+                LandingChoice choice = ShipAi.SelectLandingTarget(_ship);
+                _landMessage = choice.Message;
+                _landAutopilot = choice.Succeeded;
+                SyncLandingTargetRings();
+
+                int labelled = _stellarViews.Count(v => v.Object.Planet != null);
+                GD.Print($"[smoke] {_ship.CurrentSystem?.Name}: {_stellarViews.Count} objects, " +
+                         $"{labelled} labelled as landable; {choice.Message}");
+
+                if (!choice.Succeeded)
+                {
+                    GD.Print("[smoke] FAIL: nothing to land on in the starting system");
+                    GetTree().Quit(1);
+                    return true;
+                }
+            }
+
+            if (_landAutopilot && _ship.TargetStellar is { } target)
+            {
+                if (_simFrames % 120 == 0)
+                {
+                    GD.Print($"[smoke] frame {_simFrames}: {(target.Position - _ship.Position).Length:n0} " +
+                             $"from {target.PlanetName}, |v| {_ship.Velocity.Length:0.##}");
+                }
+
+                Command command = ShipAi.MoveToPlanet(_ship, out bool arrived);
+                _ship.Step(command);
+                _shipView?.SyncWith(_ship);
+                UpdateHud();
+
+                if (arrived)
+                {
+                    TryLand();
+                    GD.Print(_isLanded
+                        ? $"[smoke] PASS: flew to {target.PlanetName} and landed after {_simFrames} frames " +
+                          $"({_simFrames / Ship.FramesPerSecond:0.#}s)"
+                        : "[smoke] FAIL: the approach arrived but the ship could not put down");
+                    GetTree().Quit(_isLanded ? 0 : 1);
+                }
+
+                return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// The landing half of the status line: which world is selected and how far off
+        /// it is, so "where can I land" has an answer without opening a map.
+        /// </summary>
+        private string LandingStatus()
+        {
+            if (_ship?.TargetStellar is not { } target)
+            {
+                // No target: whatever the last press had to say (usually why there was
+                // nothing to pick) is more useful than a blank.
+                return string.IsNullOrEmpty(_landMessage) ? string.Empty : "   " + _landMessage;
+            }
+
+            double distance = (target.Position - _ship.Position).Length;
+            string verb = _landAutopilot ? "LAND →" : "TARGET";
+            return $"   {verb} {target.PlanetName} · {distance:n0}";
+        }
+
+        /// <summary>
+        /// Headless proof that the tutorial's four steps can all actually be performed,
+        /// in order, in the shipped galaxy: land, take a job, jump to where it is going,
+        /// land again and hand it in.
+        /// </summary>
+        /// <remarks>
+        /// The simulation suite proves the state machine advances correctly and that
+        /// the starting world can supply every step. What it cannot see is whether the
+        /// GAME can: whether landing reaches the job board, whether the board's
+        /// destination is somewhere the jump autopilot will actually go, whether
+        /// arriving there finds the world the job named. A tutorial is a promise about
+        /// the real thing, so it gets checked against the real thing.
+        ///
+        /// Returns true while it owns the frame.
+        /// </remarks>
+        private bool StepTutorialSmoke()
+        {
+            if (_ship == null || _missions == null || _universe == null)
+            {
+                return false;
+            }
+
+            if (_tutorial.IsComplete)
+            {
+                bool delivered = _missions.Finished.Any(m => m.Outcome == MissionOutcome.Completed);
+                GD.Print($"[smoke] {(delivered ? "PASS" : "FAIL")}: tutorial finished at step {_tutorial.Step} " +
+                         $"after {_simFrames} frames ({_simFrames / Ship.FramesPerSecond:0.#}s)");
+                GetTree().Quit(delivered ? 0 : 1);
+                return true;
+            }
+
+            if (_simFrames > 60_000)
+            {
+                GD.Print($"[smoke] FAIL: stuck on {_tutorial.Step} — {_tutorial.Prompt}");
+                GetTree().Quit(1);
+                return true;
+            }
+
+            // Hyperspace owns the frame wherever the sequence has got to — including
+            // the INBOUND deceleration, which runs on after CurrentSystem has already
+            // changed. The tutorial advances to "deliver" the instant the system
+            // changes, which is the START of that run, so a driver that switched away
+            // from the jump there left HyperspaceCount frozen at a non-zero value and
+            // the ship permanently unable to land: CanLandOn refuses while
+            // IsHyperspacing, and nothing was left to finish the count.
+            if (_ship.StepHyperspace())
+            {
+                if (!ReferenceEquals(_ship.CurrentSystem, _lastSystem))
+                {
+                    HandleArrival();
+                    _ship.TargetSystem = null;
+                }
+
+                _shipView?.SyncWith(_ship);
+                return true;
+            }
+
+            switch (_tutorial.Step)
+            {
+                case TutorialStep.Land:
+                    return FlyToAWorldAndLand();
+
+                case TutorialStep.Deliver:
+                    return _isLanded ? HandTheJobIn() : FlyToAWorldAndLand();
+
+                case TutorialStep.TakeJob:
+                    return TakeAJobAndLeave();
+
+                case TutorialStep.Jump:
+                    return JumpTowardTheJob();
+            }
+
+            return false;
+        }
+
+        /// <summary>Pick somewhere (or the job's destination) and put the ship on it.</summary>
+        private bool FlyToAWorldAndLand()
+        {
+            if (_isLanded)
+            {
+                return false;
+            }
+
+            if (_ship!.TargetStellar == null)
+            {
+                // On the delivery leg, aim at the world the job actually named rather
+                // than at whatever is nearest — landing on the wrong world in the right
+                // system is the classic way to "arrive" and still not be able to hand in.
+                string? wanted = _missions!.Active.FirstOrDefault()?.Destination;
+                StellarObject? named = wanted == null
+                    ? null
+                    : _ship.CurrentSystem?.AllObjects().FirstOrDefault(o => o.PlanetName == wanted);
+
+                if (named != null)
+                {
+                    _ship.TargetStellar = named;
+                    GD.Print($"[smoke] delivering to {wanted}");
+                }
+                else if (!ShipAi.SelectLandingTarget(_ship).Succeeded)
+                {
+                    GD.Print($"[smoke] FAIL: nowhere to land in {_ship.CurrentSystem?.Name}");
+                    GetTree().Quit(1);
+                    return true;
+                }
+
+                SyncLandingTargetRings();
+            }
+
+            _ship.Step(ShipAi.MoveToPlanet(_ship, out bool arrived));
+            _shipView?.SyncWith(_ship);
+
+            if (_simFrames % 600 == 0 && _ship.TargetStellar != null)
+            {
+                GD.Print($"[smoke] frame {_simFrames}: " +
+                         $"{(_ship.TargetStellar.Position - _ship.Position).Length:n0} from " +
+                         $"{_ship.TargetStellar.PlanetName}, |v| {_ship.Velocity.Length:0.##}, " +
+                         $"energy {_ship.Energy:0}");
+            }
+
+            if (arrived)
+            {
+                TryLand();
+                if (!_isLanded)
+                {
+                    StellarObject? where = _ship.TargetStellar;
+                    bool known = where?.PlanetName != null &&
+                                 _universe!.Planets.ContainsKey(where.PlanetName);
+                    GD.Print($"[smoke] FAIL: arrived at {where?.PlanetName} but TryLand refused — " +
+                             $"|v| {_ship.Velocity.Length:0.###} (limit {Ship.LandingSpeed}), " +
+                             $"range {(where!.Position - _ship.Position).Length:0.#} " +
+                             $"(radius {where.LandingRadius}), " +
+                             $"planet known: {known}, hyperspacing: {_ship.IsHyperspacing}, " +
+                             $"entering: {_ship.IsEnteringHyperspace}, disabled: {_ship.IsDisabled}");
+                    GetTree().Quit(1);
+                }
+            }
+
+            return true;
+        }
+
+        /// <summary>Hand the carried job in, which is what the JOBS counter's B key does.</summary>
+        private bool HandTheJobIn()
+        {
+            ActiveMission? carrying = _missions!.Active.FirstOrDefault();
+            if (carrying == null)
+            {
+                return false;
+            }
+
+            long before = _player.Credits;
+            if (_missions.Complete(carrying))
+            {
+                GD.Print($"[smoke] handed in \"{carrying.Mission.DisplayName}\" " +
+                         $"at {_player.CurrentPlanet?.Name} for {_player.Credits - before:n0} credits");
+                return false;
+            }
+
+            GD.Print($"[smoke] FAIL: standing on {_player.CurrentPlanet?.Name} but cannot hand in " +
+                     $"\"{carrying.Mission.DisplayName}\" (wants {carrying.Destination ?? "nowhere"})");
+            GetTree().Quit(1);
+            return true;
+        }
+
+        /// <summary>Take the first job the counter offers, then leave the ground.</summary>
+        private bool TakeAJobAndLeave()
+        {
+            if (!_isLanded)
+            {
+                // Landed, took the job, and already back in space: nothing to do here.
+                return false;
+            }
+
+            if (_missions!.Active.Count == 0)
+            {
+                Mission? job = _missions.Available(_universe!, MissionLocation.Job).FirstOrDefault();
+                if (job == null)
+                {
+                    GD.Print("[smoke] no work on this board; the tutorial should stand down");
+                    return false;
+                }
+
+                ActiveMission? taken = _missions.Accept(job);
+                GD.Print($"[smoke] accepted \"{taken?.Mission.DisplayName}\" → " +
+                         $"{taken?.Destination ?? "(nowhere)"} in " +
+                         $"{_universe!.SystemOf(taken?.Destination)?.Name ?? "(no system)"}");
+            }
+
+            return false;
+        }
+
+        /// <summary>Set course for the job's system and fly the jump.</summary>
+        private bool JumpTowardTheJob()
+        {
+            if (_isLanded)
+            {
+                // Leave the ground first. The tutorial advances to "jump" the moment
+                // the job is accepted, which is one frame before the driver would have
+                // got round to taking off — and a ship that jumps while still landed
+                // arrives in the next system with the player standing on a world in the
+                // previous one, holding a job it can never hand in.
+                OnDepart();
+                return true;
+            }
+
+            StarSystem? going = _universe!.SystemOf(_missions!.Active.FirstOrDefault()?.Destination);
+            if (going == null)
+            {
+                return false;
+            }
+
+            if (_ship!.CurrentSystem != null && !_ship.CanReach(going))
+            {
+                // The destination is more than one jump out, which is ordinary: step
+                // toward it through whichever neighbour is closest to it on the map.
+                StarSystem? hop = _ship.CurrentSystem.Links
+                    .Select(name => _universe.Systems.TryGetValue(name, out StarSystem? s) ? s : null)
+                    .Where(s => s != null)
+                    .OrderBy(s => (s!.MapPosition - going.MapPosition).Length)
+                    .FirstOrDefault();
+
+                if (hop == null)
+                {
+                    GD.Print($"[smoke] FAIL: {_ship.CurrentSystem.Name} leads nowhere useful");
+                    GetTree().Quit(1);
+                    return true;
+                }
+
+                going = hop;
+            }
+
+            if (!ReferenceEquals(_ship.TargetSystem, going))
+            {
+                _ship.TargetSystem = going;
+                GD.Print($"[smoke] course set for {going.Name}");
+            }
+
+            _ship.Step(ShipAi.PrepareForHyperspace(_ship));
+            _shipView?.SyncWith(_ship);
+            _ship.TryCommitJump();
+            return true;
+        }
+
+        /// <summary>
+        /// Show the tutorial where the player has got to, and let them wave it away.
+        /// </summary>
+        /// <remarks>
+        /// Everything the tutorial needs is READ from state here rather than pushed to
+        /// it from the places where each thing happens. That is the whole point of the
+        /// design: there is no "tell the tutorial the player landed" call to forget at
+        /// one of the several sites that can land a ship, and no ordering to get wrong.
+        /// </remarks>
+        private void StepTutorial()
+        {
+            if (_tutorialPanel == null || _ship == null)
+            {
+                return;
+            }
+
+            bool dismissDown = Input.IsPhysicalKeyPressed(Key.F3);
+            if (dismissDown && !_dismissKeyWasDown)
+            {
+                _tutorial.Dismiss();
+            }
+
+            _dismissKeyWasDown = dismissDown;
+
+            if (_tutorial.IsComplete)
+            {
+                // Nothing left to say, and nothing left to compute. Both lookups below
+                // are galaxy-wide scans; leaving them running for the rest of the
+                // session to produce a prompt nobody will see is pure waste.
+                _tutorialPanel.Show(_tutorial, null);
+                return;
+            }
+
+            ActiveMission? job = _missions?.Active.FirstOrDefault();
+            string? destinationPlanet = job?.Destination;
+
+            var state = new TutorialState
+            {
+                IsLanded = _isLanded,
+                HasJob = job != null,
+                DeliveredAJob = _missions?.Finished
+                    .Any(f => f.Outcome == MissionOutcome.Completed) ?? false,
+                JobsOnOffer = JobsOnOfferHere(),
+                CurrentSystem = _ship.CurrentSystem?.Name,
+                DestinationPlanet = destinationPlanet,
+                DestinationSystem = SystemHolding(destinationPlanet),
+            };
+
+            string? finished = _tutorial.Observe(state);
+            if (finished != null)
+            {
+                GD.Print($"[tutorial] {_tutorial.Step}: {finished}");
+            }
+
+            _tutorialPanel.Show(_tutorial, finished);
+        }
+
+        /// <summary>
+        /// How much work the counter the player is standing at is offering. Zero when
+        /// they are not standing at one, which is not the same as "this world has no
+        /// work" — the tutorial only reads it while landed.
+        /// </summary>
+        /// <remarks>
+        /// Counted ONCE per landing. `Available` evaluates every mission in the dataset
+        /// against its offer conditions — a thousand of them in the generated galaxy —
+        /// and the first version of this called it from the per-frame tutorial tick.
+        /// The board cannot change while the player stands at it, so sixty scans a
+        /// second bought exactly nothing and made a headless run take minutes.
+        /// </remarks>
+        private int JobsOnOfferHere()
+        {
+            if (!_isLanded || _missions == null || _universe == null)
+            {
+                _jobBoardCounted = false;
+                return 0;
+            }
+
+            if (!_jobBoardCounted)
+            {
+                _jobsOnOffer = _missions.Available(_universe, MissionLocation.Job).Count();
+                _jobBoardCounted = true;
+            }
+
+            return _jobsOnOffer;
+        }
+
+        /// <summary>
+        /// The system a destination world sits in, remembered so the galaxy is walked
+        /// once per destination rather than once per frame.
+        /// </summary>
+        /// <remarks>
+        /// Worlds are named globally and live inside a system's object tree, so this is
+        /// a search over every system in the galaxy. The destination changes when the
+        /// player accepts a different job — a few times an hour — and caching on the
+        /// name is enough to make the difference between a lookup and a scan.
+        /// </remarks>
+        private string? SystemHolding(string? planetName)
+        {
+            if (planetName == null)
+            {
+                return null;
+            }
+
+            if (!string.Equals(planetName, _cachedDestinationPlanet, StringComparison.Ordinal))
+            {
+                _cachedDestinationPlanet = planetName;
+                _cachedDestinationSystem = _universe?.SystemOf(planetName)?.Name;
+            }
+
+            return _cachedDestinationSystem;
+        }
+
+        /// <summary>Re-cache the radar's object list after the system's views change.</summary>
+        private void RefreshRadarObjects()
+        {
+            _radarObjects.Clear();
+            foreach (StellarObjectView view in _stellarViews)
+            {
+                _radarObjects.Add(view.Object);
+            }
+        }
+
+        /// <summary>Point the selection ring at whatever the ship is currently targeting.</summary>
+        private void SyncLandingTargetRings()
+        {
+            foreach (StellarObjectView view in _stellarViews)
+            {
+                view.SetSelected(_ship != null && ReferenceEquals(view.Object, _ship.TargetStellar));
+            }
+        }
+
         private void TryLand()
         {
             if (_ship == null || _ship.CurrentSystem == null)
@@ -683,7 +1254,14 @@ namespace EndlessSky.Game
                 return;
             }
 
-            foreach (StellarObject obj in _ship.CurrentSystem.AllObjects())
+            // The selected world gets first refusal. Landing on whichever body happens
+            // to pass the test is how a player who asked for the port ends up on the
+            // moon beside it, because both were in reach when the key came up.
+            IEnumerable<StellarObject> candidates = _ship.TargetStellar != null
+                ? new[] { _ship.TargetStellar }.Concat(_ship.CurrentSystem.AllObjects())
+                : _ship.CurrentSystem.AllObjects();
+
+            foreach (StellarObject obj in candidates)
             {
                 if (obj.PlanetName == null ||
                     !_universe.Planets.TryGetValue(obj.PlanetName, out Planet? planet))
@@ -703,6 +1281,8 @@ namespace EndlessSky.Game
 
                 _isLanded = true;
                 _jumpAutopilot = false;
+                _landAutopilot = false;
+                _landMessage = string.Empty;
                 _player.Land(planet);
                 _landedOverlay = LandedOverlay.Open(this, _player, _missions, planet,
                     _ship.CurrentSystem.Name, _universe);
@@ -824,6 +1404,13 @@ namespace EndlessSky.Game
 
             _lastSystem = system;
 
+            // A landing target belongs to the system it was chosen in. Carried across a
+            // jump it names a body that is not here, at coordinates that mean something
+            // else, and the HUD would go on reporting a distance to it.
+            _ship.TargetStellar = null;
+            _landAutopilot = false;
+            _landMessage = string.Empty;
+
             // A jump takes a day, and the day has to pass on the PLAYER'S calendar --
             // not just on the counter that positions the stellar objects. Advancing
             // only the render-side counter meant no day ever passed in game: no
@@ -861,6 +1448,8 @@ namespace EndlessSky.Game
                 AddChild(view);
                 _stellarViews.Add(view);
             }
+
+            RefreshRadarObjects();
 
             _asteroidField?.QueueFree();
             _asteroidField = AsteroidFieldView.Create(system);
@@ -933,8 +1522,7 @@ namespace EndlessSky.Game
                 _ship.InstallWeapon(outfit);
             }
 
-            _ship.SetLevels(energy: _ship.MaxEnergy);
-
+            _effects?.QueueFree();
             _effects = new CombatEffects { Name = "CombatEffects" };
             AddChild(_effects);
         }
@@ -1398,9 +1986,29 @@ namespace EndlessSky.Game
                 _statusLabel.Text = " ";
             }
 
+            // Top-right: the system dial. It goes opposite the telemetry because it is
+            // the other thing a pilot looks at constantly, and stacking the two would
+            // put one of them under the other.
+            var radarPanel = new PanelContainer();
+            radarPanel.SetAnchorsPreset(Control.LayoutPreset.TopRight);
+            radarPanel.GrowHorizontal = Control.GrowDirection.Begin;
+            radarPanel.Position = new Vector2(-14, 14);
+            radarPanel.AddThemeStyleboxOverride("panel", HudPanelStyle());
+            hud.AddChild(radarPanel);
+
+            _radar = new SystemRadar { Name = "Radar" };
+            radarPanel.AddChild(_radar);
+
+            // Its own layer, above the landed overlay: two of the tutorial's four steps
+            // happen at a port and two happen in flight, and one panel spanning both is
+            // the only version that cannot contradict itself across a takeoff.
+            _tutorialPanel = new TutorialPanel { Name = "Tutorial" };
+            AddChild(_tutorialPanel);
+
             // Bottom-left, out of the hero corner: the keybinds.
             var keysPanel = new PanelContainer();
             keysPanel.SetAnchorsPreset(Control.LayoutPreset.BottomLeft);
+            keysPanel.Position = new Vector2(14, -14 - 34);
             keysPanel.AddThemeStyleboxOverride("panel", HudPanelStyle());
             hud.AddChild(keysPanel);
             // The discoverability line. A player who never opens a menu still has to
@@ -1408,13 +2016,15 @@ namespace EndlessSky.Game
             // are named here rather than only inside the screens they open.
             var keys = new Label
             {
-                Text = "↑ thrust · ←/→ turn · ↓ brake · L land · J jump · " +
+                // "L land" undersold the key badly: it read as "land where you are",
+                // which was all it used to do, so a player with no world under them
+                // pressed it, saw nothing happen, and concluded landing was broken.
+                Text = "↑ thrust · ←/→ turn · ↓ brake · L land (again: next world) · J jump · " +
                        "M map · I status · F1 controls · ESC menu",
             };
             keys.AddThemeFontSizeOverride("font_size", 12);
             keys.AddThemeColorOverride("font_color", new Color(0.40f, 0.48f, 0.56f));
             keysPanel.AddChild(keys);
-            keysPanel.Position = new Vector2(14, -14 - 34);
         }
 
         private void UpdateHud()
@@ -1430,9 +2040,11 @@ namespace EndlessSky.Game
                 ? $"   HYPERSPACE {(_ship.IsEnteringHyperspace ? "→ " + _ship.HyperspaceSystem!.Name : "· arriving")}"
                 : _jumpAutopilot && _ship.TargetSystem != null
                     ? $"   JUMP → {_ship.TargetSystem.Name}"
-                    : string.Empty;
+                    : LandingStatus();
             _statusLabel.Text =
                 $"{speed:0} KM/S · {pct:0}%   HDG {_ship.Facing.AbsDegrees:000}°   FUEL {_ship.Fuel:0}{status}";
+
+            _radar?.Track(_ship, _radarObjects);
         }
 
         public override void _ExitTree()
@@ -1478,6 +2090,14 @@ namespace EndlessSky.Game
                 else if (arg == "--save-smoke")
                 {
                     _saveSmoke = true;
+                }
+                else if (arg == "--land-smoke")
+                {
+                    _landSmoke = true;
+                }
+                else if (arg == "--tutorial-smoke")
+                {
+                    _tutorialSmoke = true;
                 }
                 else if (arg == "--land-at-start")
                 {
@@ -1564,37 +2184,54 @@ namespace EndlessSky.Game
                 return;
             }
 
-            long creditsBefore = _player.Credits;
-            DateTime dateBefore = _player.Date;
-
-            if (!SaveNow())
+            // Exercise the real file path without replacing the pilot's only save.
+            string path = $"user://smoke-save-{Guid.NewGuid():N}.txt";
+            try
             {
-                GD.Print("[smoke] FAIL: could not write a save");
-                GetTree().Quit();
-                return;
+                _ship!.SetLevels(shields: Math.Min(10, _ship.MaxShields),
+                    hull: Math.Max(_ship.MinimumHull + 1, _ship.MaxHull * 0.75),
+                    energy: Math.Min(5, _ship.MaxEnergy), fuel: Math.Min(17, _ship.MaxFuel), heat: 100);
+                string before = SaveGame.Write(_player, _missions);
+                if (!SaveTo(path))
+                {
+                    GD.Print("[smoke] FAIL: could not write a save");
+                    GetTree().Quit(1);
+                    return;
+                }
+
+                // Change the world so a load that does nothing cannot pass.
+                _player.AddCredits(-123_456);
+                _player.AdvanceDays(9);
+                _ship.Recharge(RechargeType.All);
+
+                if (!LoadFrom(path))
+                {
+                    GD.Print("[smoke] FAIL: could not load the save back");
+                    GetTree().Quit(1);
+                    return;
+                }
+                string after = SaveGame.Write(_player, _missions);
+                bool restored = before == after;
+                if (!restored)
+                {
+                    string[] savedLines = before.Split('\n'), loadedLines = after.Split('\n');
+                    for (int i = 0; i < Math.Max(savedLines.Length, loadedLines.Length); i++)
+                    {
+                        string savedLine = i < savedLines.Length ? savedLines[i] : "(missing)";
+                        string loadedLine = i < loadedLines.Length ? loadedLines[i] : "(missing)";
+                        if (savedLine != loadedLine)
+                        {
+                            GD.Print($"[smoke] save difference at line {i + 1}: {savedLine} -> {loadedLine}");
+                            break;
+                        }
+                    }
+                }
+                GD.Print(restored
+                    ? "[smoke] PASS: save round-tripped, including ship condition and cargo"
+                    : "[smoke] FAIL: restored state differs from the saved game");
+                GetTree().Quit(restored ? 0 : 1);
             }
-
-            // Change the world, so a load that does nothing cannot look like success.
-            _player.AddCredits(-123_456);
-            _player.AdvanceDays(9);
-
-            if (!LoadNow())
-            {
-                GD.Print("[smoke] FAIL: could not load the save back");
-                GetTree().Quit();
-                return;
-            }
-
-            bool creditsBack = _player.Credits == creditsBefore;
-            bool dateBack = _player.Date == dateBefore;
-            bool flagshipBack = _player.Fleet.Flagship != null;
-
-            GD.Print(creditsBack && dateBack && flagshipBack
-                ? $"[smoke] PASS: save round-tripped — {_player.Credits:n0} credits, " +
-                  $"{_player.Date:d MMM yyyy}, flagship {_player.Fleet.Flagship!.Definition.DisplayName}"
-                : $"[smoke] FAIL: credits {creditsBack}, date {dateBack}, flagship {flagshipBack}");
-
-            GetTree().Quit();
+            finally { DirAccess.RemoveAbsolute(ProjectSettings.GlobalizePath(path)); }
         }
 
         /// <summary>
@@ -1608,16 +2245,18 @@ namespace EndlessSky.Game
         /// expresses itself over days — deadlines, salaries, depreciation, reputation —
         /// unobservable, because the player's history was discarded at quit.
         /// </remarks>
-        private bool SaveNow()
+        private bool SaveNow() => SaveTo(SaveSlot.DefaultPath);
+
+        private bool SaveTo(string path)
         {
             if (_player is null)
             {
                 return false;
             }
 
-            bool written = SaveSlot.Save(SaveGame.Write(_player, _missions));
+            bool written = SaveSlot.Save(SaveGame.Write(_player, _missions), path);
             GD.Print(written
-                ? $"[save] wrote {SaveSlot.Where}"
+                ? $"[save] wrote {ProjectSettings.GlobalizePath(path)}"
                 : "[save] failed");
 
             return written;
@@ -1626,9 +2265,11 @@ namespace EndlessSky.Game
         /// <summary>
         /// Restores the saved game and rebuilds the world around it.
         /// </summary>
-        private bool LoadNow()
+        private bool LoadNow() => LoadFrom(SaveSlot.DefaultPath);
+
+        private bool LoadFrom(string path)
         {
-            string? text = SaveSlot.Load();
+            string? text = SaveSlot.Load(path);
             if (text is null || _universe is null)
             {
                 return false;
@@ -1673,7 +2314,7 @@ namespace EndlessSky.Game
             _landedOverlay?.QueueFree();
             _landedOverlay = null;
 
-            GD.Print($"[save] loaded {SaveSlot.Where}: {_ship.Definition.DisplayName} at " +
+            GD.Print($"[save] loaded {ProjectSettings.GlobalizePath(path)}: {_ship.Definition.DisplayName} at " +
                      $"{restored.CurrentSystem.Name}, {_player.Date:d MMM yyyy}, " +
                      $"{_player.Credits:n0} credits, {_missions.Active.Count} mission(s) in progress");
             return true;

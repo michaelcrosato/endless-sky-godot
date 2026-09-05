@@ -1,5 +1,10 @@
 # ENDLESS SKY 3D — MASTER DIRECTIVE
 
+Runtime clarification for this checkout: use Godot .NET wherever the shared
+directive below says Unity. The Unity implementation is a separate sibling
+repository. Gameplay parity, the layer boundaries and the gauntlet requirements
+apply unchanged to this Godot implementation.
+
 We are rebuilding Endless Sky using Unity.
 
 This is NOT a simplified Endless Sky-inspired game.

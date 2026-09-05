@@ -26,49 +26,10 @@ namespace EndlessSky.Tests
     [TestFixture]
     public class UniverseTests
     {
-        private static GameData? _universe;
-        private static string? _root;
+        /// <summary>Where the generated universe lives.</summary>
+        private static string Root => GeneratedUniverse.Root;
 
-        /// <summary>Where the generated universe lives, walking up from the test binary.</summary>
-        private static string Root
-        {
-            get
-            {
-                if (_root != null)
-                    return _root;
-
-                var directory = new DirectoryInfo(AppContext.BaseDirectory);
-                while (directory != null)
-                {
-                    string candidate = Path.Combine(directory.FullName, "universe");
-                    if (Directory.Exists(candidate) &&
-                        File.Exists(Path.Combine(candidate, "systems.txt")))
-                    {
-                        _root = candidate;
-                        return _root;
-                    }
-
-                    directory = directory.Parent;
-                }
-
-                Assert.Ignore("generated universe not found — run tools/worldgen/worldgen.py");
-                return "";
-            }
-        }
-
-        private static GameData Universe
-        {
-            get
-            {
-                if (_universe != null)
-                    return _universe;
-
-                var data = new GameData();
-                data.LoadDirectory(Root);
-                _universe = data;
-                return _universe;
-            }
-        }
+        private static GameData Universe => GeneratedUniverse.Instance;
 
         // --- It loads at all ------------------------------------------------------
 
@@ -324,6 +285,81 @@ namespace EndlessSky.Tests
             }
 
             Assert.IsEmpty(broken, "unflyable hulls: " + string.Join("; ", broken.Take(6)));
+        }
+
+        [Test]
+        public void ANewPilotDoesNotBeginUnderGunfire()
+        {
+            // Reported from play: "the first seconds of the game the player is being
+            // attacked for some reason." The reason was the start scenario itself. The
+            // generator picked the starting world on connectivity and services alone
+            // and never asked whether its owner would tolerate a stranger, so a new
+            // pilot was born on a zealot world at -50 standing, in a system whose
+            // patrols spawn hostile and open fire before the player has touched a key.
+            //
+            // Hostility toward the player is reputation (Government.IsEnemy's player
+            // branch: an enemy exactly while standing is negative), so this is decided
+            // entirely in the data and is checkable here.
+            StartScenario start = Universe.Starts.Values.First();
+            Assert.IsNotNull(start.SystemName, "the start must name a system");
+
+            StarSystem system = Universe.Systems[start.SystemName!];
+            var offenders = new List<string>();
+
+            if (Universe.Governments.TryGetValue(system.Government, out Government? owner) &&
+                owner.IsPlayerEnemy)
+            {
+                offenders.Add($"the system's own government {owner.Name} " +
+                              $"({owner.Reputation:0} standing)");
+            }
+
+            foreach (FleetSpawn spawn in system.Fleets)
+            {
+                if (!Universe.Fleets.TryGetValue(spawn.Name, out Fleet? fleet) ||
+                    fleet.Government is null)
+                {
+                    continue;
+                }
+
+                if (Universe.Governments.TryGetValue(fleet.Government, out Government? gov) &&
+                    gov.IsPlayerEnemy)
+                {
+                    offenders.Add($"{spawn.Name} flies for {gov.Name} " +
+                                  $"({gov.Reputation:0} standing)");
+                }
+            }
+
+            TestContext.WriteLine($"start: {start.PlanetName} in {system.Name} " +
+                                  $"under {system.Government}");
+            foreach (string offender in offenders)
+                TestContext.WriteLine("  hostile: " + offender);
+
+            Assert.IsEmpty(offenders,
+                "a new pilot must be able to read the controls before anyone shoots at them");
+        }
+
+        [Test]
+        public void EveryDriveStatesTheSpeedItWillJumpAt()
+        {
+            // "jump speed" is the speed at or below which Ship::IsReadyToJump lets a
+            // ship go. A drive that omits it reads as zero, and then nothing short of
+            // an exact standstill is ever legal -- which is not a slow jump, it is no
+            // jump at all. Upstream states .2 on the Hyperdrive and .3 on the Jump
+            // Drive (data/human/outfits.txt); this galaxy shipped with neither, and the
+            // player found it as a ship that turned in circles and never left.
+            var silent = new List<string>();
+
+            foreach (Outfit outfit in Universe.Outfits.Values)
+            {
+                bool isDrive = outfit.Attributes.Get("hyperdrive") > 0.0 || outfit.Attributes.Get("jump drive") > 0.0;
+                if (isDrive && outfit.Attributes.Get("jump speed") <= 0.0)
+                    silent.Add(outfit.Name);
+            }
+
+            TestContext.WriteLine($"{silent.Count} drives state no jump speed");
+            Assert.IsEmpty(silent,
+                "a drive with no stated jump speed can only jump from a dead stop: " +
+                string.Join("; ", silent.Take(6)));
         }
 
         [Test]

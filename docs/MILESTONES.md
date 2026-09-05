@@ -4,6 +4,11 @@ Ground truth for what is done, in flight, and untouched, against the master
 directive (`starthere.txt`). Per the directive's non-negotiable rule: nothing
 here is quietly dropped — incomplete systems stay listed as incomplete.
 
+The tables below record the August milestone review. See
+[the September repository audit](repository-audit.md) for the current fixes,
+validation results and remaining work; milestone labels are not proof that every
+player-facing path or saved state is complete.
+
 | Milestone | Status | Evidence |
 |---|---|---|
 | **M1 Flight** | **Done through gauntlet round 1** | Sim port verified exact by the gameplay critic (epoch math, quantized angles, coasting rule); visual critic's six corrections landed (key light, framing, bloom, silhouette, plume, HUD) plus the retrograde-brake input translation with hand-derived tests. Evidence: `reports/m1_flight_v3.png` — note that `reports/` is gitignored, so the gauntlet captures live only on the machine that took them and are not evidence anyone else can check. |

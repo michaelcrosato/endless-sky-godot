@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
-    <Nullable>disable</Nullable>
+    <Nullable>annotations</Nullable>
     <LangVersion>latest</LangVersion>
     <IsPackable>false</IsPackable>
     <!-- The sources under test live in libs/EndlessSky.{Data,Sim}, referenced

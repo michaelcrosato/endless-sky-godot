@@ -14,7 +14,7 @@ namespace EndlessSky.Sim
     /// and lead prediction when aiming. Personalities matter here: several of the
     /// behaviours below are upstream's DEFAULT and a personality flips them.
     /// </remarks>
-    public static class ShipAi
+    public static partial class ShipAi
     {
         /// <summary>
         /// How far a ship will look for a fight, in simulation units. Upstream scans a
@@ -413,6 +413,146 @@ namespace EndlessSky.Sim
             }
 
             return shots;
+        }
+
+        // --- Getting to a jump ----------------------------------------------------
+
+        /// <summary>
+        /// Speed upstream treats as a dead stop when no explicit limit applies
+        /// (<c>AI.cpp:415</c>, <c>VELOCITY_ZERO</c>).
+        /// </summary>
+        /// <remarks>
+        /// This constant is the difference between a stall and a spin. A drive that
+        /// states no "jump speed" gives <see cref="Ship.JumpSpeedLimit"/> of zero, and
+        /// braking toward an EXACT zero never terminates: thrust overshoots it and drag
+        /// only decays velocity asymptotically. Upstream never chases that number.
+        /// </remarks>
+        public const double VelocityZero = 0.001;
+
+        /// <summary>
+        /// Port of <c>AI::Stop</c> (<c>AI.cpp:2666</c>): brake to
+        /// <paramref name="maxSpeed"/>, optionally ending up facing
+        /// <paramref name="direction"/>. Returns true once the ship is slow enough,
+        /// leaving <paramref name="command"/> free for the caller to steer with.
+        /// </summary>
+        /// <remarks>
+        /// Two details here are load-bearing and were both missing from the hand-rolled
+        /// brake this replaces. The zero-speed request falls back to
+        /// <see cref="VelocityZero"/> rather than literal zero, and it raises
+        /// <see cref="Command.Stop"/> — upstream's "cheat to stop" — which is what lets
+        /// a ship actually reach a standstill instead of oscillating around one.
+        /// </remarks>
+        public static bool Stop(Ship? ship, ref Command command, double maxSpeed,
+                                Point direction = default)
+        {
+            if (ship is null)
+                return true;
+
+            Point velocity = ship.Velocity;
+            Angle angle = ship.Facing;
+            double speed = velocity.Length;
+
+            // Asked for a complete stop, the ship needs to be going much slower.
+            if (speed <= (maxSpeed != 0.0 ? maxSpeed : VelocityZero))
+                return true;
+
+            if (maxSpeed == 0.0)
+                command.Stop = true;
+
+            // Moving slowly enough that one frame of braking could finish the job, the
+            // ship has to be pointed accurately; the tolerance tightens from 0.8 as the
+            // stopping time falls.
+            double acceleration = ship.Acceleration;
+            double stopTime = acceleration > 0.0 ? speed / acceleration : double.PositiveInfinity;
+            double limit = 0.8 + 0.2 / (1.0 + stopTime * stopTime * stopTime * 0.001);
+
+            // With a reverse thruster, work out whether using it beats turning around.
+            if (ship.ReverseThrust != 0.0 && ship.TurnRate > 0.0)
+            {
+                double degreesToTurn = Degrees(-velocity.Unit().Dot(angle.Unit()));
+                double forwardTime = degreesToTurn / ship.TurnRate + stopTime;
+
+                double reverseAcceleration = ship.ReverseAcceleration;
+                double reverseTime = (180.0 - degreesToTurn) / ship.TurnRate +
+                                     (reverseAcceleration > 0.0
+                                         ? speed / reverseAcceleration
+                                         : double.PositiveInfinity);
+
+                if (direction.IsNonZero)
+                {
+                    // Ending up on a heading costs turning time from wherever braking
+                    // leaves the nose, and the two options leave it 180 degrees apart.
+                    forwardTime += Degrees(direction.Unit().Dot(-velocity.Unit())) / ship.TurnRate;
+                    reverseTime += Degrees(direction.Unit().Dot(angle.Unit())) / ship.TurnRate;
+                }
+
+                if (reverseTime < forwardTime)
+                {
+                    command.Turn = FlightControls.TurnToward(ship, velocity);
+                    if (velocity.Unit().Dot(angle.Unit()) > limit)
+                        command.Back = true;
+                    return false;
+                }
+            }
+
+            command.Turn = FlightControls.TurnBackward(ship);
+            if (velocity.Unit().Dot(angle.Unit()) < -limit)
+                command.Forward = true;
+
+            return false;
+        }
+
+        /// <summary>Angle in degrees for a clamped dot product, as upstream's acos calls.</summary>
+        private static double Degrees(double dot) =>
+            Math.Acos(Math.Clamp(dot, -1.0, 1.0)) * (180.0 / Math.PI);
+
+        /// <summary>
+        /// Port of <c>AI::PrepareForHyperspace</c> (<c>AI.cpp:2732</c>): one frame of
+        /// flying a ship into position for the jump its <see cref="Ship.TargetSystem"/>
+        /// names. The caller commits with <see cref="Ship.TryCommitJump"/>.
+        /// </summary>
+        /// <remarks>
+        /// A jump drive tears its hole where the ship is, so it only has to stop; a
+        /// hyperdrive has to stop AND end up lined up with the lane, which is why
+        /// upstream passes the departure direction into <see cref="Stop"/> and turns
+        /// onto it only once stopped.
+        ///
+        /// This is simulation, not presentation, and it used to live in the flight
+        /// scene as an invented brake with a 0.96 alignment constant found nowhere
+        /// upstream. That brake had no terminal condition on a ship whose drive stated
+        /// no "jump speed": it retro-thrust forever, and once velocity decayed far
+        /// enough that its unit vector read as zero, <c>TurnToward</c>'s documented
+        /// zero-vector case turned the ship at full rate, every frame, in one
+        /// direction. The reported symptom was a ship spinning in circles and never
+        /// jumping, and no test could see it, because the rule was written on the view
+        /// side of a boundary the architecture test only checks the direction of.
+        ///
+        /// INCOMPLETE, tracked rather than dropped: scram drives (their deviation
+        /// manoeuvre is upstream's third branch here) and system departure distances,
+        /// neither of which <see cref="Ship.IsReadyToJump"/> models either.
+        /// </remarks>
+        public static Command PrepareForHyperspace(Ship? ship)
+        {
+            var command = new Command();
+            if (ship is null || ship.TargetSystem is null || ship.CurrentSystem is null)
+                return command;
+
+            if (!ship.HasHyperdrive && !ship.HasJumpDrive)
+                return command;
+
+            Point direction = ship.JumpDirection;
+
+            if (ship.WouldUseJumpDrive)
+            {
+                // A jump drive just stops. There is no lane to line up with.
+                Stop(ship, ref command, ship.JumpSpeedLimit);
+            }
+            else if (Stop(ship, ref command, ship.JumpSpeedLimit, direction))
+            {
+                command.Turn = FlightControls.TurnToward(ship, direction);
+            }
+
+            return command;
         }
     }
 }
