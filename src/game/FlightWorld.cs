@@ -42,6 +42,7 @@ namespace EndlessSky.Game
         private Label? _statusLabel;
         private Label? _conditionLabel;
         private Label? _conditionWarning;
+        private Control? _flightKeys;
 
         /// <summary>The system dial: where everything in this system is, and what is landable.</summary>
         private SystemRadar? _radar;
@@ -74,6 +75,7 @@ namespace EndlessSky.Game
         private bool _jumpKeyWasDown;
         private bool _landKeyWasDown;
         private bool _landAtStart;
+        private UiScreen _landedStartScreen;
         private bool _isLanded;
         private long _credits = 480_000; // vanilla start: mortgaged to the hilt
 
@@ -161,6 +163,11 @@ namespace EndlessSky.Game
         public override void _Ready()
         {
             ParseUserArgs();
+            if (_landAtStart)
+            {
+                _landedStartScreen = GameUi.OpenAtStart;
+                GameUi.OpenAtStart = UiScreen.None;
+            }
 
             // Saved graphics preferences, before anything is drawn.
             GameSettings.Apply();
@@ -305,13 +312,6 @@ namespace EndlessSky.Game
             // the rate every upstream per-frame quantity assumes.
             _simFrames++;
 
-            // Landed: the sim is frozen and the overlay owns input, including the keys
-            // the shell would otherwise claim.
-            if (_ui != null)
-            {
-                _ui.Suspended = _isLanded;
-            }
-
             // Before the landed early-out, because half the tutorial happens at a port:
             // "take a job" is a step the player can only complete while the simulation
             // is stopped, so a tutorial that only ticked in flight would sit on step two
@@ -383,6 +383,8 @@ namespace EndlessSky.Game
                 TryLand();
                 if (_isLanded)
                 {
+                    if (_landedStartScreen != UiScreen.None)
+                        _ui?.Show(_landedStartScreen);
                     return;
                 }
             }
@@ -1148,13 +1150,15 @@ namespace EndlessSky.Game
             }
 
             _dismissKeyWasDown = dismissDown;
+            if (_flightKeys != null)
+                _flightKeys.Visible = !_isLanded && !_ui.IsModal;
 
             if (_tutorial.IsComplete)
             {
                 // Nothing left to say, and nothing left to compute. Both lookups below
                 // are galaxy-wide scans; leaving them running for the rest of the
                 // session to produce a prompt nobody will see is pure waste.
-                _tutorialPanel.Show(_tutorial, null);
+                _tutorialPanel.Show(_tutorial, null, _isLanded, _ui.IsModal);
                 return;
             }
 
@@ -1179,7 +1183,7 @@ namespace EndlessSky.Game
                 GD.Print($"[tutorial] {_tutorial.Step}: {finished}");
             }
 
-            _tutorialPanel.Show(_tutorial, finished);
+            _tutorialPanel.Show(_tutorial, finished, _isLanded, _ui.IsModal);
         }
 
         /// <summary>
@@ -1296,6 +1300,7 @@ namespace EndlessSky.Game
                 _landedOverlay = LandedOverlay.Open(this, _player, _missions, planet,
                     _ship.CurrentSystem.Name, _universe);
                 _landedOverlay.Departed += OnDepart;
+                _ui.Port = _landedOverlay;
                 GD.Print($"[flight] landed on {planet.Name} (credits={_credits:n0})");
                 return;
             }
@@ -1324,14 +1329,9 @@ namespace EndlessSky.Game
                 replacement.CurrentSystem = _ship.CurrentSystem;
                 replacement.Government = _playerGovernment;
 
-                // A hull bought at a shipyard arrives with its hardpoints unbuilt and
-                // whatever it came with uninstalled, so a newly bought warship would
-                // fly out of the yard unable to fire.
+                // Rebuild mounts from the existing inventory. Installing the weapons
+                // again would add free copies whenever the hull has spare hardpoints.
                 replacement.BuildMounts();
-                foreach (Outfit outfit in replacement.Outfits.Where(o => o.IsWeapon).ToArray())
-                {
-                    replacement.InstallWeapon(outfit);
-                }
 
                 _field?.Remove(_ship);
                 _ship = replacement;
@@ -1340,6 +1340,7 @@ namespace EndlessSky.Game
             }
             _landedOverlay.QueueFree();
             _landedOverlay = null;
+            _ui.Port = null;
             _isLanded = false;
             _ship.Velocity = Point.Zero;
 
@@ -2128,6 +2129,7 @@ namespace EndlessSky.Game
 
             // Bottom-left, out of the hero corner: the keybinds.
             var keysPanel = new PanelContainer();
+            _flightKeys = keysPanel;
             keysPanel.SetAnchorsPreset(Control.LayoutPreset.BottomLeft);
             keysPanel.Position = new Vector2(14, -14 - 34);
             keysPanel.AddThemeStyleboxOverride("panel", HudPanelStyle());
@@ -2350,7 +2352,7 @@ namespace EndlessSky.Game
                     return;
                 }
                 string before = SaveGame.Write(_player, _missions);
-                if (!SaveTo(path))
+                if (!SmokeSaveMenu(path, load: false))
                 {
                     GD.Print("[smoke] FAIL: could not write a save");
                     GetTree().Quit(1);
@@ -2362,7 +2364,7 @@ namespace EndlessSky.Game
                 _player.AdvanceDays(9);
                 _ship.Recharge(RechargeType.All);
 
-                if (!LoadFrom(path))
+                if (!SmokeSaveMenu(path, load: true))
                 {
                     GD.Print("[smoke] FAIL: could not load the save back");
                     GetTree().Quit(1);
@@ -2388,7 +2390,7 @@ namespace EndlessSky.Game
                     _ship.Velocity = Point.Zero;
                     _ship.TargetStellar = port;
                     TryLand();
-                    if (!_isLanded || !SaveTo(path))
+                    if (!_isLanded || !SmokeSaveMenu(path, load: false))
                     {
                         GD.Print("[smoke] FAIL: could not save at a port");
                         GetTree().Quit(1);
@@ -2396,20 +2398,84 @@ namespace EndlessSky.Game
                     }
 
                     before = SaveGame.Write(_player, _missions);
+                    _player.AddCredits(-13);
+                    restored = SmokeSaveMenu(path, load: true)
+                        && SavedStateMatches(before, SaveGame.Write(_player, _missions))
+                        && ReferenceEquals(_ui.Port, _landedOverlay);
                     OnDepart();
                     _jumpAutopilot = true;
                     _landAutopilot = true;
-                    restored = LoadFrom(path) && SavedStateMatches(before, SaveGame.Write(_player, _missions))
+                    restored &= SmokeSaveMenu(path, load: true)
+                        && SavedStateMatches(before, SaveGame.Write(_player, _missions))
                         && _isLanded && _landedOverlay != null && !_jumpAutopilot && !_landAutopilot;
+
+                    // Changing the flagship at a port must not duplicate its weapons
+                    // on departure. Use an actual stock hull with spare gun mounts.
+                    Ship replacement = _universe.Ships.Keys.Select(_universe.BuildShip).First(s =>
+                        s.Outfits.Any(o => o.IsWeapon && o.Attributes.Get("gun ports") < 0)
+                        && s.Mounts.Any(m => m.IsEmpty && !m.IsTurret));
+                    Outfit[] stock = replacement.Outfits.ToArray();
+                    _player.Fleet.Add(replacement);
+                    _player.Fleet.SetFlagship(replacement);
                     OnDepart();
-                    restored &= !_isLanded && _landedOverlay == null && _player.CurrentPlanet == null;
+                    restored &= !_isLanded && _landedOverlay == null && _ui.Port == null
+                        && _player.CurrentPlanet == null && ReferenceEquals(_ship, replacement)
+                        && stock.SequenceEqual(replacement.Outfits);
                 }
                 GD.Print(restored
-                    ? "[smoke] PASS: flight and landed saves round-tripped; old combat cleared; departure cleared the port"
+                    ? "[smoke] PASS: flight and port menus saved and loaded; old combat cleared; flagship departed with its stock outfits"
                     : "[smoke] FAIL: restored state differs from the saved game");
                 GetTree().Quit(restored ? 0 : 1);
             }
             finally { DirAccess.RemoveAbsolute(ProjectSettings.GlobalizePath(path)); }
+        }
+
+        private bool SmokeSaveMenu(string path, bool load)
+        {
+            Func<Key, bool> readKeys = _ui.KeyDown;
+            int saved = 0, loaded = 0;
+            bool success = false;
+            Func<bool> saveAction = () => { saved++; return success = SaveTo(path); };
+            Func<bool> loadAction = () => { loaded++; return success = LoadFrom(path); };
+            // Route the normal menu requests to this smoke's temporary slot.
+            _ui.SaveRequested -= SaveNow;
+            _ui.LoadRequested -= LoadNow;
+            _ui.SaveRequested += saveAction;
+            _ui.LoadRequested += loadAction;
+            void Frame(params Key[] down)
+            {
+                _ui.KeyDown = key => down.Contains(key);
+                _ui._Process(1.0 / 60.0);
+            }
+            try
+            {
+                Frame();
+                Frame(Key.Escape);
+                Frame();
+                Frame(Key.Down);
+                Frame();
+                if (load)
+                {
+                    Frame(Key.Down);
+                    Frame();
+                }
+                Frame(Key.Enter);
+                Frame();
+                bool completed = success && (load ? loaded == 1 && saved == 0 : saved == 1 && loaded == 0)
+                    && _ui.Screen == (load ? UiScreen.None : UiScreen.Pause);
+                GD.Print(completed ? $"[smoke] {(load ? "Load" : "Save")} game menu action completed"
+                    : "[smoke] FAIL: save/load menu action did not complete");
+                return completed;
+            }
+            finally
+            {
+                _ui.Show(UiScreen.None);
+                _ui.KeyDown = readKeys;
+                _ui.SaveRequested -= saveAction;
+                _ui.LoadRequested -= loadAction;
+                _ui.SaveRequested += SaveNow;
+                _ui.LoadRequested += LoadNow;
+            }
         }
 
         /// <summary>
@@ -2523,7 +2589,7 @@ namespace EndlessSky.Game
                 _landedOverlay.Departed += OnDepart;
             }
             if (_ui != null)
-                _ui.Suspended = _isLanded;
+                _ui.Port = _landedOverlay;
 
             GD.Print($"[save] loaded {ProjectSettings.GlobalizePath(path)}: {_ship.Definition.DisplayName} at " +
                      $"{restored.CurrentSystem.Name}, {_player.Date:d MMM yyyy}, " +

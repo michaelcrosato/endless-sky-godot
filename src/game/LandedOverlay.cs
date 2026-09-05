@@ -57,8 +57,6 @@ namespace EndlessSky.Game
         private Label _tabLabel = null!;
         private Label _statusLine = null!;
 
-        private bool _upWas, _downWas, _buyWas, _sellWas, _departWas, _tabWas;
-
         /// <summary>Credits, kept for the caller that still tracks them separately.</summary>
         public long Credits => _player.Credits;
 
@@ -192,22 +190,25 @@ namespace EndlessSky.Game
         private string? _dialog;
         private int _talkChoice;
 
-        public override void _Process(double delta)
+        public bool IsOfferingMission => _talk != null || _dialog != null;
+
+        /// <summary>Called by the shell while the port owns this frame's input.</summary>
+        public void Step(GameUi ui)
         {
-            if (_talk != null || _dialog != null)
+            if (IsOfferingMission)
             {
-                StepOffer();
+                StepOffer(ui);
                 return;
             }
 
-            bool up = Input.IsPhysicalKeyPressed(Key.Up) || Input.IsPhysicalKeyPressed(Key.W);
-            bool down = Input.IsPhysicalKeyPressed(Key.Down) || Input.IsPhysicalKeyPressed(Key.S);
-            bool buy = Input.IsPhysicalKeyPressed(Key.B);
-            bool sell = Input.IsPhysicalKeyPressed(Key.N);
-            bool depart = Input.IsPhysicalKeyPressed(Key.D);
-            bool tab = Input.IsPhysicalKeyPressed(Key.Tab);
+            bool up = ui.Pressed(Key.Up) | ui.Pressed(Key.W);
+            bool down = ui.Pressed(Key.Down) | ui.Pressed(Key.S);
+            bool buy = ui.Pressed(Key.B);
+            bool sell = ui.Pressed(Key.N);
+            bool depart = ui.Pressed(Key.D);
+            bool tab = ui.Pressed(Key.Tab);
 
-            if (tab && !_tabWas)
+            if (tab)
             {
                 _counter = (Counter)(((int)_counter + 1) % 4);
                 _message = "";
@@ -215,33 +216,32 @@ namespace EndlessSky.Game
             }
 
             int count = CurrentCount();
-            if (up && !_upWas && count > 0)
+            if (up && count > 0)
             {
                 Select((Selection() + count - 1) % count);
             }
 
-            if (down && !_downWas && count > 0)
+            if (down && count > 0)
             {
                 Select((Selection() + 1) % count);
             }
 
-            if (buy && !_buyWas)
+            if (buy)
             {
                 Buy();
+                if (IsOfferingMission)
+                    return;
             }
 
-            if (sell && !_sellWas)
+            if (sell)
             {
                 Sell();
             }
 
-            if (depart && !_departWas)
+            if (depart)
             {
                 Departed?.Invoke();
             }
-
-            (_upWas, _downWas, _buyWas, _sellWas, _departWas, _tabWas) =
-                (up, down, buy, sell, depart, tab);
         }
 
         /// <summary>
@@ -283,21 +283,21 @@ namespace EndlessSky.Game
         }
 
         /// <summary>Drives the offer dialogue. Enter answers; Esc walks away.</summary>
-        private void StepOffer()
+        private void StepOffer(GameUi ui)
         {
-            bool up = Input.IsPhysicalKeyPressed(Key.Up) || Input.IsPhysicalKeyPressed(Key.W);
-            bool down = Input.IsPhysicalKeyPressed(Key.Down) || Input.IsPhysicalKeyPressed(Key.S);
-            bool enter = Input.IsPhysicalKeyPressed(Key.Enter) || Input.IsPhysicalKeyPressed(Key.Space);
-            bool escape = Input.IsPhysicalKeyPressed(Key.Escape);
+            bool up = ui.Pressed(Key.Up) | ui.Pressed(Key.W);
+            bool down = ui.Pressed(Key.Down) | ui.Pressed(Key.S);
+            bool enter = ui.Pressed(Key.Enter) | ui.Pressed(Key.KpEnter) | ui.Pressed(Key.Space);
+            bool escape = ui.Pressed(Key.Escape);
 
-            if (escape && !_departWas)
+            if (escape)
             {
                 EndOffer(accepted: false);
             }
             else if (_dialog != null)
             {
                 // A plain dialog is read and dismissed; saying yes is pressing on.
-                if (enter && !_buyWas)
+                if (enter)
                 {
                     EndOffer(accepted: true);
                 }
@@ -307,11 +307,11 @@ namespace EndlessSky.Game
                 int options = _talk.Choices.Count;
                 if (options > 0)
                 {
-                    if (up && !_upWas) { _talkChoice = (_talkChoice + options - 1) % options; Refresh(); }
-                    if (down && !_downWas) { _talkChoice = (_talkChoice + 1) % options; Refresh(); }
-                    if (enter && !_buyWas) { _talk.Choose(_talkChoice); _talkChoice = 0; Refresh(); }
+                    if (up) { _talkChoice = (_talkChoice + options - 1) % options; Refresh(); }
+                    if (down) { _talkChoice = (_talkChoice + 1) % options; Refresh(); }
+                    if (enter) { _talk.Choose(_talkChoice); _talkChoice = 0; Refresh(); }
                 }
-                else if (enter && !_buyWas)
+                else if (enter)
                 {
                     Refresh();
                 }
@@ -321,8 +321,6 @@ namespace EndlessSky.Game
                     EndOffer(_talk.Outcome != ConversationOutcome.Decline);
                 }
             }
-
-            (_upWas, _downWas, _buyWas, _departWas) = (up, down, enter, escape);
         }
 
         /// <summary>Closes the dialogue and takes the job if the player agreed.</summary>
@@ -626,7 +624,7 @@ namespace EndlessSky.Game
             _statusLine.Text =
                 $"credits {_player.Credits:n0}   ships {_player.Fleet.Ships.Count}" +
                 $"   missions {_missions.Active.Count}{hold}\n" +
-                $"TAB counter · ↑/↓ select · {ActionHint()} · D depart" +
+                $"TAB counter · ↑/↓ select · {ActionHint()} · D depart · ESC menu" +
                 (_message.Length > 0 ? $"\n{_message}" : "");
         }
 

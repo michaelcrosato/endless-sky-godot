@@ -40,7 +40,17 @@ namespace EndlessSky.Game
     public partial class GameUi : CanvasLayer
     {
         private readonly Dictionary<Key, bool> _was = new Dictionary<Key, bool>();
+        private readonly HashSet<Key> _pressed = new HashSet<Key>();
+        private static readonly Key[] Keys =
+        {
+            Key.Escape, Key.M, Key.I, Key.F1, Key.F2, Key.Up, Key.Down, Key.Left, Key.Right,
+            Key.W, Key.S, Key.Enter, Key.KpEnter, Key.Space, Key.B, Key.N, Key.D, Key.Tab,
+        };
         private Control? _current;
+
+        // One device sample per frame, including keys the current screen ignores.
+        // Tests can drive the same routing without a native keyboard in headless Godot.
+        internal Func<Key, bool> KeyDown { get; set; } = key => Input.IsPhysicalKeyPressed(key);
 
         private PlayerState _player = null!;
         private MissionLog _missions = null!;
@@ -83,8 +93,8 @@ namespace EndlessSky.Game
 
         public override void _Ready()
         {
-            // Draw above the flight HUD, which sits on the default layer.
-            Layer = 10;
+            // Shell menus own the screen above both the port and tutorial hints.
+            Layer = 30;
 
             if (OpenAtStart != UiScreen.None)
             {
@@ -94,30 +104,34 @@ namespace EndlessSky.Game
         }
 
         /// <summary>
-        /// Set while another screen owns input — the landed overlay, which is not one
-        /// of these screens and reads its own keys.
+        /// The current port, driven only when no shell menu is on top of it.
         /// </summary>
         /// <remarks>
-        /// Without this the two read the keyboard at once: landing and pressing Tab
-        /// switched the shop counter AND opened the status screen, and the arrow keys
-        /// moved both selections. Two overlays reading one keyboard is a game that
-        /// looks like it has broken input.
+        /// One controller owns the keyboard in flight and at a port. In particular,
+        /// menu navigation must not trade, depart, or answer an offer underneath it.
         /// </remarks>
-        public bool Suspended { get; set; }
+        public LandedOverlay? Port { get; set; }
 
         public override void _Process(double delta)
         {
-            if (Suspended)
+            _pressed.Clear();
+            foreach (Key key in Keys)
             {
-                // Keep the edge detector current, or the first key after resuming reads
-                // as a fresh press of whatever was held.
-                foreach (Key key in new[] { Key.Escape, Key.M, Key.I, Key.F1, Key.F2 })
-                    Pressed(key);
+                bool down = KeyDown(key);
+                _was.TryGetValue(key, out bool was);
+                if (down && !was)
+                    _pressed.Add(key);
+                _was[key] = down;
+            }
 
+            if (!IsModal && Port?.IsOfferingMission == true)
+            {
+                Port.Step(this);
                 return;
             }
 
-            // Esc closes whatever is up, or opens the pause menu from flight.
+            UiScreen previous = Screen;
+            // Esc closes whatever is up, or opens the pause menu in flight or at port.
             if (Pressed(Key.Escape))
             {
                 Show(Screen == UiScreen.None ? UiScreen.Pause : UiScreen.None);
@@ -125,16 +139,23 @@ namespace EndlessSky.Game
 
             // The direct keys work from flight and from any other screen, so a player
             // can go straight from the map to the status screen without backing out.
-            if (Pressed(Key.M)) Toggle(UiScreen.Map);
+            else if (Pressed(Key.M)) Toggle(UiScreen.Map);
 
             // I, not Tab: Tab already switches counters on the landed screen, and one
             // key with two meanings is worse than one key.
-            if (Pressed(Key.I)) Toggle(UiScreen.Status);
-            if (Pressed(Key.F1)) Toggle(UiScreen.Controls);
-            if (Pressed(Key.F2)) Toggle(UiScreen.Options);
+            else if (Pressed(Key.I)) Toggle(UiScreen.Status);
+            else if (Pressed(Key.F1)) Toggle(UiScreen.Controls);
+            else if (Pressed(Key.F2)) Toggle(UiScreen.Options);
+
+            // A transition consumes this frame, including a simultaneous confirm or
+            // shop key. Held keys have already been sampled and cannot leak through.
+            if (Screen != previous)
+                return;
 
             if (_current is IUiScreen screen)
                 screen.Step(this);
+            else if (!IsModal)
+                Port?.Step(this);
         }
 
         /// <summary>
@@ -225,13 +246,7 @@ namespace EndlessSky.Game
         }
 
         /// <summary>Edge-triggered key read: true only on the frame a key goes down.</summary>
-        public bool Pressed(Key key)
-        {
-            bool down = Input.IsPhysicalKeyPressed(key);
-            _was.TryGetValue(key, out bool was);
-            _was[key] = down;
-            return down && !was;
-        }
+        public bool Pressed(Key key) => _pressed.Remove(key);
     }
 
     /// <summary>A screen that wants a frame tick, for selection and input of its own.</summary>

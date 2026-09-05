@@ -102,7 +102,7 @@ namespace EndlessSky.Game
         public void Adjust(int direction) => _adjust?.Invoke(direction);
     }
 
-    /// <summary>What Esc brings up in flight.</summary>
+    /// <summary>What Esc brings up in flight or at a port.</summary>
     public partial class PauseScreen : UiMenuScreen
     {
         protected override string Title => "PAUSED";
@@ -115,6 +115,7 @@ namespace EndlessSky.Game
 
         /// <summary>What the last save attempt did, shown beside the row.</summary>
         private string _saveState = string.Empty;
+        private string _loadState = string.Empty;
 
         public PauseScreen()
         {
@@ -123,6 +124,8 @@ namespace EndlessSky.Game
                 new MenuItem("Resume", ui => ui.Show(UiScreen.None)),
                 new MenuItem("Save game", ui => _saveState = ui.RequestSave(),
                              value: () => _saveState),
+                new MenuItem("Load game", ui => _loadState = ui.RequestLoad(),
+                             value: () => _loadState),
                 new MenuItem("Status", ui => ui.Show(UiScreen.Status)),
                 new MenuItem("Galaxy map", ui => ui.Show(UiScreen.Map)),
                 new MenuItem("Controls", ui => ui.Show(UiScreen.Controls)),

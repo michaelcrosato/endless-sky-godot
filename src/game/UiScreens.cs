@@ -71,6 +71,7 @@ namespace EndlessSky.Game
             ("S / Down", "retrograde brake", "flight"),
             ("A / D, Left / Right", "turn", "flight"),
             ("Mouse wheel", "zoom", "flight"),
+            ("Space", "fire weapons", "flight"),
             ("L", "autopilot to a planet; press again to cycle", "flight"),
             ("J", "jump to the targeted system", "flight"),
             ("M", "galaxy map", "anywhere"),
@@ -84,6 +85,8 @@ namespace EndlessSky.Game
             ("B", "buy, accept a job, or hand it in", "landed"),
             ("N", "sell, or abandon a job", "landed"),
             ("D", "depart", "landed"),
+            ("Enter / Space", "answer the offer", "mission offer"),
+            ("Esc", "decline the offer", "mission offer"),
             ("Up / Down", "cycle destination", "map"),
             ("Enter", "set course, then J to jump", "map"),
         };

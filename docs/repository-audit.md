@@ -31,8 +31,11 @@ not artifacts available from a clone. CI runs the reproducible checks below.
 | Weapon duplication and cleanup | Let mount reconstruction arm existing outfits without installing additional copies. Share ship serialization and smoke diagnostics; remove the unused NPC placement flag and the load overload that attached missions to a different player. | The stronger bounty smoke caught a cannon count doubling from 2 to 4 on load. It now passes both reloads with the stock loadout; existing ship and save regressions still pass. |
 | Combat visibility | Scale camera distance and zoom to the hull and viewport, and bound velocity look-ahead by the visible frame. Show shields, hull, energy, heat and disabled/overheated warnings in the flight HUD; advertise fire and zoom controls. | All three new engine regressions failed before the fix: large-hull framing, fast flight in every direction, and zoom after a flagship change. They now pass, including portrait framing. Rendered battles at 1920×1080 and 1280×720 show both ships, projectiles and readable telemetry. |
 | Capture dimensions | Honor explicit engine window mode and resolution options ahead of saved preferences, and include image dimensions in capture logs. | A requested 1280×720 capture previously became 1920×1080 when settings loaded. The same command now produces a verified 1280×720 image without changing the saved preferences. |
+| Port menus and input | Make save/load available through Esc both in flight and at a port. Share key sampling between the shell, port and mission offers so held keys and simultaneous transitions cannot trigger actions on an underlying screen. | Seven engine tests cover saving/loading, held aliases, shop isolation, offer acceptance/decline and simultaneous inputs. The real save smoke saves at port, loads there and from flight, and verifies the restored port uses the restored player. |
+| Flagship departure | Remove the remaining duplicate weapon installation path when changing flagship at a port. | The save smoke selects a stock Kestrel I with spare gun mounts and requires its full outfit inventory to remain unchanged after departure. |
+| Port readability | Keep the tutorial below the port footer and hide flight controls while landed. Shell menus draw above the port and hide tutorial hints; combined landed/menu captures open the menu after landing. | Rendered 1280×720 port and pause captures show readable credits, controls, Save game and Load game rows. |
 
-Latest local validation: **814 simulation tests, 18 engine tests, zero failures or
+Latest local validation: **814 simulation tests, 25 engine tests, zero failures or
 skips**, and Debug/Release builds with zero warnings or errors. All five runtime
 smokes passed their documented contract, including winning and collecting a bounty.
 The current Windows release also passed both bounty reloads and payment when launched
@@ -68,7 +71,7 @@ still contain meaningful work and need further implementation and verification:
   broader combat parity review (targeting personalities, turrets and other weapons).
 - **Persistence:** changed universe data, reputation, transient jumps, and per-ship
   weapon mount assignments still need round-trip coverage. Inspect escort
-  reconstruction and access to save/load while landed as well.
+  reconstruction as well.
 - **Gameplay rules:** mission NPC spawn/despawn gates, landing permissions, the
   opening debt/conversation flow and turret firing arcs remain incomplete.
 - **Simulation boundary:** commodity transactions and much of the session's

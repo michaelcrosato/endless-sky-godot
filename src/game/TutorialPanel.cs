@@ -11,12 +11,12 @@ namespace EndlessSky.Game
     /// purpose. Two of the four steps happen at a port and two happen in flight, and
     /// those are different scenes; threading the tutorial through both would put half
     /// its logic in <see cref="LandedOverlay"/> and leave the prompt able to disagree
-    /// with itself across a takeoff. One panel that floats over everything cannot.
+    /// with itself across a takeoff. The shell hides this hint while a menu is open.
     /// </remarks>
     public partial class TutorialPanel : CanvasLayer
     {
         /// <summary>Above the landed overlay, so the prompt survives a landing.</summary>
-        private const int AboveEverything = 20;
+        private const int AbovePort = 20;
 
         private Label _prompt = null!;
         private Label _confirmation = null!;
@@ -29,7 +29,7 @@ namespace EndlessSky.Game
 
         public override void _Ready()
         {
-            Layer = AboveEverything;
+            Layer = AbovePort;
 
             _panel = new PanelContainer();
             _panel.SetAnchorsPreset(Control.LayoutPreset.CenterBottom);
@@ -84,8 +84,21 @@ namespace EndlessSky.Game
         };
 
         /// <summary>Show where the tutorial has got to, or hide once it is finished.</summary>
-        public void Show(Tutorial tutorial, string? justFinished)
+        public void Show(Tutorial tutorial, string? justFinished, bool landed = false, bool modal = false)
         {
+            // Ports already carry their own control legend. Use that lower space so
+            // the prompt does not cover the port's credit balance and controls at 720p.
+            _panel.Position += new Vector2(0, (landed ? -16 : -96) - _panel.OffsetBottom);
+            if (!string.IsNullOrEmpty(justFinished))
+            {
+                _confirmation.Text = justFinished;
+                _confirmationLeft = ConfirmationFrames;
+            }
+            if (modal)
+            {
+                Visible = false;
+                return;
+            }
             if (tutorial.IsDismissed ||
                 (tutorial.IsComplete && _confirmationLeft <= 0 && string.IsNullOrEmpty(justFinished)))
             {
@@ -98,12 +111,7 @@ namespace EndlessSky.Game
 
             Visible = true;
 
-            if (!string.IsNullOrEmpty(justFinished))
-            {
-                _confirmation.Text = justFinished;
-                _confirmationLeft = ConfirmationFrames;
-            }
-            else if (--_confirmationLeft <= 0)
+            if (string.IsNullOrEmpty(justFinished) && --_confirmationLeft <= 0)
             {
                 _confirmation.Text = string.Empty;
             }

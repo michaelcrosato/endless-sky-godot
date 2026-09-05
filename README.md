@@ -32,6 +32,9 @@ pwsh tools/test.ps1           # run every suite
 pwsh tools/run.ps1            # fly
 ```
 
+Press **Esc** in flight or at a port to open the menu, including **Save game**
+and **Load game**. During a mission offer, Esc declines the offer first.
+
 The upstream reference is pinned in `tools/upstream-ref.txt`; local fetching and
 CI use that same commit. `get-data.ps1` checks an existing checkout before using
 it. To change the reference, review and update the pin, preserve any edits in
