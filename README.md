@@ -77,6 +77,8 @@ pwsh tools/test.ps1 -Suite sim                                   # engine-free o
 pwsh tools/test.ps1 -Suite sim -Filter "FullyQualifiedName~ShipPhysics"
 pwsh tools/test.ps1 -Suite godot                                 # in-engine only
 pwsh tools/smoke.ps1                                            # real game scenarios
+pwsh tests/tools/PackageTests.ps1                               # packaging without an engine
+pwsh tests/tools/ExportTests.ps1                                # export preflight without an engine
 ```
 
 The simulation-only command needs .NET and the upstream dataset, with no Godot
@@ -103,8 +105,17 @@ worlds, prices and politics together.
 ## Packaging
 
 ```powershell
+pwsh tools/install-export-templates.ps1
 pwsh tools/package.ps1        # exe + assemblies + dataset, ready to double-click
+pwsh tools/smoke-package.ps1  # verify a copy outside the repository
+pwsh tools/package.ps1 -Preset Linux
+pwsh tools/smoke-package.ps1 -Preset Linux  # run on a Linux host
 ```
+
+On Linux, set `GODOT_BIN` to the .NET editor executable. Template installation and
+export share [Godot's native editor data paths](https://docs.godotengine.org/en/stable/tutorials/io/data_paths.html#editor-data-paths),
+including `XDG_DATA_HOME` on Linux. The default there is
+`~/.local/share/godot/export_templates/`; Windows uses `%APPDATA%\Godot\export_templates\`.
 
 An export alone is not a runnable game: the dataset is read from disk with
 `System.IO`, so it can never come out of the `.pck`. `package.ps1` does the export
@@ -113,8 +124,12 @@ Packaging replaces the whole output folder after a successful staged export, so
 obsolete data and assemblies cannot linger. Keep personal files outside that folder.
 Use `-OutputPath build/portable/endless-sky-3d.exe` for a separate package; package
 folders must be below `build/`. A failed export preserves the previous package.
-Run `pwsh tests/tools/PackageTests.ps1` to check replacement and failure handling
-without Godot or export templates.
+The script regressions above check replacement, native template discovery and
+failure handling without Godot or export templates. `smoke-package.ps1` copies the
+package to a temporary directory, clears the data override, and verifies save/load
+and bounty payment from another working directory. It checks the loaded dataset's
+path as well as success; logs remain in `reports/`. CI builds and runs the Linux
+release package through these same commands.
 
 ## Status
 

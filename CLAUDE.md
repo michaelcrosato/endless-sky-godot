@@ -41,6 +41,7 @@ owned by a different session. This repo is the Godot arm of that comparison.
 | Open the editor | `pwsh tools/editor.ps1` |
 | Export a build | `pwsh tools/export.ps1 -Preset "Windows Desktop" -Release` |
 | Clickable build (exe + dataset) | `pwsh tools/package.ps1` |
+| Relocated package smoke | `pwsh tools/smoke-package.ps1` (add `-Preset Linux` on Linux) |
 | Install export templates | `pwsh tools/install-export-templates.ps1` |
 
 ## Layout
@@ -94,8 +95,10 @@ winget install --id GodotEngine.GodotEngine.Mono --exact --scope machine
 Without `--scope machine` winget installs to `%LOCALAPPDATA%`, whose aliases
 take PATH precedence and silently shadow the Program Files ones.
 
-Export templates are per-user by design and stay at
-`%APPDATA%\Godot\export_templates\`.
+Export templates are per-user by design: `%APPDATA%\Godot\export_templates\` on
+Windows, and `$XDG_DATA_HOME/godot/export_templates/` (default
+`~/.local/share/godot/export_templates/`) on Linux. The installer and exporter share
+this lookup. Linux scripts require `GODOT_BIN` to name the .NET editor executable.
 
 ## Which dataset the game loads
 

@@ -40,12 +40,14 @@ not artifacts available from a clone. CI runs the reproducible checks below.
 | Daily markets | Apply deferred sales, normally distributed production changes and exchanges along current system links. Match upstream's export snapshot and division by each source system's link count; buying does not cancel the sales queue. | Hand-calculated graph, sale/buyback, changed-link and random-stream cases failed before the fix and now pass. Reversing system declaration order preserves the result. |
 | Market persistence | Save supply, displayed prices and pending trades; restore them when a valid pilot is accepted. Older saves reset to base prices. Share exact integer parsing for credits, conditions and pending quantities. | Sixteen new economy cases include fresh data, repeated reloads, upstream headers, invalid numbers and exact 64-bit queues. A price-boundary regression caught and fixed a one-credit change from supply rounding. The engine save scenario restores changed markets and rejects an invalid save without mutating the active game. |
 | Economy fixture isolation | Give full-dataset economy and save/load tests their own universes. Exercise linked markets in both datasets and round-trip the upstream pilot into fresh data. | New isolation assertions failed when the 100-day walk changed shared quotes (251 to 283 upstream, 188 to 193 in The Reach). Both now pass and check all 4,800 upstream and 3,830 generated quotes, including unchanged shared supply. |
+| Native export tools | Share Godot template lookup across hosts, honor Linux's XDG data directory, use native curl and temporary paths, validate downloaded template versions and remove owned download staging directories. | Linux PowerShell reproduced a null-path failure before the fix. Export regressions now pass on Windows and Linux, including missing templates, release/debug arguments, installed-template discovery and failed/missing/empty exports. |
+| Linux release and relocation | Add `smoke-package.ps1` and make the Linux release export and relocated save/bounty scenarios gate CI. | Windows and Linux release packages passed from temporary copies outside the repository with an unrelated working directory and no data override. The smoke requires the loaded dataset to be inside that copy. Linux runtime validation used WSL; graphical Linux rendering is not yet verified. |
 
 Latest local validation: **855 simulation tests, 27 engine tests, zero failures or
 skips**, and Debug/Release builds with zero warnings or errors. All five runtime
 smokes passed their documented contract, including winning and collecting a bounty.
-The current Windows release also passed both bounty reloads and payment when launched
-from an unrelated working directory with no data override.
+The Windows and Linux release packages also passed save/load, both bounty reloads
+and payment from relocated copies with no data override.
 
 Older saves never recorded NPC ships or their history, so they recreate those
 targets once at load; missing historical kills cannot be recovered. New saves
@@ -71,12 +73,17 @@ pwsh tools/build.ps1
 pwsh tools/test.ps1
 pwsh tools/smoke.ps1 -NoBuild
 pwsh tests/tools/PackageTests.ps1
+pwsh tests/tools/ExportTests.ps1
+pwsh tools/package.ps1
+pwsh tools/smoke-package.ps1
 python tools/worldgen/worldgen.py --out build/universe-check
 ```
 
 The generator check must compare file lists and bytes against `universe/`; successful
 generation alone is not proof of reproducibility. `tools/smoke.ps1 -Scenario land
 -Frames 1 -NoBuild` is a failure probe, not a passing smoke command.
+Use `-Preset Linux` for Linux packaging and package smokes; run the resulting
+executable on Linux. `tools/smoke-package.ps1 -Frames 1` is also a failure probe.
 
 ## Remaining work
 
@@ -99,9 +106,9 @@ still contain meaningful work and need further implementation and verification:
   Commodity transactions now use that layer; preserve the actual player-facing flow.
 - **Coverage:** strengthen remaining assertions that only prove a call does not
   throw, and reduce the reviewed backlog of unhandled upstream node types.
-- **Delivery:** verify a Linux release export and review dependency/CI
-  reproducibility. Fresh checkout validation, Windows release packaging and
-  relocated startup are verified above.
+- **Delivery:** review dependency/CI reproducibility and verify graphical Linux
+  rendering. Fresh checkout validation, Windows/Linux release packaging and
+  relocated headless runtime scenarios are verified above.
 - **UX and content:** add target identification and target condition information;
   inspect windows below 1280×720, input remapping, audio, and Reach content for
   currently unused event/conversation/wormhole systems.

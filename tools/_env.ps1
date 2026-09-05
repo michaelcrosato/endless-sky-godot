@@ -66,6 +66,27 @@ function Initialize-Godot {
     $env:GODOT_BIN = $script:GodotBin
 }
 
+function Get-GodotTemplateDirectory {
+    param(
+        [Parameter(Mandatory)][string]$Version,
+        [ValidateSet('mono', 'standard')][string]$Flavor = 'mono'
+    )
+
+    # Godot's default editor data paths, including Linux's XDG override:
+    # https://docs.godotengine.org/en/stable/tutorials/io/data_paths.html#editor-data-paths
+    if ($IsWindows) {
+        $dataRoot = $env:APPDATA ? $env:APPDATA : [Environment]::GetFolderPath('ApplicationData')
+        $editorData = Join-Path $dataRoot 'Godot'
+    } elseif ($IsMacOS) {
+        $editorData = Join-Path ([Environment]::GetFolderPath('UserProfile')) 'Library/Application Support/Godot'
+    } else {
+        $dataRoot = $env:XDG_DATA_HOME ? $env:XDG_DATA_HOME : (Join-Path ([Environment]::GetFolderPath('UserProfile')) '.local/share')
+        $editorData = Join-Path $dataRoot 'godot'
+    }
+    $suffix = $Flavor -eq 'mono' ? '.mono' : ''
+    return Join-Path $editorData "export_templates/$Version.stable$suffix"
+}
+
 function Get-PresetExportPath {
     param([Parameter(Mandatory)][string]$Name)
 

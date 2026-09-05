@@ -29,7 +29,7 @@ $version = Get-GodotVersion $script:GodotBin      # e.g. 4.7.2.stable.mono.offic
 if ($version -notmatch '^(?<v>\d+\.\d+(\.\d+)?)') { throw "Could not parse Godot version from '$version'" }
 
 # Templates live in a version+flavour-specific folder; a mismatch fails late and cryptically.
-$templateDir = Join-Path $env:APPDATA "Godot\export_templates\$($Matches.v).stable.mono"
+$templateDir = Get-GodotTemplateDirectory -Version $Matches.v
 if (-not (Test-Path $templateDir)) {
     throw "Export templates missing at $templateDir`nRun: pwsh tools/install-export-templates.ps1"
 }
