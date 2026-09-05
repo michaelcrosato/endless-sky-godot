@@ -15,8 +15,7 @@ namespace EndlessSky.Tests
     /// it is located at run time. Point <c>ENDLESS_SKY_DATA</c> at an upstream
     /// checkout's <c>data</c> directory, run <c>tools/get-data.ps1</c> to populate
     /// <c>external/endless-sky</c>, or keep a checkout beside the project as
-    /// <c>../es-upstream</c>. Without one, dependent tests are Ignored with an
-    /// explanation rather than silently passing.
+    /// <c>../es-upstream</c>. Missing data fails dependent tests with setup instructions.
     ///
     /// Loading the whole dataset takes a moment, so it is parsed once per test run.
     /// </remarks>
@@ -25,7 +24,7 @@ namespace EndlessSky.Tests
         private static GameData _cached;
         private static string _dataPath;
 
-        /// <summary>The loaded dataset. Ignores the calling test if upstream data is unavailable.</summary>
+        /// <summary>The loaded dataset. Fails if required upstream data is unavailable.</summary>
         internal static GameData Instance
         {
             get
@@ -33,10 +32,7 @@ namespace EndlessSky.Tests
                 if (_cached != null)
                     return _cached;
 
-                string path = Path
-                    ?? throw new IgnoreException(
-                        "Upstream Endless Sky data not found. Run tools/get-data.ps1, set " +
-                        "ENDLESS_SKY_DATA, or clone endless-sky beside this project as ../es-upstream.");
+                string path = RequiredPath;
 
                 var data = new GameData();
                 data.LoadDirectory(path);
@@ -46,17 +42,15 @@ namespace EndlessSky.Tests
         }
 
         /// <summary>
-        /// The upstream <c>data</c> directory, ignoring the calling test when it is absent.
+        /// The upstream <c>data</c> directory, failing the calling test when it is absent.
         /// </summary>
         /// <remarks>
         /// Tests that read the dataset off disk rather than through <see cref="Instance"/>
-        /// must go through this, not through <see cref="Path"/>. Reaching for the raw
-        /// property makes a missing checkout a hard failure, which is exactly what the
-        /// Ignore contract above exists to prevent -- and what turned CI red for three
-        /// pushes, because the fast job never fetches the dataset at all.
+        /// use the same requirement as tests that load the parsed dataset. A run with
+        /// no fixture cannot establish parity, even if its self-contained tests pass.
         /// </remarks>
         internal static string RequiredPath =>
-            Path ?? throw new IgnoreException(
+            Path ?? throw new AssertionException(
                 "Upstream Endless Sky data not found. Run tools/get-data.ps1, set " +
                 "ENDLESS_SKY_DATA, or clone endless-sky beside this project as ../es-upstream.");
 
@@ -72,7 +66,13 @@ namespace EndlessSky.Tests
 
                 string fromEnv = Environment.GetEnvironmentVariable("ENDLESS_SKY_DATA");
                 if (!string.IsNullOrEmpty(fromEnv))
-                    candidates.Add(fromEnv);
+                {
+                    string explicitPath = System.IO.Path.GetFullPath(fromEnv);
+                    if (!File.Exists(System.IO.Path.Combine(explicitPath, "commodities.txt")))
+                        throw new AssertionException("ENDLESS_SKY_DATA must name an upstream data " +
+                            "directory containing commodities.txt: " + explicitPath);
+                    return _dataPath = explicitPath;
+                }
 
                 // Walk up from the test binary to the Godot project root (the directory
                 // holding project.godot), then probe the documented checkout locations.
@@ -93,7 +93,7 @@ namespace EndlessSky.Tests
                 foreach (string candidate in candidates)
                 {
                     string full = System.IO.Path.GetFullPath(candidate);
-                    if (Directory.Exists(full))
+                    if (File.Exists(System.IO.Path.Combine(full, "commodities.txt")))
                     {
                         _dataPath = full;
                         return full;

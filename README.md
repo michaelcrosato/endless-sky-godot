@@ -79,6 +79,10 @@ pwsh tools/smoke.ps1                                            # real game scen
 The simulation-only command needs .NET and the upstream dataset, with no Godot
 installation. The other suites and the build/run scripts resolve the .NET engine
 through `GODOT_BIN` or the Windows installation paths described in `CLAUDE.md`.
+Required content fixtures fail when missing; run `pwsh tools/get-data.ps1` first.
+An explicit `ENDLESS_SKY_DATA` override must contain upstream `commodities.txt`.
+The upstream coverage test records the reviewed unhandled node counts for the
+pinned revision and fails if that backlog grows.
 
 ## The Reach
 

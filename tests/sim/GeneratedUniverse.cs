@@ -20,7 +20,7 @@ namespace EndlessSky.Tests
         private static GameData? _cached;
         private static string? _root;
 
-        /// <summary>Walks up from the test binary to <c>universe/</c>.</summary>
+        /// <summary>Finds this checkout's generated data without borrowing a parent checkout's.</summary>
         internal static string Root
         {
             get
@@ -31,19 +31,19 @@ namespace EndlessSky.Tests
                 var directory = new DirectoryInfo(AppContext.BaseDirectory);
                 while (directory != null)
                 {
-                    string candidate = Path.Combine(directory.FullName, "universe");
-                    if (Directory.Exists(candidate) &&
-                        File.Exists(Path.Combine(candidate, "systems.txt")))
+                    if (File.Exists(Path.Combine(directory.FullName, "project.godot")))
                     {
-                        _root = candidate;
-                        return _root;
+                        string candidate = Path.Combine(directory.FullName, "universe");
+                        if (File.Exists(Path.Combine(candidate, "systems.txt")))
+                            return _root = candidate;
+                        break;
                     }
 
                     directory = directory.Parent;
                 }
 
-                Assert.Ignore("generated universe not found — run tools/worldgen/worldgen.py");
-                return "";
+                throw new AssertionException("Generated universe not found in this checkout. " +
+                    "Run python tools/worldgen/worldgen.py.");
             }
         }
 

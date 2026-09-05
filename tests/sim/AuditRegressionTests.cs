@@ -99,8 +99,8 @@ namespace EndlessSky.Tests
             // "never disabled". Inheriting the flag makes that variant impossible.
             GameData data = UpstreamData.Instance;
 
-            if (!data.Ships.TryGetValue("Fetri'sei (Disable-able)", out ShipDefinition variant))
-                Assert.Ignore("upstream no longer defines Fetri'sei (Disable-able)");
+            Assert.IsTrue(data.Ships.TryGetValue("Fetri'sei (Disable-able)", out ShipDefinition variant),
+                "the pinned upstream dataset defines Fetri'sei (Disable-able)");
 
             Assert.IsTrue(data.Ships["Fetri'sei"].IsNeverDisabled, "the base cannot be disabled");
             Assert.IsFalse(variant.IsNeverDisabled, "but the variant exists precisely so it can be");

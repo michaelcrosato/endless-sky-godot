@@ -21,6 +21,8 @@ not artifacts available from a clone. CI runs the reproducible checks below.
 | Cleanup | Share planet-to-system lookup and braking logic; remove redundant helpers and the unused save-path property. Enable existing nullable annotations in test sources. | Full regression suite and build. |
 | Presentation | Keep the bottom control legend inside the viewport; allow the tutorial's final confirmation to display and dismissal to hide it immediately. Give dismissal F3 so it does not also open F2 graphics options. | Real rendered flight capture and control binding review. |
 | Packaging | Build in a fresh staging folder, replace the output only on success, guard replacement paths, and share preset lookup. Fail when the export artifact is missing or empty. | The old script retained an obsolete-data sentinel. The new release has exactly the 11 source data files; a copy outside the repository loaded its own dataset and passed flight/landed save smoke. Engine-free script regressions cover replacement, fallback data, export failure, preset selection, traversal and links. |
+| Required fixtures | Missing upstream/generated data and missing named parity content fail instead of skipping. Generated data stays within its checkout; explicit upstream overrides must be valid. Replace the always-passing coverage report with reviewed limits on unhandled content. | A fresh worktree previously reported success with all eight upstream tests skipped. It now fails all eight when data is missing; removing its generated systems file also fails instead of borrowing the parent checkout's data. |
+| Fresh checkout | Fetch the pinned reference and import/build without using the original worktree's engine cache or data. | An isolated detached worktree passed 795 simulation tests, 15 engine tests, packaging regressions and all five smoke contracts; Debug build had zero warnings/errors. |
 
 Latest local validation: **795 simulation tests, 15 engine tests, zero failures or
 skips**, and Debug/Release builds with zero warnings or errors. All five runtime
@@ -58,12 +60,11 @@ still contain meaningful work and need further implementation and verification:
 - **Simulation boundary:** commodity transactions and much of the session's
   orchestration still live in the presentation layer. Move rules into the engine-free
   layer with behavioral coverage. Preserve the actual player-facing flow.
-- **Coverage:** required data fixtures may skip tests when missing; unhandled node
-  coverage is mostly diagnostic. Strengthen those gates and assertions that currently
-  only prove a call does not throw.
-- **Delivery:** verify a clean checkout and Linux release export, and review
-  dependency/CI reproducibility. Windows release packaging and relocated startup
-  are verified above.
+- **Coverage:** strengthen remaining assertions that only prove a call does not
+  throw, and reduce the reviewed backlog of unhandled upstream node types.
+- **Delivery:** verify a Linux release export and review dependency/CI
+  reproducibility. Fresh checkout validation, Windows release packaging and
+  relocated startup are verified above.
 - **UX and content:** inspect controls and tutorial recovery when a job is abandoned,
   UI layout at smaller windows, input remapping, audio, and representative Reach
   content for currently unused event/conversation/wormhole systems.

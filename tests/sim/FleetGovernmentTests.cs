@@ -217,8 +217,7 @@ namespace EndlessSky.Tests
             // it would paint a ship the player cannot yet see in someone's colours.
             GameData data = UpstreamData.Instance;
 
-            if (!data.Ships.ContainsKey("Kestrel"))
-                Assert.Ignore("dataset has no Kestrel");
+            Assert.IsTrue(data.Ships.ContainsKey("Kestrel"), "the pinned dataset defines Kestrel");
 
             Assert.IsNull(data.GovernmentOf("Kestrel"));
         }

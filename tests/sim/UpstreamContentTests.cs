@@ -14,7 +14,7 @@ namespace EndlessSky.Tests
     ///
     /// The dataset is not vendored into this repository. Point <c>ENDLESS_SKY_DATA</c> at
     /// an upstream checkout's <c>data</c> directory, or place the checkout beside this
-    /// project as <c>../es-upstream</c>. Without it these tests are inconclusive and say so.
+    /// project as <c>../es-upstream</c>. Missing required content fails these tests.
     /// </summary>
     public class UpstreamContentTests
     {
@@ -155,23 +155,34 @@ namespace EndlessSky.Tests
         }
 
         [Test]
-        public void ContentCoverageIsReported()
+        public void UnhandledContentDoesNotGrowBeyondTheReviewedBaseline()
         {
             GameData data = Data();
 
-            // Not an assertion: this is the running score of how much of the dataset the
-            // loader still ignores, so Milestone 7 has a number to drive down.
-            IEnumerable<KeyValuePair<string, int>> top = data.UnhandledNodes
-                .OrderByDescending(p => p.Value)
-                .Take(25);
+            // Known incomplete content at tools/upstream-ref.txt. Improvements may
+            // reduce these counts. New kinds or growth need review when changing the
+            // loader or updating the pinned dataset; they must not silently pass.
+            var baseline = new Dictionary<string, int>
+            {
+                ["phrase"] = 867, ["tip"] = 560, ["effect"] = 309,
+                ["news"] = 219, ["color"] = 182, ["interface"] = 42,
+                ["help"] = 40, ["swizzle"] = 31, ["hazard"] = 30,
+                ["message"] = 27, ["galaxy"] = 26, ["person"] = 16,
+                ["formation"] = 14, ["message category"] = 9,
+                ["landing message"] = 8, ["category"] = 4, ["rating"] = 3,
+                ["substitutions"] = 3, ["gamerules preset"] = 1,
+            };
 
             TestContext.WriteLine("Top-level node kinds not yet modelled (count):");
-            foreach (KeyValuePair<string, int> pair in top)
+            foreach (KeyValuePair<string, int> pair in data.UnhandledNodes.OrderByDescending(p => p.Value))
             {
                 TestContext.WriteLine($"  {pair.Key,-24} {pair.Value}");
             }
 
-            Assert.Pass();
+            var regressions = data.UnhandledNodes.Where(pair =>
+                !baseline.TryGetValue(pair.Key, out int maximum) || pair.Value > maximum);
+            Assert.IsEmpty(regressions,
+                "unhandled upstream content grew beyond the reviewed baseline");
         }
     }
 }

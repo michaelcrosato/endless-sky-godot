@@ -247,8 +247,7 @@ namespace EndlessSky.Tests
                 .FirstOrDefault(d => d.Attributes.Get("jump drive") > 0.0 ||
                                      data.BuildShip(d.DisplayName).HasJumpDrive);
 
-            if (definition is null)
-                Assert.Ignore("no jump-drive ships in the dataset");
+            Assert.IsNotNull(definition, "the pinned dataset defines jump-drive ships");
 
             Ship ship = data.BuildShip(definition!.DisplayName);
             ship.BuildMounts();

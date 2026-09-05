@@ -199,8 +199,7 @@ namespace EndlessSky.Tests
             // faction for exactly that reason.
             GameData data = UpstreamData.Instance;
 
-            if (!data.Shipyards.ContainsKey("Kestrel"))
-                Assert.Ignore("dataset has no Kestrel shipyard");
+            Assert.IsTrue(data.Shipyards.ContainsKey("Kestrel"), "the pinned dataset defines Kestrel's shipyard");
 
             var stocking = data.Events.Values
                 .Where(e => e.Changes.Any(c => c.Token(0) == "shipyard" &&
