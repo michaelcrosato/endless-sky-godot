@@ -49,13 +49,14 @@ not artifacts available from a clone. CI runs the reproducible checks below.
 | Owned ship factions | Assign the shared player government when a hull enters the owned fleet, including purchases and reloads. The combat layer uses that same government. | The extended runtime smoke caught the former flagship losing its faction after a later reload. Two simulation regressions reproduced acquisition and multi-ship reload failures; both now pass. Upstream assigns the player government in `PlayerInfo::AddStockShip` and after loading owned ships. |
 | Owned escort flight | Step active escorts in the simulation, route separated ships using their own drives and fuel, and integrate their meshes, weapons and local combat membership. Expose follow/gather/hold/attack controls and local fleet counts. Keep other ships and projectiles running during the flagship's jump; preserve its departure position when changing flagship. | Twenty-two new simulation cases cover pursuit, regrouping, hold, power, cooling, routing, fuel, ineligible hulls, targetability, launch placement and freight delivery. Four engine cases verify mesh/field reconstruction, flagship changes and menu input isolation. The fleet runtime smoke uses stock ships and one freight fixture: normal combat, hold while the flagship jumps, independent pursuit, mid-jump reload and delivery payment. Only landing approaches are positioned. A 1280×720 capture verifies the escort and HUD; the controls capture exposed clipped rows, fixed with two columns. |
 | Jumps in saved games | Save the committed jump's phase, destination, drive kind and latched fuel cost for every serialized ship. Resume the remaining travel without charging the fuel again. Reject an impossible outbound phase that would never reach arrival. | Ten save cases compare original and restored ships through departure, outbound travel and inbound deceleration for hyperdrives and jump drives. The invalid-phase regression failed before validation was added. Four additional cases pin targetability at the upstream frame-70 threshold. The runtime fleet smoke reloads an escort during its outbound jump, then requires its correct arrival, fuel, combat membership and freight. |
+| Shipyard sales and replacement | Select an individual local hull, including models the yard does not stock, and confirm its quoted sale value. Reject remote, destroyed and jumping hulls, ports without a yard, sales in flight and credit overflow. Allow the last ship to be sold; retain the port, cargo and mission freight through reload and replacement purchase. Do not promote unavailable hulls. Remove the obsolete last-ship prohibition and share port reconstruction. | Twelve new simulation cases cover sale eligibility, cargo and freight without ships, reload, replacement, unavailable flagships and retained purchase history after overflow. An existing test was corrected against upstream's unrestricted last-ship sale. Five engine cases verify exact selection, unlisted models, cancellation/held keys, replacement and a 1,300-credit equipped quote for a 1,000-credit hull with a 300-credit outfit. The runtime smoke uses stock ships and explicit funds, confirms the last sale, saves and reloads through menus, rejects a shipless flight save, buys a replacement and coasts through normal physics with five saved tons. The landing approach and initial coasting speed are set. Captures at 1280×720 exposed an empty tutorial panel over the shipless port; it is now hidden along with flight hints. |
 
-Latest local validation: **963 simulation tests, 37 engine tests, zero failures or
-skips**, and Debug/Release builds with zero warnings or errors. All six runtime
+Latest local validation: **975 simulation tests, 42 engine tests, zero failures or
+skips**, and Debug/Release builds with zero warnings or errors. All seven runtime
 smokes passed their documented contract, including winning and collecting a bounty.
 The Windows release package also passed save/load, both bounty reloads and payment,
-and the owned fleet scenario from a relocated copy with no data override. Native
-Ubuntu CI builds the Linux release and gates the same three relocated scenarios.
+and the owned fleet and shipyard scenarios from a relocated copy with no data override.
+Native Ubuntu CI builds the Linux release and gates the same four relocated scenarios.
 
 Owned escorts retain their positions, systems, freight and committed jumps on load.
 Flight orders and uncommitted navigation targets are not saved: escorts return to
@@ -142,6 +143,8 @@ still contain meaningful work and need further implementation and verification:
   implemented. Cargo pooling currently uses same-system active ships as an
   approximation for ships landed at the same planet; individual landing state,
   passengers and stored outfits remain incomplete.
+  The shipyard likewise filters by system and travel state until per-ship planets
+  are modeled; licences, stored outfits from chassis-only sales and trade-in remain incomplete.
   Applied changes to market definitions share the wider universe-persistence gap above.
 - **Simulation boundary:** much of the session's orchestration still lives in the
   presentation layer. Move rules into the engine-free layer with behavioral coverage.

@@ -31,7 +31,7 @@ namespace EndlessSky.Game
                 _traffic.RemoveAll(pair => ReferenceEquals(pair.Ship, _fleetSmokeThreat));
                 _field!.Remove(_fleetSmokeThreat);
                 _fleetSmokeThreatView!.QueueFree();
-                FleetSmokeKey(Key.H);
+                SmokeKey(Key.H);
                 _ship!.TargetSystem = _fleetSmokeDestination;
                 _ship.Velocity = Point.Zero;
                 _ship.Facing = Angle.FromPoint(_ship.JumpDirection);
@@ -43,7 +43,7 @@ namespace EndlessSky.Game
             {
                 if (_fleetSmokeEscort!.CurrentSystem != _fleetSmokeOrigin || _fleetSmokeEscort.IsEnteringHyperspace)
                     return EndFleetSmoke(false, "hold order did not leave the escort in the departure system");
-                FleetSmokeKey(Key.V);
+                SmokeKey(Key.V);
                 _fleetSmokeStage = 3;
             }
             else if (_fleetSmokeStage == 3 && _fleetSmokeEscort!.IsEnteringHyperspace
@@ -157,14 +157,14 @@ namespace EndlessSky.Game
             _traffic.Add((_fleetSmokeThreat, _fleetSmokeThreatView));
             _field.Add(_fleetSmokeThreat);
             SyncOwnedEscorts();
-            FleetSmokeKey(Key.F);
+            SmokeKey(Key.F);
             _fleetSmokeStage = 1;
             GD.Print($"[smoke] {_fleetSmokeEscort.Definition.DisplayName} carries {freight} t of mission freight; " +
                 $"route {_fleetSmokeOrigin.Name} → {_fleetSmokeDestination.Name}");
             return false;
         }
 
-        private void FleetSmokeKey(Key key)
+        private void SmokeKey(Key key)
         {
             Func<Key, bool> original = _ui.KeyDown;
             try

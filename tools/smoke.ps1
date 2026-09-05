@@ -3,7 +3,7 @@
 .SYNOPSIS
   Runs real engine scenarios, requiring both a successful exit and completion.
 .DESCRIPTION
-  Covers startup, landing, tutorial delivery, save/load, a paid bounty and owned escorts.
+  Covers startup, landing, tutorial delivery, save/load, a paid bounty, escorts and shipyards.
   Mission uses a stock combat flagship, reloads during combat and after victory,
   and positions its travel legs; tutorial exercises flight and delivery.
   Save restores the pilot, commodity costs and changed markets through flight and port menus,
@@ -13,12 +13,15 @@
   Fleet uses stock ships and a freight fixture: an escort fights, holds while its
   flagship jumps, follows on its own fuel, reloads mid-jump and delivers its cargo.
   Only its landing approaches are positioned. All save checks use temporary slots.
+  Shipyard uses stock ships and explicit starting funds, confirms sale of the last
+  hull, reloads without a flagship, buys a replacement at the quoted price and departs
+  with saved cargo. The landing approach and initial coasting speed are set.
 .PARAMETER Frames
   Maximum engine iterations per scenario. Reaching the limit without a PASS fails.
 #>
 [CmdletBinding()]
 param(
-    [ValidateSet('all', 'startup', 'land', 'tutorial', 'save', 'mission', 'fleet')]
+    [ValidateSet('all', 'startup', 'land', 'tutorial', 'save', 'mission', 'fleet', 'shipyard')]
     [string]$Scenario = 'all',
     [ValidateRange(1, 1000000)] [int]$Frames = 20000,
     [switch]$NoBuild
@@ -29,7 +32,7 @@ Initialize-Godot
 Set-Location $script:ProjectRoot
 if (-not $NoBuild) { & "$PSScriptRoot/build.ps1" }
 
-$scenarios = if ($Scenario -eq 'all') { @('startup', 'land', 'tutorial', 'save', 'mission', 'fleet') } else { @($Scenario) }
+$scenarios = if ($Scenario -eq 'all') { @('startup', 'land', 'tutorial', 'save', 'mission', 'fleet', 'shipyard') } else { @($Scenario) }
 foreach ($name in $scenarios) {
     $limit = if ($name -eq 'startup') { [Math]::Min($Frames, 60) } else { $Frames }
     $engineArgs = @('--headless', '--path', '.', '--ignore-error-breaks', '--quit-after', $limit)

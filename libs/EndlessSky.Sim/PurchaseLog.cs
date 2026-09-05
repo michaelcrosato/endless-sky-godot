@@ -54,25 +54,25 @@ namespace EndlessSky.Sim
             days.Sort();
         }
 
-        /// <summary>
-        /// Consumes the newest record for this item and returns its age in days, or
-        /// null when the player has no record of buying it.
-        /// </summary>
-        public int? TakeAge(string key, DateTime today)
+        /// <summary>Age of the next record to be sold, without consuming the purchase.</summary>
+        public int? PeekAge(string key, DateTime today)
         {
             if (string.IsNullOrEmpty(key) ||
                 !_bought.TryGetValue(key, out List<DateTime>? days) || days.Count == 0)
-            {
                 return null;
-            }
+            return Math.Max(0, (int)(today - days[^1]).TotalDays);
+        }
 
-            DateTime newest = days[^1];
+        /// <summary>Consumes the newest purchase and returns its age, or null if unknown.</summary>
+        public int? TakeAge(string key, DateTime today)
+        {
+            int? age = PeekAge(key, today);
+            if (!age.HasValue) return null;
+            List<DateTime> days = _bought[key];
             days.RemoveAt(days.Count - 1);
             if (days.Count == 0)
                 _bought.Remove(key);
-
-            // Negative ages are meaningless; a save edited by hand could produce one.
-            return Math.Max(0, (int)(today - newest).TotalDays);
+            return age;
         }
 
         /// <summary>How many purchases are on record for an item.</summary>

@@ -8,7 +8,13 @@ namespace EndlessSky.Game
     {
         private void SyncOwnedEscorts()
         {
-            if (_ownedFleet == null || _field == null || _ship == null) return;
+            if (_ownedFleet == null || _field == null) return;
+            if (_ship == null)
+            {
+                _ownedFleet.Clear();
+                _ownedFleet.Visible = false;
+                return;
+            }
             _ownedFleet.Sync(_player.Fleet, _ship.CurrentSystem, _field);
             _ownedFleet.Visible = _player.CurrentPlanet == null;
         }

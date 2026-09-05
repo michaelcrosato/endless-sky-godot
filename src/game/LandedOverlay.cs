@@ -46,6 +46,8 @@ namespace EndlessSky.Game
 
         private List<TradeQuote> _quotes = new();
         private List<string> _shipyardStock = new();
+        private List<Ship> _shipyardOwned = new();
+        private Dictionary<string, long> _shipyardPrices = new();
         private List<string> _outfitterStock = new();
         private List<Mission> _jobs = new();
 
@@ -59,6 +61,7 @@ namespace EndlessSky.Game
 
         /// <summary>Requests departure; true means the cargo-loss warning was accepted.</summary>
         public event Action<bool>? Departed;
+        public event Action? FleetChanged;
 
         /// <summary>
         /// Which counter to open on. Only used to capture a screen that would
@@ -160,6 +163,9 @@ namespace EndlessSky.Game
                 .OrderBy(s => s, StringComparer.Ordinal)
                 .ToList();
 
+            _shipyardPrices = _shipyardStock.ToDictionary(model => model,
+                model => _universe.BuildShip(model).Cost, StringComparer.Ordinal);
+
             _outfitterStock = Trading.OutfitsFor(_universe, _planet)
                 .Where(_universe.Outfits.ContainsKey)
                 .OrderBy(o => o, StringComparer.Ordinal)
@@ -182,12 +188,28 @@ namespace EndlessSky.Game
 
         public bool IsOfferingMission => _talk != null || _dialog != null;
         private CargoDeparture? _departure;
+        private Ship? _shipForSale;
+        public bool IsConfirmingShipSale => _shipForSale != null;
         public bool IsConfirmingDeparture => _departure != null;
-        public bool HasDialog => IsOfferingMission || IsConfirmingDeparture;
+        public bool HasDialog => IsOfferingMission || IsConfirmingDeparture || IsConfirmingShipSale;
 
         /// <summary>Called by the shell while the port owns this frame's input.</summary>
         public void Step(GameUi ui)
         {
+            if (IsConfirmingShipSale)
+            {
+                if (ui.Pressed(Key.Escape)) { _shipForSale = null; Refresh(); }
+                else if (ui.Pressed(Key.Enter) | ui.Pressed(Key.KpEnter))
+                {
+                    Ship ship = _shipForSale!;
+                    _shipForSale = null;
+                    TradeResult result = Trading.SellShip(_player, ship);
+                    _message = Explain(result, $"sold {ship.GivenName ?? ship.Definition.DisplayName}");
+                    if (result == TradeResult.Ok) FleetChanged?.Invoke();
+                    Refresh();
+                }
+                return;
+            }
             if (IsConfirmingDeparture)
             {
                 if (ui.Pressed(Key.Escape)) { _departure = null; Refresh(); }
@@ -240,6 +262,7 @@ namespace EndlessSky.Game
             if (sell)
             {
                 Sell();
+                if (HasDialog) return;
             }
 
             if (depart)
@@ -385,7 +408,7 @@ namespace EndlessSky.Game
             // abandon key can only ever guess which one was meant.
             Counter.Jobs => _jobs.Count + _missions.Active.Count,
             Counter.Trade => _quotes.Count,
-            Counter.Shipyard => _shipyardStock.Count,
+            Counter.Shipyard => _shipyardOwned.Count + _shipyardStock.Count,
             Counter.Outfitter => _outfitterStock.Count,
             _ => 0,
         };
@@ -415,11 +438,22 @@ namespace EndlessSky.Game
 
                 case Counter.Shipyard:
                 {
-                    string model = _shipyardStock[index];
-                    TradeResult result = Trading.BuyShip(_player, _universe, model, out Ship? bought);
+                    int stockIndex = index - _shipyardOwned.Count;
+                    if (stockIndex < 0)
+                    {
+                        _message = "select a ship marked FOR SALE to buy it";
+                        break;
+                    }
+                    string model = _shipyardStock[stockIndex];
+                    TradeResult result = Trading.BuyShip(_player, _universe, model, out _);
                     _message = result == TradeResult.Ok
                         ? $"bought a {model}"
                         : Explain(result);
+                    if (result == TradeResult.Ok)
+                    {
+                        _selected[_counter] = Trading.ShipsToSell(_player).Count() + stockIndex;
+                        FleetChanged?.Invoke();
+                    }
                     break;
                 }
 
@@ -511,15 +545,13 @@ namespace EndlessSky.Game
 
                 case Counter.Shipyard:
                 {
-                    // Sells the flagship's model if the player has a spare of it, which
-                    // is the only unambiguous thing this list can mean.
-                    string model = _shipyardStock[index];
-                    Ship? owned = _player.Fleet.Ships
-                        .FirstOrDefault(s => s.Definition.DisplayName == model);
-
-                    _message = owned is null
-                        ? "you own none of those"
-                        : Explain(Trading.SellShip(_player, owned), $"sold a {model}");
+                    if (index >= _shipyardOwned.Count)
+                    {
+                        _message = "select one of your ships to sell it";
+                        break;
+                    }
+                    _shipForSale = _shipyardOwned[index];
+                    _message = string.Empty;
                     break;
                 }
 
@@ -568,7 +600,7 @@ namespace EndlessSky.Game
             TradeResult.CannotAfford => "you cannot afford that",
             TradeResult.DoesNotFit => "it will not fit",
             TradeResult.NotOwned => "you do not own that",
-            TradeResult.LastShip => "you cannot sell your only ship",
+            TradeResult.NotHere => "that ship is not available here",
             TradeResult.InvalidAmount => "quantity must be positive",
             TradeResult.CreditLimit => "credit balance limit reached",
             _ => "no",
@@ -617,6 +649,8 @@ namespace EndlessSky.Game
 
         private void Refresh()
         {
+            _shipyardOwned = Trading.ShipsToSell(_player).ToList();
+            _selected[_counter] = Math.Clamp(Selection(), 0, Math.Max(0, CurrentCount() - 1));
             _quotes = Trading.CommoditiesFor(_universe, _player)
                 .OrderBy(q => q.Commodity, StringComparer.Ordinal)
                 .ToList();
@@ -625,19 +659,19 @@ namespace EndlessSky.Game
 
             // A dialogue takes over the panel while it is up: the counter behind it is
             // not what the player is answering.
-            _listLabel.Text = string.Join("\n", _departure != null ? DepartureLines()
+            _listLabel.Text = string.Join("\n", _shipForSale != null ? ShipSaleLines()
+                : _departure != null ? DepartureLines()
                 : IsOfferingMission ? OfferLines() : Lines());
 
             Ship? flagship = _player.Fleet.Flagship;
-            string hold = flagship is null
-                ? ""
-                : $"   cargo {_player.Fleet.CargoUsed(_player.CurrentSystem)}/{_player.Fleet.CargoCapacity(_player.CurrentSystem)} t" +
-                  $"   fuel {flagship.Fuel:0}";
+            string hold = $"   cargo {_player.Fleet.CargoUsed(_player.CurrentSystem)}/{_player.Fleet.CargoCapacity(_player.CurrentSystem)} t" +
+                (flagship is null ? "   no flagship" : $"   fuel {flagship.Fuel:0}");
 
             _statusLine.Text =
                 $"credits {_player.Credits:n0}   ships {_player.Fleet.Ships.Count}" +
                 $"   missions {_missions.Active.Count}{hold}\n" +
-                (IsConfirmingDeparture ? "ENTER depart · ESC keep cargo and return"
+                (IsConfirmingShipSale ? "ENTER sell · ESC keep ship"
+                    : IsConfirmingDeparture ? "ENTER depart · ESC keep cargo and return"
                     : $"TAB counter · ↑/↓ select · {ActionHint()} · D depart · ESC menu") +
                 (_message.Length > 0 ? $"\n{_message}" : "");
         }
@@ -645,7 +679,7 @@ namespace EndlessSky.Game
         private string ActionHint() => _counter switch
         {
             Counter.Trade => "B buy 5t · N sell 5t",
-            Counter.Shipyard => "B buy ship · N sell ship",
+            Counter.Shipyard => Selection() < _shipyardOwned.Count ? "N sell selected ship" : "B buy selected ship",
             Counter.Outfitter => "B install · N remove",
             Counter.Jobs => "B accept / hand in · N abandon",
             _ => "",
@@ -681,13 +715,20 @@ namespace EndlessSky.Game
                     break;
 
                 case Counter.Shipyard:
+                    for (int i = 0; i < _shipyardOwned.Count; i++)
+                    {
+                        Ship ship = _shipyardOwned[i];
+                        string name = ship.GivenName ?? ship.Definition.DisplayName;
+                        string model = name == ship.Definition.DisplayName ? "" : $" · {ship.Definition.DisplayName}";
+                        string role = ReferenceEquals(ship, _player.Flagship) ? "flagship" : ship.IsParked ? "parked" : "owned";
+                        lines.Add($"{Cursor(i, selected)}{name} · {role}{model}" +
+                            $"   sell {Trading.ShipSaleValue(_player, ship):n0} cr");
+                    }
                     for (int i = 0; i < _shipyardStock.Count; i++)
                     {
                         string model = _shipyardStock[i];
-                        long cost = (long)_universe.Ships[model].Attributes.Get("cost");
-                        int owned = _player.Fleet.Ships.Count(s => s.Definition.DisplayName == model);
-                        lines.Add($"{Cursor(i, selected)}{model,-26} {cost,10:n0} cr" +
-                                  (owned > 0 ? $"   owned {owned}" : ""));
+                        long cost = _shipyardPrices[model];
+                        lines.Add($"{Cursor(i + _shipyardOwned.Count, selected)}FOR SALE  {model,-26} {cost,10:n0} cr");
                     }
 
                     if (lines.Count == 0) lines.Add("   (no shipyard on this world)");
@@ -756,6 +797,17 @@ namespace EndlessSky.Game
         }
 
         private static string Cursor(int index, int selected) => index == selected ? "▶ " : "   ";
+
+        private IEnumerable<string> ShipSaleLines()
+        {
+            Ship ship = _shipForSale!;
+            yield return $"Sell {ship.GivenName ?? ship.Definition.DisplayName} for {Trading.ShipSaleValue(_player, ship):n0} cr?";
+            yield return $"  {ship.Definition.DisplayName}, including its installed outfits";
+            yield return "";
+            yield return "Cargo ashore stays at this port.";
+            if (_player.Fleet.Ships.Count == 1)
+                yield return "This is your last ship. You will remain at this port.";
+        }
 
         private IEnumerable<string> DepartureLines()
         {

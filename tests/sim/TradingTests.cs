@@ -155,11 +155,8 @@ namespace EndlessSky.Tests
             CollectionAssert.DoesNotContain(player.Fleet.Ships, second);
             CollectionAssert.Contains(player.Fleet.Ships, first);
 
-            // Held for years, it is. Depreciation is a function of how long the player
-            // kept the thing, which is why it needs a purchase record at all. A second
-            // ship first, so selling the old one is not blocked as the last flyable
-            // hull — and bought BEFORE the years pass, because the player sells their
-            // newest copy first and a fresh purchase would be the one consumed.
+            // A second purchase before the years pass checks the newest-copy-first
+            // depreciation record without introducing a fresh, full-price hull.
             Trading.BuyShip(player, data, "Shuttle", out Ship? spare);
             Assert.IsNotNull(spare);
 
@@ -173,14 +170,18 @@ namespace EndlessSky.Tests
         }
 
         [Test]
-        public void ThePlayersLastFlyableShipCannotBeSold()
+        public void SellingTheLastShipLeavesThePlayerAtThePort()
         {
-            // Selling it would strand the player on the ground with no way to leave.
+            // ShipyardPanel::HandleShortcuts permits this. A replacement must be
+            // acquired before takeoff, but the player may remain on the ground.
             PlayerState player = Landed(out GameData data);
             Trading.BuyShip(player, data, "Shuttle", out Ship? only);
 
-            Assert.AreEqual(TradeResult.LastShip, Trading.SellShip(player, only!));
-            CollectionAssert.Contains(player.Fleet.Ships, only);
+            Assert.AreEqual(TradeResult.Ok, Trading.SellShip(player, only!));
+            Assert.IsEmpty(player.Fleet.Ships);
+            Assert.IsNull(player.Flagship);
+            Assert.AreSame(data.Planets["Home"], player.CurrentPlanet);
+            Assert.IsFalse(player.TakeOff());
         }
 
         [Test]

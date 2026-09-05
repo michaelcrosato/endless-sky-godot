@@ -34,6 +34,8 @@ namespace EndlessSky.Sim
     /// including zero-ton parcels. A root cargo block preserves the port inventory
     /// even if the remaining ships cannot carry it. Old saves reserve freight from mixed
     /// commodity stock once; new saves never reconstruct cargo lost during a flight.
+    /// A pilot with no ships can retain a landed location and cargo ashore. The
+    /// runtime accepts that save only when its planet belongs to its saved system.
     ///
     /// The economy block restores supply, displayed quotes and pending sales. A
     /// staged read lets the runtime validate the pilot before replacing shared markets.
@@ -388,6 +390,13 @@ namespace EndlessSky.Sim
 
             foreach (DataNode cargo in cargoNodes)
                 player.Fleet.RestoreCargo(ReadCargo(cargo));
+
+            // An explicit saved selection retains its condition, including a
+            // disabled flagship. With no selection, a port cannot adopt a remote
+            // or parked hull merely because it was first in the save.
+            if (player.CurrentPlanet != null && !file.Nodes.Any(n => n.Token(0) == "ship"
+                && n.Children.Any(c => c.Token(0) == "flagship")))
+                player.Fleet.RefreshFlagship();
 
             // Mission fallback destinations and legacy NPC placement need the loaded
             // location, date and conditions, regardless of the save's field order.

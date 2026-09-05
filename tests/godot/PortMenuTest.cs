@@ -20,11 +20,14 @@ namespace EndlessSky.Tests.Presentation
             public readonly LandedOverlay Port;
             public readonly PlayerState Player;
             public readonly MissionLog Missions;
+            public readonly GameData Data;
             public int Saves, Loads, Departures;
 
-            public Session(int counter = 0, int price = 100, int? freight = null, int ships = 1, int cargo = 0)
+            public Session(int counter = 0, int price = 100, int? freight = null, int ships = 1, int cargo = 0,
+                int stockOutfitCost = 0)
             {
                 var data = new GameData();
+                Data = data;
                 data.LoadText("trade\n\tcommodity Food 50 100\n" +
                     "ship Trader\n\tattributes\n\t\tcost 1000\n\t\tmass 80\n\t\thull 500\n\t\t\"cargo space\" 40\n" +
                     "shipyard Yard\n\tTrader\nplanet Home\n\tspaceport Busy\n\tshipyard Yard\n" +
@@ -33,6 +36,8 @@ namespace EndlessSky.Tests.Presentation
                     (freight.HasValue ? $"\tcargo Food {freight.Value}\n" : "") +
                     "\ton offer\n\t\tdialog Ready\n\ton accept\n\t\tpayment 20\n");
                 data.Trade.SetPrice("Sol", "Food", price);
+                if (stockOutfitCost > 0)
+                    data.LoadText($"outfit Scanner\n\tcost {stockOutfitCost}\nship Trader\n\toutfits\n\t\tScanner 1\n");
                 Player = new PlayerState(data);
                 for (int i = 0; i < ships; i++)
                 {
@@ -97,6 +102,129 @@ namespace EndlessSky.Tests.Presentation
 
         [TestCase]
         [RequireGodotRuntime]
+        public async Task ShipyardSaleUsesTheSelectedLocalHull()
+        {
+            var session = new Session(ships: 3);
+            try
+            {
+                session.Data.LoadText("system Remote\n\tpos 100 0\n");
+                Ship remote = session.Player.Fleet.Ships[0];
+                Ship local = session.Player.Fleet.Ships[1];
+                Ship selected = session.Player.Fleet.Ships[2];
+                remote.CurrentSystem = session.Data.Systems["Remote"];
+                remote.GivenName = "Remote hull";
+                local.GivenName = "Local hull";
+                selected.GivenName = "Selected hull";
+                session.Tap(Key.Tab);
+                session.Tap(Key.Down);
+                session.Tap(Key.N);
+                session.Tap(Key.Enter);
+                AssertBool(session.Player.Fleet.Ships.Contains(remote)).IsTrue();
+                AssertBool(session.Player.Fleet.Ships.Contains(local)).IsTrue();
+                AssertBool(session.Player.Fleet.Ships.Contains(selected)).IsFalse();
+                AssertThat(session.Player.Credits).IsEqual(1250L);
+                AssertBool(session.Port.FindChildren("*", "Label", true, false).OfType<Label>()
+                    .Any(label => label.Text.Contains("FOR SALE")
+                        && (label.Text.Contains("Remote hull") || label.Text.Contains("Selected hull")))).IsFalse();
+            }
+            finally { await session.Release(); }
+        }
+
+        [TestCase]
+        [RequireGodotRuntime]
+        public async Task ShipyardAcceptsAnOwnedModelOutsideItsStock()
+        {
+            var session = new Session(ships: 0);
+            try
+            {
+                session.Data.LoadText("ship Unlisted\n\tattributes\n\t\tcost 2000\n\t\thull 500\n");
+                Ship ship = session.Data.BuildShip("Unlisted");
+                ship.CurrentSystem = session.Player.CurrentSystem;
+                session.Player.Fleet.Add(ship);
+                session.Tap(Key.Tab);
+                AssertBool(session.Port.FindChildren("*", "Label", true, false).OfType<Label>()
+                    .Any(label => label.Text.Contains("Unlisted") && label.Text.Contains("sell 500 cr"))).IsTrue();
+                await session.Capture("shipyard-owned-roster");
+                session.Tap(Key.N);
+                session.Tap(Key.Enter);
+                AssertThat(session.Player.Fleet.Ships.Count).IsEqual(0);
+                AssertThat(session.Player.Credits).IsEqual(1500L);
+            }
+            finally { await session.Release(); }
+        }
+
+        [TestCase]
+        [RequireGodotRuntime]
+        public async Task SellingTheOnlyShipKeepsThePortAndAllowsAReplacement()
+        {
+            var session = new Session(counter: 1, cargo: 5);
+            try
+            {
+                Ship old = session.Player.Flagship!;
+                int changed = 0;
+                session.Port.FleetChanged += () => changed++;
+                session.Tap(Key.N);
+                session.Tap(Key.Enter);
+                AssertBool(session.Player.Flagship == null).IsTrue();
+                AssertBool(session.Ui.Port == session.Port).IsTrue();
+                AssertThat(session.Player.Fleet.PortCargo!.Count("Food")).IsEqual(5L);
+                session.Tap(Key.D);
+                AssertThat(session.Departures).IsEqual(0);
+                await session.Capture("shipyard-no-flagship");
+                session.Tap(Key.B);
+                AssertBool(session.Player.Flagship != null && session.Player.Flagship != old).IsTrue();
+                AssertThat(changed).IsEqual(2);
+                session.Port.Departed += confirmed => session.Player.TakeOff(session.Missions, confirmed);
+                session.Tap(Key.D);
+                AssertThat(session.Departures).IsEqual(1);
+                AssertThat(session.Player.Flagship!.Cargo.Count("Food")).IsEqual(5L);
+            }
+            finally { await session.Release(); }
+        }
+
+        [TestCase]
+        [RequireGodotRuntime]
+        public async Task CancellingAShipSaleKeepsTheHullCargoAndMoney()
+        {
+            var session = new Session(counter: 1, cargo: 5);
+            try
+            {
+                string before = SaveGame.Write(session.Player, session.Missions);
+                session.Frame(Key.N, Key.Enter, Key.D);
+                session.Frame(Key.Enter, Key.D);
+                AssertBool(session.Port.IsConfirmingShipSale).IsTrue();
+                AssertThat(SaveGame.Write(session.Player, session.Missions)).IsEqual(before);
+                await session.Capture("shipyard-sale-confirmation");
+                session.Frame(Key.Escape, Key.N, Key.B, Key.Enter);
+                session.Frame(Key.N, Key.B, Key.Enter);
+                AssertBool(session.Port.IsConfirmingShipSale).IsFalse();
+                AssertThat(session.Ui.Screen).IsEqual(UiScreen.None);
+                AssertThat(SaveGame.Write(session.Player, session.Missions)).IsEqual(before);
+                AssertThat(session.Departures).IsEqual(0);
+            }
+            finally { await session.Release(); }
+        }
+
+        [TestCase]
+        [RequireGodotRuntime]
+        public async Task TheShipyardQuotesTheEquippedShipPriceItActuallyCharges()
+        {
+            var session = new Session(counter: 1, ships: 0, stockOutfitCost: 300);
+            try
+            {
+                session.Player.SetCredits(2000);
+                AssertBool(session.Port.FindChildren("*", "Label", true, false).OfType<Label>()
+                    .Any(label => label.Text.Contains("FOR SALE") && label.Text.Contains("1,300 cr"))).IsTrue();
+                session.Tap(Key.B);
+                AssertThat(session.Player.Credits).IsEqual(700L);
+                AssertThat(session.Player.Flagship!.Cost).IsEqual(1300L);
+                AssertThat(session.Player.Flagship.Outfits.Count).IsEqual(1);
+            }
+            finally { await session.Release(); }
+        }
+
+        [TestCase]
+        [RequireGodotRuntime]
         public async Task FleetOrdersOnlyFireOnceInFlightAndDoNotLeakThroughMenus()
         {
             var session = new Session();
@@ -133,6 +261,7 @@ namespace EndlessSky.Tests.Presentation
             try
             {
                 session.Tap(Key.N);
+                session.Tap(Key.Enter);
                 AssertThat(session.Player.Fleet.Ships.Count).IsEqual(1);
                 string before = SaveGame.Write(session.Player, session.Missions);
                 session.Tap(Key.D);
@@ -167,6 +296,7 @@ namespace EndlessSky.Tests.Presentation
                     session.Port.Hide();
                 };
                 session.Tap(Key.N);
+                session.Tap(Key.Enter);
                 long credits = session.Player.Credits;
                 session.Frame(Key.D, Key.Enter);
                 AssertBool(session.Port.IsConfirmingDeparture).IsTrue();
@@ -197,6 +327,7 @@ namespace EndlessSky.Tests.Presentation
                 session.Tap(Key.Tab);
                 session.Tap(Key.Tab);
                 session.Tap(Key.N);
+                session.Tap(Key.Enter);
                 session.Tap(Key.D);
                 AssertBool(session.Port.IsConfirmingDeparture).IsTrue();
                 AssertThat(job.Outcome).IsEqual(MissionOutcome.Active);

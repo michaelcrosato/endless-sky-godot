@@ -61,7 +61,7 @@ namespace EndlessSky.Sim
         DoesNotFit,
         NotOwned,
         NoSuchThing,
-        LastShip,
+        NotHere,
         InvalidAmount,
         CreditLimit,
     }
@@ -77,8 +77,9 @@ namespace EndlessSky.Sim
     /// be bought.
     ///
     /// Every check here is a rule a player runs into: a shop only sells what it
-    /// stocks, an outfit must physically fit before it can be paid for, and the last
-    /// flyable ship cannot be sold out from under its pilot.
+    /// stocks, an outfit must physically fit before it can be paid for, and a ship
+    /// must be available at the port to be sold. Selling the last ship is allowed;
+    /// the pilot remains landed until a replacement can depart.
     ///
     /// INCOMPLETE, tracked rather than dropped: cost accounting for jettisoned cargo,
     /// individual port services and per-ship landing clearance,
@@ -259,9 +260,19 @@ namespace EndlessSky.Sim
             return TradeResult.Ok;
         }
 
-        /// <summary>
-        /// Sells a ship out of the fleet at its depreciated value.
-        /// </summary>
+        /// <summary>Owned hulls available to this shipyard, including models it does not stock.</summary>
+        public static IEnumerable<Ship> ShipsToSell(PlayerState player) =>
+            player?.CurrentPlanet is { HasShipyard: true } && player.CurrentSystem != null
+                ? player.Fleet.Ships.Where(s => ReferenceEquals(s.CurrentSystem, player.CurrentSystem)
+                    && !s.IsDestroyed && !s.IsEnteringHyperspace && !s.IsHyperspacing)
+                : Enumerable.Empty<Ship>();
+
+        /// <summary>The amount a sale will pay, without consuming any purchase records.</summary>
+        public static long ShipSaleValue(PlayerState player, Ship ship, int ageInDays = Depreciation.MaxAge) =>
+            Depreciation.SaleValue(ship.Cost,
+                player.Purchases.PeekAge(PurchaseLog.ShipKey(ship.Definition.DisplayName), player.Date) ?? ageInDays);
+
+        /// <summary>Sells an available ship at its depreciated value, even if it is the last hull.</summary>
         public static TradeResult SellShip(PlayerState player, Ship ship,
                                            int ageInDays = Depreciation.MaxAge)
         {
@@ -271,17 +282,18 @@ namespace EndlessSky.Sim
             if (!player.Fleet.Ships.Contains(ship))
                 return TradeResult.NotOwned;
 
-            // Selling the only flyable ship would strand the player with no way to
-            // leave, which upstream does not allow either.
-            if (player.Fleet.ActiveShips.Count() <= 1 && !ship.IsParked)
-                return TradeResult.LastShip;
+            if (player.CurrentPlanet is not { HasShipyard: true } || player.CurrentSystem == null)
+                return TradeResult.NotSold;
+            if (!ShipsToSell(player).Contains(ship)) return TradeResult.NotHere;
+
+            string key = PurchaseLog.ShipKey(ship.Definition.DisplayName);
+            long value = ShipSaleValue(player, ship, ageInDays);
+            Int128 balance = (Int128)player.Credits + value;
+            if (balance > long.MaxValue || balance < long.MinValue) return TradeResult.CreditLimit;
 
             player.Fleet.Remove(ship);
-
-            int age = player.Purchases.TakeAge(
-                PurchaseLog.ShipKey(ship.Definition.DisplayName), player.Date) ?? ageInDays;
-
-            player.AddCredits(Depreciation.SaleValue(ship.Cost, age));
+            player.Purchases.TakeAge(key, player.Date);
+            player.AddCredits(value);
             return TradeResult.Ok;
         }
 

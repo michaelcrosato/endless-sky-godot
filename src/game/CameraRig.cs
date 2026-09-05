@@ -92,5 +92,13 @@ namespace EndlessSky.Game
             _focus = WorldSpace.ToWorld(ship.Position);
             Follow(ship, 10.0);
         }
+
+        /// <summary>Frame a port while the pilot has no flagship.</summary>
+        public void Snap(Point point)
+        {
+            _focus = WorldSpace.ToWorld(point);
+            Position = _focus;
+            _camera.LookAt(_focus + Vector3.Up * (_distance * 0.10f), Vector3.Up);
+        }
     }
 }

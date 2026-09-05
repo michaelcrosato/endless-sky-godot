@@ -300,6 +300,7 @@ namespace EndlessSky.Game
 
         public override void _PhysicsProcess(double delta)
         {
+            if (_shipyardSmoke && StepShipyardSmoke()) return;
             if (_ship == null)
             {
                 return;
@@ -369,7 +370,7 @@ namespace EndlessSky.Game
             // exactly zero times — so CI's smoke run proved the scene could be built
             // and nothing whatever about whether it runs.
             if (_simFrames == 1 && _capturePath == null && !_landAtStart && !_missionSmoke
-                && !_saveSmoke && !_fleetSmoke && !IsHeadless)
+                && !_saveSmoke && !_fleetSmoke && !_shipyardSmoke && !IsHeadless)
             {
                 _ui?.Show(UiScreen.MainMenu);
                 return;
@@ -1304,11 +1305,10 @@ namespace EndlessSky.Game
                 _landAutopilot = false;
                 _landMessage = string.Empty;
                 _player.Land(planet);
+                _portPosition = _ship.Position;
+                _portFacing = _ship.Facing;
                 SyncOwnedEscorts();
-                _landedOverlay = LandedOverlay.Open(this, _player, _missions, planet,
-                    _ship.CurrentSystem.Name, _universe);
-                _landedOverlay.Departed += OnDepart;
-                _ui.Port = _landedOverlay;
+                OpenPort();
                 GD.Print($"[flight] landed on {planet.Name} (credits={_player.Credits:n0})");
                 return;
             }
@@ -1316,13 +1316,13 @@ namespace EndlessSky.Game
 
         private void OnDepart(bool acceptCargoLoss = false)
         {
-            if (_landedOverlay == null || _ship == null)
+            if (_landedOverlay == null)
             {
                 return;
             }
 
-            Point departurePosition = _ship.Position;
-            Angle departureFacing = _ship.Facing;
+            Point departurePosition = _ship?.Position ?? _portPosition;
+            Angle departureFacing = _ship?.Facing ?? _portFacing;
             if (!_player.TakeOff(_missions, acceptCargoLoss)) return;
 
             // The flagship may have changed at the shipyard.
@@ -1331,7 +1331,7 @@ namespace EndlessSky.Game
                 Ship replacement = _player.Fleet.Flagship;
                 replacement.Position = departurePosition;
                 replacement.Facing = departureFacing;
-                replacement.CurrentSystem = _ship.CurrentSystem;
+                replacement.CurrentSystem = _player.CurrentSystem;
 
                 // Rebuild mounts from the existing inventory. Installing the weapons
                 // again would add free copies whenever the hull has spare hardpoints.
@@ -1346,7 +1346,8 @@ namespace EndlessSky.Game
             _landedOverlay = null;
             _ui.Port = null;
             _isLanded = false;
-            _ship.Velocity = Point.Zero;
+            _ship!.Velocity = Point.Zero;
+            _shipView.Visible = true;
             SyncOwnedEscorts();
 
             GD.Print($"[flight] departed (credits={_player.Credits:n0} fuel={_ship.Fuel:0} " +
@@ -1476,7 +1477,7 @@ namespace EndlessSky.Game
 
             if (playArea == Point.Zero)
             {
-                playArea = _ship!.Position;
+                playArea = _ship?.Position ?? Point.Zero;
             }
 
             _keyLight.QueueFree();
@@ -1507,7 +1508,7 @@ namespace EndlessSky.Game
             // ship carries no mounts at all - not empty ones, none - so it can never
             // fire, never be armed at an outfitter, and never finish a combat job.
             // Every NPC in the game called this; the player alone never did.
-            _ship!.BuildMounts();
+            _ship?.BuildMounts();
 
             ResetLocalCombat(universe);
         }
@@ -2161,8 +2162,14 @@ namespace EndlessSky.Game
 
         private void UpdateHud()
         {
-            if (_statusLabel == null || _ship == null)
+            if (_statusLabel == null) return;
+            if (_ship == null)
             {
+                _statusLabel.Text = "LANDED · acquire a flagship before departing";
+                if (_conditionLabel != null) _conditionLabel.Text = string.Empty;
+                if (_conditionWarning != null) _conditionWarning.Visible = false;
+                if (_fleetLabel != null) _fleetLabel.Visible = false;
+                _radar?.Track(null, _radarObjects);
                 return;
             }
 
@@ -2211,6 +2218,8 @@ namespace EndlessSky.Game
 
         public override void _ExitTree()
         {
+            if (_shipyardSmokePath != null)
+                DirAccess.RemoveAbsolute(ProjectSettings.GlobalizePath(_shipyardSmokePath));
             if (_fleetSmokePath != null)
                 DirAccess.RemoveAbsolute(ProjectSettings.GlobalizePath(_fleetSmokePath));
             if (_ship != null)
@@ -2258,6 +2267,10 @@ namespace EndlessSky.Game
                 else if (arg == "--fleet-smoke")
                 {
                     _fleetSmoke = true;
+                }
+                else if (arg == "--shipyard-smoke")
+                {
+                    _shipyardSmoke = true;
                 }
                 else if (arg == "--land-smoke")
                 {
@@ -2665,9 +2678,10 @@ namespace EndlessSky.Game
                 player => restoredLog = new MissionLog(player), out Action restoreEconomy);
 
             Ship? flagship = restored.Fleet.Flagship;
-            if (flagship is null || restored.CurrentSystem is null)
+            if (restored.CurrentSystem is null || (flagship is null && (restored.CurrentPlanet is null
+                || !restored.CurrentSystem.AllObjects().Any(o => ReferenceEquals(o.Planet, restored.CurrentPlanet)))))
             {
-                GD.PrintErr("[save] the save names no flagship or no system; ignoring it");
+                GD.PrintErr("[save] the save names no system, or has no flagship and no valid port; ignoring it");
                 return false;
             }
 
@@ -2679,9 +2693,13 @@ namespace EndlessSky.Game
             // one has to be pointed at the new one: the view, the camera, the combat
             // field and the mission log's idea of who the player is.
             _ship = flagship;
-            _startShip = _ship.Definition.DisplayName;
-            _shipView.SyncWith(_ship);
-            _camera?.Snap(_ship);
+            _startShip = _ship?.Definition.DisplayName ?? "no flagship";
+            _shipView.Visible = _ship != null;
+            if (_ship != null)
+            {
+                _shipView.SyncWith(_ship);
+                _camera?.Snap(_ship);
+            }
 
             _ui?.Bind(_player, _missions, _universe, () => _ship);
 
@@ -2700,16 +2718,18 @@ namespace EndlessSky.Game
             _landedOverlay?.QueueFree();
             _landedOverlay = null;
             _isLanded = restored.CurrentPlanet != null;
-            if (restored.CurrentPlanet is { } planet)
+            if (restored.CurrentPlanet != null)
             {
-                _landedOverlay = LandedOverlay.Open(this, _player, _missions, planet,
-                    restored.CurrentSystem.Name, _universe);
-                _landedOverlay.Departed += OnDepart;
+                _portPosition = _ship?.Position ?? restored.CurrentSystem.AllObjects()
+                    .First(o => ReferenceEquals(o.Planet, restored.CurrentPlanet)).Position;
+                _portFacing = _ship?.Facing ?? new Angle(0);
+                OpenPort();
+                SyncPortFlagship();
             }
             if (_ui != null)
                 _ui.Port = _landedOverlay;
 
-            GD.Print($"[save] loaded {ProjectSettings.GlobalizePath(path)}: {_ship.Definition.DisplayName} at " +
+            GD.Print($"[save] loaded {ProjectSettings.GlobalizePath(path)}: {_startShip} at " +
                      $"{restored.CurrentSystem.Name}, {_player.Date:d MMM yyyy}, " +
                      $"{_player.Credits:n0} credits, {_missions.Active.Count} mission(s) in progress");
             return true;

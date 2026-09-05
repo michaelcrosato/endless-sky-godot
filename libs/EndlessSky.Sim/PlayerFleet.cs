@@ -46,7 +46,8 @@ namespace EndlessSky.Sim
             // ship's manufacturer or previous owner does not remain its allegiance.
             ship.Government = Government;
             _ships.Add(ship);
-            Flagship ??= ship;
+            if (PortCargo == null) Flagship ??= ship;
+            else RefreshFlagship();
         }
 
         public bool Remove(Ship ship)
@@ -69,8 +70,18 @@ namespace EndlessSky.Sim
                 _ships.Remove(ship);
                 _escortRoutes.Remove(ship);
             }
-            if (Flagship != null && !_ships.Contains(Flagship))
-                Flagship = _ships.FirstOrDefault(s => !s.IsParked && !s.IsDestroyed) ?? _ships.FirstOrDefault();
+            RefreshFlagship();
+        }
+
+        // PlayerInfo::FlagshipPtr finds an available local hull after a ship sale.
+        // A parked, disabled or remote ship is not a substitute for the sold flagship.
+        internal void RefreshFlagship()
+        {
+            bool Eligible(Ship ship) => !ship.IsParked && !ship.IsDisabled && !ship.IsDestroyed
+                && (PortCargo == null || (ReferenceEquals(ship.CurrentSystem, PortSystem)
+                    && !ship.IsEnteringHyperspace && !ship.IsHyperspacing));
+            if (Flagship == null || !_ships.Contains(Flagship) || (PortCargo != null && !Eligible(Flagship)))
+                Flagship = _ships.FirstOrDefault(Eligible);
         }
 
         /// <summary>Promotes a ship the player already owns to flagship.</summary>

@@ -41,6 +41,12 @@ shows which goods will be sold and freight jobs abandoned: **Enter** confirms,
 and **Esc** keeps the cargo and returns to the counter. Cargo ashore survives saving
 and loading even when it exceeds the fleet's capacity.
 
+At the shipyard, select an owned hull and press **N** to review its sale value.
+**Enter** sells it; **Esc** keeps it. The list includes local models the yard does
+not stock. You can sell your last ship and save while remaining at the port with
+cargo ashore. Select a **FOR SALE** row and press **B** to buy a replacement before
+departing. Purchase quotes include the installed outfits.
+
 Owned escorts fly and fight alongside the flagship. Press **G** to gather, **H**
 to hold position, **V** to follow, or **F** to attack the nearest hostile. Escorts
 follow jumps using their own drives and fuel; hold keeps them behind until recalled.
@@ -140,7 +146,7 @@ folders must be below `build/`. A failed export preserves the previous package.
 The script regressions above check replacement, native template discovery and
 failure handling without Godot or export templates. `smoke-package.ps1` copies the
 package to a temporary directory, clears the data override, and verifies save/load,
-bounty payment and owned escort travel from another working directory. It checks the loaded dataset's
+bounty payment, owned escort travel and ship replacement from another working directory. It checks the loaded dataset's
 path as well as success; logs remain in `reports/`. CI builds and runs the Linux
 release package through these same commands.
 
