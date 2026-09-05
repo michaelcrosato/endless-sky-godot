@@ -3,9 +3,9 @@
 .SYNOPSIS
   Runs real engine scenarios, requiring both a successful exit and completion.
 .DESCRIPTION
-  Covers startup, landing, tutorial delivery, save/load and combat resolution.
-  The mission scenario checks combat resolution, which may include player loss;
-  tutorial checks successful delivery and payment. Save uses a temporary slot.
+  Covers startup, landing, tutorial delivery, save/load and a won bounty with payment.
+  Mission uses a stock combat flagship and positions its travel legs; tutorial
+  exercises flight and delivery. Save uses a temporary slot.
 .PARAMETER Frames
   Maximum engine iterations per scenario. Reaching the limit without a PASS fails.
 #>

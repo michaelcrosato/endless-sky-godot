@@ -114,8 +114,8 @@ jobs:
         run: dotnet build EndlessSky.sln --nologo -v minimal
 
       # Requires explicit completion, no engine errors and a successful exit.
-      # Save smoke uses a temporary slot. Tutorial proves delivery and payment;
-      # mission currently proves combat resolution, including possible player loss.
+      # Save smoke uses a temporary slot. Tutorial proves flight and delivery;
+      # mission requires winning an offered bounty and collecting its payment.
       - name: Runtime smoke scenarios
         run: pwsh tools/smoke.ps1 -NoBuild
 

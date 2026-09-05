@@ -1481,12 +1481,6 @@ namespace EndlessSky.Game
         }
 
         /// <summary>
-        /// --combat-demo: one hostile drone exercising the M2 pipeline so the
-        /// visual gauntlet has combat evidence. The drone's steering here is
-        /// throwaway placeholder logic; the real engagement behavior is the
-        /// targeting AI milestone work in the sim layer.
-        /// </summary>
-        /// <summary>
         /// The projectile field every flight runs in, and the flag the player flies.
         /// </summary>
         /// <remarks>
@@ -1613,9 +1607,8 @@ namespace EndlessSky.Game
                          $"{_ship.CurrentSystem.Name} for \"{owner?.Mission.DisplayName}\"");
             }
 
-            // Fly them. A disabled hull - a derelict waiting to be boarded - has no
-            // say in where it goes, which is what makes it something to catch rather
-            // than something to chase.
+            // A disabled hull still drifts and updates heat through Ship.Step.
+            // Only its pilot's commands stop until it can act again.
             foreach ((Ship npc, ShipView view) in _missionShips)
             {
                 if (!npc.IsDisabled)
@@ -1633,6 +1626,10 @@ namespace EndlessSky.Game
                     {
                         _field?.Add(ShipAi.AutoFire(npc, target));
                     }
+                }
+                else
+                {
+                    npc.Step(Command.None);
                 }
 
                 view.SyncWith(npc);
@@ -1783,12 +1780,7 @@ namespace EndlessSky.Game
         }
 
         /// <summary>
-        /// Flies the demo drone. Stepping the projectile field is no longer this
-        /// method's job - <see cref="StepCombat"/> does it for every flight, and
-        /// doing it here as well would advance every shot twice per frame.
-        /// </summary>
-        /// <summary>
-        /// --mission-smoke: take a bounty, fly to it, and shoot it, with no keyboard.
+        /// --mission-smoke: take an offered bounty, win it, land and collect payment.
         /// </summary>
         /// <remarks>
         /// Every part of this chain has unit coverage, and the chain still has to be
@@ -1818,8 +1810,35 @@ namespace EndlessSky.Game
                     return;
                 }
 
-                Mission? job = _universe.Missions.Values.FirstOrDefault(m =>
-                    m.IsJob && m.Npcs.Any(n => (n.SucceedIf & ShipEvent.Destroy) != 0));
+                // This is a combat-capable test pilot, using an unchanged stock hull
+                // and loadout. Winning a bounty must not depend on the starter trader
+                // outgunning a warship. The fight uses normal projectiles and damage.
+                Ship equipped = _universe.Ships.Keys.Select(_universe.BuildShip)
+                    .Where(s => s.Outfits.Any(o => o.IsWeapon) && s.Thrust > 0)
+                    .OrderByDescending(s => s.MaxHull + s.MaxShields)
+                    .ThenBy(s => s.Definition.DisplayName, StringComparer.Ordinal).First();
+                equipped.CurrentSystem = _ship.CurrentSystem;
+                _player.Fleet.Remove(_ship);
+                _player.Fleet.Add(equipped);
+                _player.Fleet.SetFlagship(equipped);
+                _ship = equipped;
+                _startShip = equipped.Definition.DisplayName;
+                BuildCombat(_universe);
+                equipped.Recharge(RechargeType.All);
+
+                StellarObject? home = equipped.CurrentSystem?.AllObjects()
+                    .FirstOrDefault(o => o.PlanetName == _startPlanet);
+                if (home == null)
+                {
+                    GD.Print("[smoke] FAIL: no starting port for the bounty pilot");
+                    GetTree().Quit(1);
+                    return;
+                }
+                equipped.Position = home.Position;
+                equipped.TargetStellar = home;
+                TryLand();
+                Mission? job = _missions.Available(_universe, MissionLocation.Job).FirstOrDefault(m =>
+                    m.Npcs.Any(n => (n.SucceedIf & ShipEvent.Destroy) != 0));
 
                 if (job == null)
                 {
@@ -1837,6 +1856,7 @@ namespace EndlessSky.Game
                 }
 
                 NpcInstance npc = _smokeJob.Npcs[0];
+                OnDepart();
                 int armed = npc.Ships[0].Mounts.Count(m => !m.IsEmpty);
                 GD.Print($"[smoke] took \"{job.DisplayName}\": {npc.Ships.Count} hull(s) " +
                          $"of {npc.Ships[0].Definition.DisplayName} " +
@@ -1845,12 +1865,30 @@ namespace EndlessSky.Game
                          $"hostile to player = {npc.Ships[0].Government?.IsEnemy(_ship.Government)}");
 
                 // Stand where the job sent us, close enough to shoot.
-                if (npc.System != null)
+                if (npc.System != null && !ReferenceEquals(_ship.CurrentSystem, npc.System))
                 {
                     _ship.CurrentSystem = npc.System;
                     _player.EnterSystem(npc.System);
                     HandleArrival();
                 }
+
+                // A disabled mission ship must still drift and update heat. This probes
+                // the real controller, then restores the target for the live fight.
+                Ship victim = npc.Ships[0];
+                Point placed = victim.Position;
+                victim.Velocity = new Point(2, 0);
+                victim.SetLevels(hull: victim.MinimumHull * 0.5, heat: 100);
+                StepMissionShips();
+                if (victim.Position == placed || victim.Heat == 100)
+                {
+                    GD.Print("[smoke] FAIL: a disabled mission ship stopped drifting or updating heat");
+                    GetTree().Quit(1);
+                    return;
+                }
+                victim.Position = placed;
+                victim.Velocity = Point.Zero;
+                victim.Recharge(RechargeType.All);
+                GD.Print("[smoke] disabled mission ship continued drifting and updating heat");
 
                 _ship.Position = npc.Ships[0].Position + new Point(320.0, 0.0);
                 _ship.Velocity = Point.Zero;
@@ -1863,9 +1901,9 @@ namespace EndlessSky.Game
                 return;
             }
 
-            NpcInstance target = _smokeJob.Npcs[0];
-            int alive = target.Survivors.Count();
-            _smokeTarget = target.Survivors.FirstOrDefault();
+            Ship[] survivors = _smokeJob.Npcs.SelectMany(n => n.Survivors).ToArray();
+            int alive = survivors.Length;
+            _smokeTarget = survivors.FirstOrDefault();
 
             if (_smokeFrames % 60 == 0)
             {
@@ -1878,36 +1916,46 @@ namespace EndlessSky.Game
                          $"{_field?.Projectiles.Count ?? 0} in flight");
             }
 
-            // What this asserts is that the MACHINERY works end to end: a job is
-            // offered, accepted, its target placed where the job points, a fight joined
-            // and resolved, and the mission log told about it. It deliberately does not
-            // assert that the player WINS. Who wins is balance, and balance shifts
-            // whenever a hull or a weapon is retuned; a test that fails when the
-            // starting ship gets a little weaker reports a regression that is not one.
-            if (target.HasSucceeded(_ship.CurrentSystem))
+            if (_smokeJob.Npcs.All(n => n.HasSucceeded(_ship.CurrentSystem)))
             {
-                GD.Print($"[smoke] PASS: objective met after {_smokeFrames} frames; " +
-                         $"player hull {_ship.Hull:0}/{_ship.MaxHull:0}; " +
-                         $"mission still open pending hand-in at " +
-                         $"{_smokeJob.Destination ?? "(nowhere)"}");
-                GetTree().Quit(0);
+                _smokeFire = false;
+                StarSystem? destination = _universe.SystemOf(_smokeJob.Destination);
+                StellarObject? port = destination?.AllObjects()
+                    .FirstOrDefault(o => o.PlanetName == _smokeJob.Destination);
+                if (destination == null || port == null)
+                {
+                    GD.Print("[smoke] FAIL: the won bounty has no hand-in port");
+                    GetTree().Quit(1);
+                    return;
+                }
+                // Travel has its own smoke. Exercise the actual landing and mission
+                // completion paths here, after real projectiles won the fight.
+                if (!ReferenceEquals(_ship.CurrentSystem, destination))
+                {
+                    _ship.CurrentSystem = destination;
+                    _player.EnterSystem(destination);
+                    HandleArrival();
+                }
+                _ship.Position = port.Position;
+                _ship.Velocity = Point.Zero;
+                _ship.TargetStellar = port;
+                TryLand();
+                long before = _player.Credits;
+                bool paid = _isLanded && _missions.Complete(_smokeJob)
+                    && _smokeJob.Outcome == MissionOutcome.Completed && _player.Credits > before;
+                GD.Print(paid
+                    ? $"[smoke] PASS: bounty won and handed in at {port.PlanetName}; " +
+                      $"paid {_player.Credits - before} credits after {_smokeFrames} combat frames"
+                    : "[smoke] FAIL: the won bounty could not be handed in for payment");
+                GetTree().Quit(paid ? 0 : 1);
                 return;
             }
 
             if (_ship.IsDestroyed || _ship.IsDisabled)
             {
-                // Losing is a resolution too, and the one that proves the target can
-                // actually fight back. Disabled counts because upstream stops attacking
-                // a crippled hull and boards it instead - to capture it, or to strip it
-                // - and that endgame is not modelled yet, so the fight would otherwise
-                // sit frozen forever with neither side able to end it.
                 string how = _ship.IsDestroyed ? "destroyed" : "disabled";
-                GD.Print($"[smoke] PASS: fight resolved after {_smokeFrames} frames — " +
-                         $"the player was {how}, and the bounty went to " +
-                         $"{_smokeJob.Destination ?? "(nowhere)"}. " +
-                         $"INCOMPLETE: nothing boards a disabled hull, so a crippled " +
-                         $"ship is neither captured nor finished.");
-                GetTree().Quit(0);
+                GD.Print($"[smoke] FAIL: the bounty pilot was {how} after {_smokeFrames} frames");
+                GetTree().Quit(1);
                 return;
             }
 
@@ -1918,6 +1966,7 @@ namespace EndlessSky.Game
             }
         }
 
+        /// <summary>Fly and fire the demo drone; StepCombat advances its projectiles.</summary>
         private void StepCombatDemo()
         {
             if (_field == null || _drone == null || _ship == null)

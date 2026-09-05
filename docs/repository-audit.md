@@ -25,11 +25,11 @@ not artifacts available from a clone. CI runs the reproducible checks below.
 | Fresh checkout | Fetch the pinned reference and import/build without using the original worktree's engine cache or data. | An isolated detached worktree passed 795 simulation tests, 15 engine tests, packaging regressions and all five smoke contracts; Debug build had zero warnings/errors. |
 | Build isolation | Exclude generated build, distribution and report directories from C# compilation. | A nested validation checkout caused duplicate-source and missing-NUnit build failures. The same build now succeeds with the checkout still present. |
 | Tutorial recovery | Return to finding work after losing a job or departing without one; refresh changed destinations and guide players back after leaving the delivery system. | All seven new recovery cases failed before the fix and now pass; the real tutorial still completes delivery and payment. |
+| Mission combat | Keep disabled mission ships stepping so drift and heat continue. Require the bounty smoke to take an offered job, win through normal combat, land and collect payment. | The disabled-ship probe failed before the controller fix. A stock Prism X defeated the bounty target and collected 91,297 credits after 261 combat frames. The smoke positions travel legs; the separate tutorial smoke flies its route. |
 
 Latest local validation: **802 simulation tests, 15 engine tests, zero failures or
 skips**, and Debug/Release builds with zero warnings or errors. All five runtime
-smokes passed their documented contract. The combat smoke ended in player defeat;
-the limitation below still applies.
+smokes passed their documented contract, including winning and collecting a bounty.
 
 Run validation from the repository root:
 
@@ -51,9 +51,8 @@ generation alone is not proof of reproducibility. `tools/smoke.ps1 -Scenario lan
 The audit is not complete merely because these checks pass. The following areas
 still contain meaningful work and need further implementation and verification:
 
-- **Combat and boarding:** `--mission-smoke` currently treats player defeat as a
-  resolved fight. It verifies combat machinery, not a won bounty or its payment.
-  Add a winning combat-to-hand-in scenario and wire boarding/capture into play.
+- **Combat and boarding:** wire boarding/capture into play; inspect target selection
+  across mission and ambient ships and ensure ships in other systems are excluded.
 - **Persistence:** mission NPC state/history, changed universe data, reputation,
   transient jumps, and per-ship weapon mount assignments still need round-trip
   coverage. Inspect escort reconstruction and access to save/load while landed as well.
