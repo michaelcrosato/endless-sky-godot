@@ -129,6 +129,14 @@ namespace EndlessSky.Sim
             if (IsComplete)
                 return null;
 
+            if (!state.HasJob && !state.DeliveredAJob &&
+                (Step == TutorialStep.Jump || Step == TutorialStep.Deliver))
+                return Finish(state.IsLanded ? TutorialStep.TakeJob : TutorialStep.Land, state,
+                    "That job is no longer active. You can take another at a port.");
+
+            // The active job can change without advancing the tutorial.
+            _target = TargetFor(Step, state);
+
             switch (Step)
             {
                 case TutorialStep.Land:
@@ -137,6 +145,9 @@ namespace EndlessSky.Sim
                     return Finish(TutorialStep.TakeJob, state, "Landed. This is a world's port.");
 
                 case TutorialStep.TakeJob:
+                    if (!state.IsLanded && !state.HasJob)
+                        return Finish(TutorialStep.Land, state, null);
+
                     // Nothing on the board is not the player's failure to find it.
                     if (state.IsLanded && state.JobsOnOffer <= 0 && !state.HasJob)
                         return Finish(TutorialStep.Done, state,
@@ -159,6 +170,10 @@ namespace EndlessSky.Sim
                                   $"You are in {state.DestinationSystem}.");
 
                 case TutorialStep.Deliver:
+                    if (state.HasJob && state.DestinationSystem != null &&
+                        state.CurrentSystem != state.DestinationSystem)
+                        return Finish(TutorialStep.Jump, state, null);
+
                     if (!state.DeliveredAJob)
                         return null;
 
@@ -174,15 +189,17 @@ namespace EndlessSky.Sim
         private string? Finish(TutorialStep next, TutorialState state, string? confirmation)
         {
             Step = next;
-            _target = next switch
+            _target = TargetFor(next, state);
+            return confirmation;
+        }
+
+        private static string TargetFor(TutorialStep step, TutorialState state) =>
+            step switch
             {
                 TutorialStep.Jump => state.DestinationSystem ?? string.Empty,
                 TutorialStep.Deliver => state.DestinationPlanet ?? string.Empty,
                 _ => string.Empty,
             };
-
-            return confirmation;
-        }
 
         /// <summary>Wave it away. It does not come back.</summary>
         public void Dismiss() => IsDismissed = true;

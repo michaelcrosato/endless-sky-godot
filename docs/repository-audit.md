@@ -24,8 +24,9 @@ not artifacts available from a clone. CI runs the reproducible checks below.
 | Required fixtures | Missing upstream/generated data and missing named parity content fail instead of skipping. Generated data stays within its checkout; explicit upstream overrides must be valid. Replace the always-passing coverage report with reviewed limits on unhandled content. | A fresh worktree previously reported success with all eight upstream tests skipped. It now fails all eight when data is missing; removing its generated systems file also fails instead of borrowing the parent checkout's data. |
 | Fresh checkout | Fetch the pinned reference and import/build without using the original worktree's engine cache or data. | An isolated detached worktree passed 795 simulation tests, 15 engine tests, packaging regressions and all five smoke contracts; Debug build had zero warnings/errors. |
 | Build isolation | Exclude generated build, distribution and report directories from C# compilation. | A nested validation checkout caused duplicate-source and missing-NUnit build failures. The same build now succeeds with the checkout still present. |
+| Tutorial recovery | Return to finding work after losing a job or departing without one; refresh changed destinations and guide players back after leaving the delivery system. | All seven new recovery cases failed before the fix and now pass; the real tutorial still completes delivery and payment. |
 
-Latest local validation: **795 simulation tests, 15 engine tests, zero failures or
+Latest local validation: **802 simulation tests, 15 engine tests, zero failures or
 skips**, and Debug/Release builds with zero warnings or errors. All five runtime
 smokes passed their documented contract. The combat smoke ended in player defeat;
 the limitation below still applies.
@@ -66,8 +67,8 @@ still contain meaningful work and need further implementation and verification:
 - **Delivery:** verify a Linux release export and review dependency/CI
   reproducibility. Fresh checkout validation, Windows release packaging and
   relocated startup are verified above.
-- **UX and content:** inspect controls and tutorial recovery when a job is abandoned,
-  UI layout at smaller windows, input remapping, audio, and representative Reach
+- **UX and content:** inspect controls, UI layout at smaller windows, input remapping,
+  audio, and representative Reach
   content for currently unused event/conversation/wormhole systems.
 
 `docs/MILESTONES.md` and `rg -n INCOMPLETE libs src` retain the broader parity

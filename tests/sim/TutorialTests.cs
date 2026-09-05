@@ -100,6 +100,62 @@ namespace EndlessSky.Tests
 
         // --- Not getting in the way -----------------------------------------------
 
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public void LosingAJobReturnsToFindingWork(bool reachedDestination, bool landed)
+        {
+            var tutorial = new Tutorial();
+            tutorial.Observe(State(landed: true));
+            tutorial.Observe(State(landed: true, hasJob: true));
+            if (reachedDestination)
+                tutorial.Observe(State(hasJob: true, system: "Away"));
+
+            tutorial.Observe(State(landed: landed, destination: null));
+
+            Assert.AreEqual(landed ? TutorialStep.TakeJob : TutorialStep.Land, tutorial.Step);
+            Assert.IsFalse(tutorial.IsComplete);
+            tutorial.Observe(State(landed: true));
+            tutorial.Observe(State(landed: true, hasJob: true, destination: "Another Port"));
+            Assert.AreEqual(TutorialStep.Jump, tutorial.Step);
+            StringAssert.Contains("Another Port", tutorial.Prompt);
+        }
+
+        [Test]
+        public void DepartingWithoutAJobReturnsToTheLandingPrompt()
+        {
+            var tutorial = new Tutorial();
+            tutorial.Observe(State(landed: true));
+            tutorial.Observe(State());
+            Assert.AreEqual(TutorialStep.Land, tutorial.Step);
+        }
+
+        [Test]
+        public void SwitchingJobsRefreshesTheTravelDestination()
+        {
+            var tutorial = new Tutorial();
+            tutorial.Observe(State(landed: true));
+            tutorial.Observe(State(landed: true, hasJob: true));
+            tutorial.Observe(State(hasJob: true, destination: "Another Port"));
+            Assert.AreEqual(TutorialStep.Jump, tutorial.Step);
+            StringAssert.Contains("Another Port", tutorial.Prompt);
+        }
+
+        [Test]
+        public void LeavingTheDestinationBeforeDeliveryRequestsAnotherJump()
+        {
+            var tutorial = new Tutorial();
+            tutorial.Observe(State(landed: true));
+            tutorial.Observe(State(landed: true, hasJob: true));
+            tutorial.Observe(State(hasJob: true, system: "Away"));
+            Assert.AreEqual(TutorialStep.Deliver, tutorial.Step);
+
+            tutorial.Observe(State(hasJob: true, system: "Home"));
+            Assert.AreEqual(TutorialStep.Jump, tutorial.Step);
+            StringAssert.Contains("Away", tutorial.Prompt);
+        }
+
         [Test]
         public void AWorldWithNoWorkDoesNotStrandThePlayerOnStepTwo()
         {
