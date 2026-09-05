@@ -8,8 +8,9 @@ namespace EndlessSky.Sim
     /// Port of the engagement core of upstream <c>AI</c>.
     /// </summary>
     /// <remarks>
-    /// INCOMPLETE, tracked rather than dropped: escorts and formation flying, fleeing
-    /// and repair, boarding and capture, landing and jumping, afterburners, cloaking,
+    /// Owned escorts use PlayerFleet.StepEscorts for orders and independent jumps.
+    /// INCOMPLETE, tracked rather than dropped: named formations, fleeing and repair,
+    /// boarding and capture, independent landing and refuelling, afterburners, cloaking,
     /// mining, fighter bays, personality traits (timid/heroic/vindictive/ramming...),
     /// and lead prediction when aiming. Personalities matter here: several of the
     /// behaviours below are upstream's DEFAULT and a personality flips them.
@@ -55,7 +56,7 @@ namespace EndlessSky.Sim
 
             foreach (Ship other in candidates)
             {
-                if (other is null || ReferenceEquals(other, self) || other.IsDestroyed)
+                if (other is null || ReferenceEquals(other, self) || !other.IsTargetable)
                     continue;
 
                 // Combat coordinates are local to a system. A nearby coordinate in
@@ -352,7 +353,7 @@ namespace EndlessSky.Sim
             if (weapon.IsSpecial)
                 return false;
 
-            if (target.IsDestroyed)
+            if (!target.IsTargetable)
                 return false;
 
             // A weapon the ship cannot actually fire must not be reported as one it

@@ -166,6 +166,7 @@ namespace EndlessSky.Sim
             Fleet.DistributeCargo();
             ResolveExcessCargo(departure, missions);
             Fleet.LeavePort();
+            Fleet.LaunchEscorts(CurrentSystem, CurrentPlanet);
             CurrentPlanet = null;
             return true;
         }

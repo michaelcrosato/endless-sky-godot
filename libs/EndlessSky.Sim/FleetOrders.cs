@@ -41,9 +41,9 @@ namespace EndlessSky.Sim
     /// at its flagship flat out, sails past, turns and sails past again, converging on
     /// an orbit instead of a station.
     ///
-    /// INCOMPLETE, tracked rather than dropped: named formation patterns, cargo and
-    /// fighter transfer between ships, and orders that involve landing or jumping as a
-    /// group.
+    /// PlayerFleet.StepEscorts coordinates these commands with independent jumps.
+    /// INCOMPLETE, tracked rather than dropped: named formation patterns, in-flight
+    /// cargo and fighter transfer, per-ship landing and orders for selected groups.
     /// </remarks>
     public static class FleetOrders
     {

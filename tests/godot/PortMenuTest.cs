@@ -97,6 +97,36 @@ namespace EndlessSky.Tests.Presentation
 
         [TestCase]
         [RequireGodotRuntime]
+        public async Task FleetOrdersOnlyFireOnceInFlightAndDoNotLeakThroughMenus()
+        {
+            var session = new Session();
+            try
+            {
+                var orders = new List<FleetOrder>();
+                session.Ui.FleetOrderRequested += orders.Add;
+                session.Tap(Key.G, Key.H, Key.V, Key.F);
+                AssertThat(orders.Count).IsEqual(0);
+                AssertBool(session.Player.Depart()).IsTrue();
+                session.Ui.Port = null;
+                session.Port.Hide();
+                session.Frame(Key.H);
+                session.Frame(Key.H);
+                session.Frame();
+                session.Tap(Key.G);
+                session.Tap(Key.V);
+                session.Tap(Key.F);
+                AssertThat(string.Join(",", orders)).IsEqual("Hold,Gather,Escort,AttackTarget");
+                session.Frame(Key.Escape, Key.H);
+                session.Frame(Key.H);
+                session.Frame(Key.Escape, Key.H);
+                session.Frame(Key.H);
+                AssertThat(orders.Count).IsEqual(4);
+            }
+            finally { await session.Release(); }
+        }
+
+        [TestCase]
+        [RequireGodotRuntime]
         public async Task CancellingExcessCargoDepartureKeepsGoodsAndConsumesTheKeys()
         {
             var session = new Session(counter: 1, ships: 2, cargo: 60);

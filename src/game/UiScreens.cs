@@ -74,6 +74,8 @@ namespace EndlessSky.Game
             ("Space", "fire weapons", "flight"),
             ("L", "autopilot to a planet; press again to cycle", "flight"),
             ("J", "jump to the targeted system", "flight"),
+            ("G / H", "escorts: gather / hold position", "flight"),
+            ("V / F", "escorts: follow / attack nearest hostile", "flight"),
             ("M", "galaxy map", "anywhere"),
             ("I", "status: ship, fleet, cargo, missions", "anywhere"),
             ("F1", "this screen", "anywhere"),
@@ -97,12 +99,21 @@ namespace EndlessSky.Game
 
         protected override void BuildBody()
         {
+            var columns = new HBoxContainer();
+            columns.AddThemeConstantOverride("separation", 40);
+            Column.AddChild(columns);
+            var flight = new VBoxContainer();
+            var menus = new VBoxContainer();
+            columns.AddChild(flight);
+            columns.AddChild(menus);
             foreach (IGrouping<string, (string Keys, string Does, string Where)> group in
                      Bindings.GroupBy(b => b.Where))
             {
-                Column.AddChild(UiTheme.Heading(group.Key.ToUpperInvariant()));
-                Lines(group.Select(b => UiTheme.Row(b.Keys, b.Does, 24)));
-                Column.AddChild(UiTheme.Text(" ", 6));
+                VBoxContainer column = group.Key is "flight" or "landed" ? flight : menus;
+                column.AddChild(UiTheme.Heading(group.Key.ToUpperInvariant()));
+                column.AddChild(UiTheme.Text(string.Join("\n",
+                    group.Select(b => UiTheme.Row(b.Keys, b.Does, 24)))));
+                column.AddChild(UiTheme.Text(" ", 6));
             }
         }
     }

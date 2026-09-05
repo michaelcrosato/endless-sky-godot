@@ -41,6 +41,13 @@ shows which goods will be sold and freight jobs abandoned: **Enter** confirms,
 and **Esc** keeps the cargo and returns to the counter. Cargo ashore survives saving
 and loading even when it exceeds the fleet's capacity.
 
+Owned escorts fly and fight alongside the flagship. Press **G** to gather, **H**
+to hold position, **V** to follow, or **F** to attack the nearest hostile. Escorts
+follow jumps using their own drives and fuel; hold keeps them behind until recalled.
+The HUD counts local and total active escorts. Committed jumps survive save/load,
+including fuel already spent. Flight orders reset to following on reload or takeoff.
+Independent escort landing, refuelling and fighter operations remain incomplete.
+
 The upstream reference is pinned in `tools/upstream-ref.txt`; local fetching and
 CI use that same commit. `get-data.ps1` checks an existing checkout before using
 it. To change the reference, review and update the pin, preserve any edits in
@@ -132,8 +139,8 @@ Use `-OutputPath build/portable/endless-sky-3d.exe` for a separate package; pack
 folders must be below `build/`. A failed export preserves the previous package.
 The script regressions above check replacement, native template discovery and
 failure handling without Godot or export templates. `smoke-package.ps1` copies the
-package to a temporary directory, clears the data override, and verifies save/load
-and bounty payment from another working directory. It checks the loaded dataset's
+package to a temporary directory, clears the data override, and verifies save/load,
+bounty payment and owned escort travel from another working directory. It checks the loaded dataset's
 path as well as success; logs remain in `reports/`. CI builds and runs the Linux
 release package through these same commands.
 

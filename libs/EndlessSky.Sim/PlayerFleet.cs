@@ -64,7 +64,11 @@ namespace EndlessSky.Sim
         {
             if (ships.Count == 0) return;
             RemovingShips?.Invoke(ships);
-            foreach (Ship ship in ships) _ships.Remove(ship);
+            foreach (Ship ship in ships)
+            {
+                _ships.Remove(ship);
+                _escortRoutes.Remove(ship);
+            }
             if (Flagship != null && !_ships.Contains(Flagship))
                 Flagship = _ships.FirstOrDefault(s => !s.IsParked && !s.IsDestroyed) ?? _ships.FirstOrDefault();
         }

@@ -26,8 +26,9 @@ namespace EndlessSky.Sim
     /// value - a saved "credits" would fight the account it was copied from.
     ///
     /// Ship names, crew, cargo, shields, hull, fuel and positions follow upstream
-    /// Ship::Save. Energy, heat, velocity and facing also survive because this port
-    /// permits saving in flight. Old saves without those fields retain their defaults.
+    /// Ship::Save. Energy, heat, velocity, facing and committed jumps also survive
+    /// because this port permits saving in flight. A jump retains its phase,
+    /// destination, drive kind and latched fuel cost. Old saves retain their defaults.
     ///
     /// Mission UUIDs link accepted jobs to freight aboard ships or pooled ashore,
     /// including zero-ton parcels. A root cargo block preserves the port inventory
@@ -41,8 +42,8 @@ namespace EndlessSky.Sim
     /// The basis block stores exact remaining commodity purchase costs. Older saves
     /// without a basis have zero recorded cost; historical prices cannot be recovered.
     ///
-    /// INCOMPLETE, tracked rather than dropped: pilot name, a jump in progress,
-    /// applied universe changes, politics, and weapon mount assignments.
+    /// INCOMPLETE, tracked rather than dropped: pilot name, navigation and fleet
+    /// orders, applied universe changes, politics, and weapon mount assignments.
     /// </remarks>
     public static class SaveGame
     {
@@ -182,6 +183,9 @@ namespace EndlessSky.Sim
             writer.Write("heat", ship.Heat);
             if (ship.IsOverheated)
                 writer.Write("overheated");
+            if (ship.IsEnteringHyperspace || ship.IsHyperspacing)
+                writer.Write("hyperspace", ship.HyperspaceCount, ship.HyperspaceFuelCost,
+                    ship.IsUsingJumpDrive ? "jump" : "hyper", ship.HyperspaceSystem?.Name ?? string.Empty);
 
             // Grouped so a ship carrying four of something writes one line.
             foreach (IGrouping<string, Outfit> group in ship.Outfits.GroupBy(o => o.Name))
@@ -419,6 +423,7 @@ namespace EndlessSky.Sim
             bool overheated = false;
             string? government = data.GovernmentOf(ship.Definition.DisplayName);
             double? shields = null, hull = null, energy = null, fuel = null, heat = null;
+            DataNode? hyperspace = null;
 
             foreach (DataNode child in node.Children)
             {
@@ -468,6 +473,9 @@ namespace EndlessSky.Sim
                     case "overheated":
                         overheated = true;
                         break;
+                    case "hyperspace" when child.Size >= 5:
+                        hyperspace = child;
+                        break;
                     case "cargo":
                         ship.LoadFrom(ReadCargo(child));
                         break;
@@ -481,6 +489,14 @@ namespace EndlessSky.Sim
             ship.SetLevels(shields: shields ?? ship.MaxShields, hull: hull ?? ship.MaxHull,
                            energy: energy ?? ship.MaxEnergy, fuel: fuel ?? ship.MaxFuel,
                            heat: heat ?? 0.0, overheated: overheated);
+
+            if (hyperspace != null && hyperspace.IntegerValue(1) is >= 0 and <= Ship.HyperspaceFrames)
+            {
+                StarSystem? destination = null;
+                if (hyperspace.Token(4).Length == 0 || data.Systems.TryGetValue(hyperspace.Token(4), out destination))
+                    ship.RestoreHyperspace((int)hyperspace.IntegerValue(1), destination,
+                        hyperspace.Value(2), hyperspace.Token(3) == "jump");
+            }
 
             return ship;
         }

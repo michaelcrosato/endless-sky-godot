@@ -47,7 +47,7 @@ namespace EndlessSky.Sim
 
         public void Add(Ship? ship)
         {
-            if (ship is not null) _ships.Add(ship);
+            if (ship is not null && !_ships.Contains(ship)) _ships.Add(ship);
         }
 
         /// <summary>

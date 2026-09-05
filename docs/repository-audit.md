@@ -47,12 +47,21 @@ not artifacts available from a clone. CI runs the reproducible checks below.
 | Commodity purchase costs | Track remaining cost across all owned commodities and remove a proportional share on sale or ship loss. Keep exact integer rounding across multiple holds, save the basis, and show average cost and realized profit at the trade counter. Refresh displayed quotes after a change. | Twenty-two new simulation cases cover mixed prices, partial trades, remote and parked stock, freight exclusion, free goods, missing legacy costs, 64-bit limits and combined ship losses. Eleven initial cases failed before implementation; later loss checks caught retained wrecks and per-ship rounding. The engine test and 1280×720 captures verify the average, actual sale price and profit. The runtime save smoke also changes and restores commodity costs. |
 | Cargo ashore and departure | Pool local active ships' goods at landing, preserve them when hulls are sold, and distribute mission freight before ordinary commodities at departure. Show the proposed excess sale and job abandonment before confirmation; cancellation keeps the cargo and avoids servicing ships. Save overfull port inventories separately from ship holds. Remove the obsolete presentation credit balance. | Eighteen new simulation cases cover cargo mass, ship sales, saved overfull freight, zero-ton parcels, remote and parked holds, four-billion-ton pools, purchase costs and payment limits. Seven initial cases failed before implementation. Three engine cases exercise the actual shipyard and warning, simultaneous keys and confirmation. The 1280×720 captures show both warnings and cancellation; the runtime save smoke reloads an overfull inventory, cancels and then confirms a five-ton sale and launch. |
 | Owned ship factions | Assign the shared player government when a hull enters the owned fleet, including purchases and reloads. The combat layer uses that same government. | The extended runtime smoke caught the former flagship losing its faction after a later reload. Two simulation regressions reproduced acquisition and multi-ship reload failures; both now pass. Upstream assigns the player government in `PlayerInfo::AddStockShip` and after loading owned ships. |
+| Owned escort flight | Step active escorts in the simulation, route separated ships using their own drives and fuel, and integrate their meshes, weapons and local combat membership. Expose follow/gather/hold/attack controls and local fleet counts. Keep other ships and projectiles running during the flagship's jump; preserve its departure position when changing flagship. | Twenty-two new simulation cases cover pursuit, regrouping, hold, power, cooling, routing, fuel, ineligible hulls, targetability, launch placement and freight delivery. Four engine cases verify mesh/field reconstruction, flagship changes and menu input isolation. The fleet runtime smoke uses stock ships and one freight fixture: normal combat, hold while the flagship jumps, independent pursuit, mid-jump reload and delivery payment. Only landing approaches are positioned. A 1280×720 capture verifies the escort and HUD; the controls capture exposed clipped rows, fixed with two columns. |
+| Jumps in saved games | Save the committed jump's phase, destination, drive kind and latched fuel cost for every serialized ship. Resume the remaining travel without charging the fuel again. Reject an impossible outbound phase that would never reach arrival. | Ten save cases compare original and restored ships through departure, outbound travel and inbound deceleration for hyperdrives and jump drives. The invalid-phase regression failed before validation was added. Four additional cases pin targetability at the upstream frame-70 threshold. The runtime fleet smoke reloads an escort during its outbound jump, then requires its correct arrival, fuel, combat membership and freight. |
 
-Latest local validation: **926 simulation tests, 33 engine tests, zero failures or
-skips**, and Debug/Release builds with zero warnings or errors. All five runtime
+Latest local validation: **963 simulation tests, 37 engine tests, zero failures or
+skips**, and Debug/Release builds with zero warnings or errors. All six runtime
 smokes passed their documented contract, including winning and collecting a bounty.
-The Windows and Linux release packages also passed save/load, both bounty reloads
-and payment from relocated copies with no data override.
+The Windows release package also passed save/load, both bounty reloads and payment,
+and the owned fleet scenario from a relocated copy with no data override. Native
+Ubuntu CI builds the Linux release and gates the same three relocated scenarios.
+
+Owned escorts retain their positions, systems, freight and committed jumps on load.
+Flight orders and uncommitted navigation targets are not saved: escorts return to
+following on reload. Taking off also clears orders, as in upstream `Engine::Place`.
+Independent escort refuelling, landing, fighter operations and selected-group orders
+remain incomplete. Routing does not yet use wormholes or refuelling stops.
 
 Older saves never recorded NPC ships or their history, so they recreate those
 targets once at load; missing historical kills cannot be recovered. New saves
@@ -122,11 +131,10 @@ still contain meaningful work and need further implementation and verification:
 - **Combat and boarding:** capture odds exist, but boarding approach, crew combat,
   plunder, capture transfer and their UI still need implementation. Continue the
   broader combat parity review (targeting personalities, turrets and other weapons).
-- **Persistence:** changed universe data, reputation, transient jumps, and per-ship
-  weapon mount assignments still need round-trip coverage. Inspect escort
-  reconstruction as well.
-- **Owned escorts:** fleet ownership and cargo carriers persist, but owned escorts
-  still need runtime rendering and travel alongside the flagship.
+- **Persistence:** changed universe data, reputation, navigation and fleet orders,
+  and per-ship weapon mount assignments still need round-trip coverage.
+- **Owned escorts:** independent landing and refuelling, wormhole routes, fighter
+  operations, named formations and orders for selected groups remain incomplete.
 - **Gameplay rules:** mission NPC spawn/despawn gates, landing permissions, the
   opening debt/conversation flow and turret firing arcs remain incomplete.
 - **Economy:** individual port services and per-ship landing clearance remain

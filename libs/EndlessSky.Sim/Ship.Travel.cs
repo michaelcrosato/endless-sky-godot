@@ -30,6 +30,19 @@ namespace EndlessSky.Sim
         public const double HyperspaceExitDistance = 1000.0;
 
         private double _hyperspaceFuelCost;
+        internal double HyperspaceFuelCost => _hyperspaceFuelCost;
+
+        internal void RestoreHyperspace(int count, StarSystem? destination, double fuelCost, bool jumpDrive)
+        {
+            if (count < 0 || count > HyperspaceFrames || !double.IsFinite(fuelCost) || fuelCost <= 0
+                || (count == 0 && destination == null)
+                || (count == HyperspaceFrames && destination != null)) return;
+            HyperspaceCount = count;
+            HyperspaceSystem = destination;
+            TargetSystem = destination;
+            _hyperspaceFuelCost = fuelCost;
+            IsUsingJumpDrive = jumpDrive;
+        }
 
         /// <summary>The system this ship is currently in (engine-assigned).</summary>
         public StarSystem? CurrentSystem { get; set; }
@@ -46,6 +59,9 @@ namespace EndlessSky.Sim
         public bool IsEnteringHyperspace => HyperspaceSystem != null;
 
         public bool IsHyperspacing => HyperspaceCount != 0;
+
+        /// <summary>Ship::IsTargetable stops exposing a ship at hyperspace frame 70.</summary>
+        public bool IsTargetable => !IsDestroyed && HyperspaceCount < 70;
 
         /// <summary>Whether the jump in progress is on the jump drive rather than a hyperdrive.</summary>
         public bool IsUsingJumpDrive { get; private set; }
@@ -175,12 +191,15 @@ namespace EndlessSky.Sim
         /// Whether this ship's drives can reach a system at all: a hyperdrive follows
         /// the link network, a jump drive ignores it and goes by map distance.
         /// </summary>
-        public bool CanReach(StarSystem? destination)
+        public bool CanReach(StarSystem? destination) => CanReach(CurrentSystem, destination);
+
+        /// <summary>Checks one route edge without moving the ship to that system.</summary>
+        public bool CanReach(StarSystem? from, StarSystem? destination)
         {
-            if (destination is null || CurrentSystem is null)
+            if (destination is null || from is null || ReferenceEquals(from, destination))
                 return false;
 
-            if (HasHyperdrive && CurrentSystem.Links.Contains(destination.Name))
+            if (HasHyperdrive && from.Links.Contains(destination.Name))
                 return true;
 
             if (!HasJumpDrive)
@@ -188,8 +207,8 @@ namespace EndlessSky.Sim
 
             // A system may extend the reach of drives inside it; upstream takes the
             // larger of the ship's range and the system's own.
-            double range = Math.Max(JumpDriveRange, CurrentSystem.JumpRange);
-            return (destination.MapPosition - CurrentSystem.MapPosition).Length <= range;
+            double range = Math.Max(JumpDriveRange, from.JumpRange);
+            return (destination.MapPosition - from.MapPosition).Length <= range;
         }
 
         /// <summary>Every system this ship could jump to from where it is.</summary>

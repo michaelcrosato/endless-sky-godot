@@ -45,6 +45,7 @@ namespace EndlessSky.Game
         {
             Key.Escape, Key.M, Key.I, Key.F1, Key.F2, Key.Up, Key.Down, Key.Left, Key.Right,
             Key.W, Key.S, Key.Enter, Key.KpEnter, Key.Space, Key.B, Key.N, Key.D, Key.Tab,
+            Key.G, Key.H, Key.V, Key.F,
         };
         private Control? _current;
 
@@ -67,6 +68,8 @@ namespace EndlessSky.Game
 
         /// <summary>Raised when the player picks a jump destination on the map.</summary>
         public event Action<StarSystem>? DestinationChosen;
+
+        public event Action<FleetOrder>? FleetOrderRequested;
 
         /// <summary>Raised when the player asks to quit.</summary>
         public event Action? QuitRequested;
@@ -155,7 +158,16 @@ namespace EndlessSky.Game
             if (_current is IUiScreen screen)
                 screen.Step(this);
             else if (!IsModal)
-                Port?.Step(this);
+            {
+                if (Port != null) Port.Step(this);
+                else if (_player.CurrentPlanet == null)
+                {
+                    if (Pressed(Key.H)) FleetOrderRequested?.Invoke(FleetOrder.Hold);
+                    else if (Pressed(Key.G)) FleetOrderRequested?.Invoke(FleetOrder.Gather);
+                    else if (Pressed(Key.V)) FleetOrderRequested?.Invoke(FleetOrder.Escort);
+                    else if (Pressed(Key.F)) FleetOrderRequested?.Invoke(FleetOrder.AttackTarget);
+                }
+            }
         }
 
         /// <summary>

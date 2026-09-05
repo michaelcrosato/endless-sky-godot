@@ -127,6 +127,19 @@ namespace EndlessSky.Sim
 
         public double MaxShields => Attributes.Get("shields");
         public double MaxHull => Attributes.Get("hull");
+
+        /// <summary>Entity::HealthFraction, excluding the unimplemented disruption status.</summary>
+        public double HealthFraction
+        {
+            get
+            {
+                double hullRange = MaxHull - MinimumHull;
+                double total = MaxShields + hullRange;
+                if (hullRange <= 0 || total <= 0) return 0;
+                double spareHull = Hull - MinimumHull;
+                return Math.Min(spareHull / hullRange, (spareHull + Shields) / total);
+            }
+        }
         public double MaxEnergy => Attributes.Get("energy capacity");
         public double MaxFuel => Attributes.Get("fuel capacity");
 

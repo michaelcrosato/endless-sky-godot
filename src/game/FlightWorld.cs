@@ -77,6 +77,8 @@ namespace EndlessSky.Game
         private bool _landAtStart;
         private UiScreen _landedStartScreen;
         private bool _isLanded;
+        private OwnedFleetView? _ownedFleet;
+        private Label? _fleetLabel;
         // The player's fleet, money, date, and travel history live in the simulation.
         private PlayerState _player = null!;      // set with _ship
         private MissionLog _missions = null!;     // set with _ship
@@ -128,7 +130,6 @@ namespace EndlessSky.Game
         private int _smokeReloads;
         private Ship? _smokeTarget;
         private int _smokeFrames;
-        private bool _fireKeyWasDown;
 
         // Mission NPCs are held apart from ambient traffic: they are not subject to
         // the traffic cap or the distance cull, because a bounty target that despawns
@@ -267,6 +268,7 @@ namespace EndlessSky.Game
             _ui = new GameUi { Name = "Ui" };
             _ui.Bind(_player, _missions, universe, () => _ship);
             _ui.DestinationChosen += OnDestinationChosen;
+            _ui.FleetOrderRequested += IssueFleetOrder;
             _ui.QuitRequested += () => GetTree().Quit();
             _ui.SaveRequested += SaveNow;
             _ui.LoadRequested += LoadNow;
@@ -322,6 +324,8 @@ namespace EndlessSky.Game
                 return;
             }
 
+            if (_fleetSmoke && StepFleetSmoke()) return;
+
             if (_isLanded)
             {
                 return;
@@ -365,7 +369,7 @@ namespace EndlessSky.Game
             // exactly zero times — so CI's smoke run proved the scene could be built
             // and nothing whatever about whether it runs.
             if (_simFrames == 1 && _capturePath == null && !_landAtStart && !_missionSmoke
-                && !_saveSmoke && !IsHeadless)
+                && !_saveSmoke && !_fleetSmoke && !IsHeadless)
             {
                 _ui?.Show(UiScreen.MainMenu);
                 return;
@@ -414,13 +418,20 @@ namespace EndlessSky.Game
 
             _landKeyWasDown = landKeyDown;
 
-            // Hyperspace owns the whole frame: no turning, thrust, or combat.
+            // Hyperspace owns the flagship's movement; the other ships and combat
+            // keep running while it travels.
             if (_ship.StepHyperspace())
             {
                 if (!ReferenceEquals(_ship.CurrentSystem, _lastSystem))
                 {
                     HandleArrival();
                 }
+
+                StepOwnedEscorts();
+                StepTraffic();
+                StepMissionShips();
+                StepCombatDemo();
+                StepCombat();
 
                 _shipView.SyncWith(_ship);
                 _shipView.SetHyperspaceStretch(_ship.HyperspaceCount / (float)Ship.HyperspaceFrames);
@@ -530,6 +541,7 @@ namespace EndlessSky.Game
 
             _ship.Step(command);
             _asteroidField?.Follow(WorldSpace.ToWorld(_ship.Position));
+            StepOwnedEscorts();
             StepTraffic();
             StepMissionShips();
             if (_missionSmoke)
@@ -1292,6 +1304,7 @@ namespace EndlessSky.Game
                 _landAutopilot = false;
                 _landMessage = string.Empty;
                 _player.Land(planet);
+                SyncOwnedEscorts();
                 _landedOverlay = LandedOverlay.Open(this, _player, _missions, planet,
                     _ship.CurrentSystem.Name, _universe);
                 _landedOverlay.Departed += OnDepart;
@@ -1308,14 +1321,16 @@ namespace EndlessSky.Game
                 return;
             }
 
+            Point departurePosition = _ship.Position;
+            Angle departureFacing = _ship.Facing;
             if (!_player.TakeOff(_missions, acceptCargoLoss)) return;
 
             // The flagship may have changed at the shipyard.
             if (_player.Fleet.Flagship != null && !ReferenceEquals(_player.Fleet.Flagship, _ship))
             {
                 Ship replacement = _player.Fleet.Flagship;
-                replacement.Position = _ship.Position;
-                replacement.Facing = _ship.Facing;
+                replacement.Position = departurePosition;
+                replacement.Facing = departureFacing;
                 replacement.CurrentSystem = _ship.CurrentSystem;
 
                 // Rebuild mounts from the existing inventory. Installing the weapons
@@ -1332,6 +1347,7 @@ namespace EndlessSky.Game
             _ui.Port = null;
             _isLanded = false;
             _ship.Velocity = Point.Zero;
+            SyncOwnedEscorts();
 
             GD.Print($"[flight] departed (credits={_player.Credits:n0} fuel={_ship.Fuel:0} " +
                      $"hull={_ship.Hull:0}/{_ship.MaxHull:0})");
@@ -1499,6 +1515,7 @@ namespace EndlessSky.Game
         /// <summary>Replace the current system's transient combat state and visuals.</summary>
         private void ResetLocalCombat(GameData universe)
         {
+            _ownedFleet?.Clear();
             foreach ((_, ShipView view) in _traffic)
                 view.QueueFree();
             _traffic.Clear();
@@ -1517,6 +1534,13 @@ namespace EndlessSky.Game
                     universe.Outfits.TryGetValue(name, out Outfit? outfit) ? outfit.Weapon : null!,
             };
             _field.Add(_ship);
+
+            if (_ownedFleet == null)
+            {
+                _ownedFleet = new OwnedFleetView { Name = "OwnedEscorts" };
+                AddChild(_ownedFleet);
+            }
+            SyncOwnedEscorts();
 
             _effects?.QueueFree();
             _effects = new CombatEffects { Name = "CombatEffects" };
@@ -1649,7 +1673,6 @@ namespace EndlessSky.Game
                           Input.IsPhysicalKeyPressed(Key.Space) ||
                           Input.IsMouseButtonPressed(MouseButton.Left);
 
-            _fireKeyWasDown = firing;
             if (!firing)
             {
                 return;
@@ -1747,6 +1770,8 @@ namespace EndlessSky.Game
             {
                 return _shipView;
             }
+
+            if (_ownedFleet?.Views.TryGetValue(ship, out ShipView? owned) == true) return owned;
 
             if (_drone != null && ReferenceEquals(ship, _drone))
             {
@@ -2078,6 +2103,10 @@ namespace EndlessSky.Game
                 _conditionLabel.AddThemeFontSizeOverride("font_size", 15);
                 _conditionLabel.AddThemeColorOverride("font_color", new Color(0.72f, 0.85f, 0.94f));
                 column.AddChild(_conditionLabel);
+                _fleetLabel = new Label { Visible = false };
+                _fleetLabel.AddThemeFontSizeOverride("font_size", 14);
+                _fleetLabel.AddThemeColorOverride("font_color", new Color(0.6f, 0.8f, 0.9f));
+                column.AddChild(_fleetLabel);
                 _conditionWarning = new Label { Visible = false };
                 _conditionWarning.AddThemeFontSizeOverride("font_size", 15);
                 _conditionWarning.AddThemeColorOverride("font_color", new Color(1f, 0.56f, 0.36f));
@@ -2160,6 +2189,20 @@ namespace EndlessSky.Game
                 _conditionWarning.Visible = _conditionWarning.Text.Length > 0;
             }
 
+            if (_fleetLabel != null)
+            {
+                int active = _player.Fleet.Escorts.Count();
+                _fleetLabel.Visible = active > 0;
+                _fleetLabel.Text = $"ESCORTS {_ownedFleet?.Views.Count ?? 0}/{active} HERE · " +
+                    (_player.Fleet.Order switch
+                    {
+                        FleetOrder.Hold => "HOLDING POSITION",
+                        FleetOrder.Gather => "GATHERING",
+                        FleetOrder.AttackTarget => "ATTACKING",
+                        _ => "FOLLOWING",
+                    });
+            }
+
             _radar?.Track(_ship, _radarObjects);
         }
 
@@ -2168,6 +2211,8 @@ namespace EndlessSky.Game
 
         public override void _ExitTree()
         {
+            if (_fleetSmokePath != null)
+                DirAccess.RemoveAbsolute(ProjectSettings.GlobalizePath(_fleetSmokePath));
             if (_ship != null)
             {
                 GD.Print($"[flight] exit: simFrames={_simFrames} speed={_ship.Velocity.Length:0.###}px/f " +
@@ -2209,6 +2254,10 @@ namespace EndlessSky.Game
                 else if (arg == "--save-smoke")
                 {
                     _saveSmoke = true;
+                }
+                else if (arg == "--fleet-smoke")
+                {
+                    _fleetSmoke = true;
                 }
                 else if (arg == "--land-smoke")
                 {
@@ -2421,10 +2470,12 @@ namespace EndlessSky.Game
                     replacement.CurrentSystem = _player.CurrentSystem;
                     _player.Fleet.Add(replacement);
                     _player.Fleet.SetFlagship(replacement);
+                    Point departurePosition = _ship.Position;
                     OnDepart();
                     restored &= !_isLanded && _landedOverlay == null && _ui.Port == null
                         && _player.CurrentPlanet == null && ReferenceEquals(_ship, replacement)
-                        && stock.SequenceEqual(replacement.Outfits);
+                        && stock.SequenceEqual(replacement.Outfits) && replacement.Position == departurePosition
+                        && _ownedFleet?.Views.ContainsKey(_player.Fleet.Ships[0]) == true;
                 }
                 if (restored) restored = SmokePortCargoDeparture(path, market.Commodity);
                 GD.Print(restored
