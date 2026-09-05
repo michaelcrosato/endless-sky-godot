@@ -14,6 +14,7 @@ param(
 )
 
 . "$PSScriptRoot/_env.ps1"
+Initialize-Godot
 Set-Location $script:ProjectRoot
 
 if ($Clean) {

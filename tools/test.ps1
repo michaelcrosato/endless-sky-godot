@@ -55,6 +55,7 @@ if ($Suite -in 'all', 'godot') {
         Write-Host ''
     }
     else {
+        Initialize-Godot
         Write-Host "[godot] $(Get-GodotVersion $script:GodotBin)"
         # --ignoreHeadlessMode: headless Godot delivers no InputEvents, so gdUnit4
         #   refuses to start without it. Safe unless a suite drives simulated input.

@@ -24,6 +24,7 @@ param(
 )
 
 . "$PSScriptRoot/_env.ps1"
+Initialize-Godot
 Set-Location $script:ProjectRoot
 
 # Godot loads the compiled assembly, not the .cs files. Running against a stale

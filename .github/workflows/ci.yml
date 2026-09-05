@@ -40,13 +40,9 @@ jobs:
       # gitignored, so this job has to fetch it. Without it 80 tests Ignore
       # themselves and the run proves far less than its green tick suggests --
       # which is exactly what happened for three pushes before this step existed.
-      # Data only: nothing here compiles or reads the C++.
+      # The same pinned revision and fetch path as local parity tests.
       - name: Fetch upstream dataset
-        run: |
-          set -euo pipefail
-          git clone --depth 1 --filter=blob:none --sparse \
-            https://github.com/endless-sky/endless-sky.git external/endless-sky
-          git -C external/endless-sky sparse-checkout set data
+        run: pwsh tools/get-data.ps1
 
       # A green run that quietly skipped the parity suites is the failure mode
       # this job exists to rule out, so check the dataset landed before testing
@@ -58,7 +54,7 @@ jobs:
             || { echo "::error::upstream dataset absent; the parity suites would silently skip"; exit 1; }
 
       - name: Test
-        run: dotnet test tests/sim/EndlessSky.SimTests.csproj --nologo -v minimal --settings .runsettings
+        run: pwsh tools/test.ps1 -Suite sim
 
       # universe/ is a build artifact with a source, and that claim is only worth
       # anything if it is checked. It was not: emit.py picked each job's NPC hull with

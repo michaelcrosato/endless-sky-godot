@@ -10,6 +10,7 @@
 param()
 
 . "$PSScriptRoot/_env.ps1"
+Initialize-Godot
 Set-Location $script:ProjectRoot
 
 Write-Host "[editor] $(Get-GodotVersion $script:GodotBin)"

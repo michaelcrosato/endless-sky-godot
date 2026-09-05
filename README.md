@@ -32,6 +32,12 @@ pwsh tools/test.ps1           # run every suite
 pwsh tools/run.ps1            # fly
 ```
 
+The upstream reference is pinned in `tools/upstream-ref.txt`; local fetching and
+CI use that same commit. `get-data.ps1` checks an existing checkout before using
+it. To change the reference, review and update the pin, preserve any edits in
+`external/endless-sky`, then run `pwsh tools/get-data.ps1 -Force` and the tests.
+Use `-Ref <commit-or-tag>` for an explicit one-off comparison.
+
 ## Architecture
 
 The directive's hard rule is that rendering must not be mixed into gameplay.
@@ -68,6 +74,10 @@ pwsh tools/test.ps1 -Suite sim                                   # engine-free o
 pwsh tools/test.ps1 -Suite sim -Filter "FullyQualifiedName~ShipPhysics"
 pwsh tools/test.ps1 -Suite godot                                 # in-engine only
 ```
+
+The simulation-only command needs .NET and the upstream dataset, with no Godot
+installation. The other suites and the build/run scripts resolve the .NET engine
+through `GODOT_BIN` or the Windows installation paths described in `CLAUDE.md`.
 
 ## The Reach
 
