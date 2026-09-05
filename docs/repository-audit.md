@@ -34,6 +34,7 @@ not artifacts available from a clone. CI runs the reproducible checks below.
 | Port menus and input | Make save/load available through Esc both in flight and at a port. Share key sampling between the shell, port and mission offers so held keys and simultaneous transitions cannot trigger actions on an underlying screen. | Seven engine tests cover saving/loading, held aliases, shop isolation, offer acceptance/decline and simultaneous inputs. The real save smoke saves at port, loads there and from flight, and verifies the restored port uses the restored player. |
 | Flagship departure | Remove the remaining duplicate weapon installation path when changing flagship at a port. | The save smoke selects a stock Kestrel I with spare gun mounts and requires its full outfit inventory to remain unchanged after departure. |
 | Port readability | Keep the tutorial below the port footer and hide flight controls while landed. Shell menus draw above the port and hide tutorial hints; combined landed/menu captures open the menu after landing. | Rendered 1280×720 port and pause captures show readable credits, controls, Save game and Load game rows. |
+| CI action runtime | Pin checkout, .NET setup, cache and artifact actions to reviewed commits that declare Node 24. Give the workflow read-only repository access and avoid persisting checkout credentials. | Earlier CI reported three Node 20 actions running under a forced Node 24 override. Release notes and runtime metadata were checked at each pinned commit; the workflow passes `actionlint`. |
 
 Latest local validation: **814 simulation tests, 25 engine tests, zero failures or
 skips**, and Debug/Release builds with zero warnings or errors. All five runtime
@@ -45,6 +46,13 @@ Older saves never recorded NPC ships or their history, so they recreate those
 targets once at load; missing historical kills cannot be recovered. New saves
 retain each NPC's mission template index and actual ships. Migration across changed
 mission templates and upstream UUID identity are still incomplete.
+
+CI action pins correspond to [checkout v7.0.1](https://github.com/actions/checkout/releases/tag/v7.0.1),
+[setup-dotnet v6.0.0](https://github.com/actions/setup-dotnet/releases/tag/v6.0.0),
+[cache v6.1.0](https://github.com/actions/cache/releases/tag/v6.1.0), and
+[upload-artifact v7.0.1](https://github.com/actions/upload-artifact/releases/tag/v7.0.1).
+Review the release notes and update both the commit and its version comment when
+updating an action.
 
 Run validation from the repository root:
 
