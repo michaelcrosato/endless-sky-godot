@@ -124,22 +124,9 @@ namespace EndlessSky.Sim
             foreach ((string name, DateTime when) in player.ScheduledEvents)
                 writer.Write("scheduled event", name, when.Day, when.Month, when.Year);
 
-            // When the player bought what they own. Without it a load re-values the
-            // whole fleet at the no-record default -- the depreciation floor -- so
-            // saving and loading quietly took three quarters off everything.
-            var purchases = player.Purchases.Records
-                .OrderBy(entry => entry.Key, StringComparer.Ordinal)
-                .ToList();
-
-            if (purchases.Count > 0)
-            {
-                writer.Write("purchases");
-                writer.BeginChild();
-                foreach (KeyValuePair<string, List<DateTime>> entry in purchases)
-                    foreach (DateTime day in entry.Value)
-                        writer.Write(entry.Key, day.Day, day.Month, day.Year);
-                writer.EndChild();
-            }
+            WritePurchases(writer, "purchases", player.Purchases);
+            if (player.CurrentPlanet != null)
+                WritePurchases(writer, "outfit stock", player.OutfitStock);
 
             // Stored conditions only. Provided ones are recomputed on load.
             var stored = player.Conditions.Values
@@ -355,15 +342,11 @@ namespace EndlessSky.Sim
                         }
 
                     case "purchases":
-                        foreach (DataNode child in node.Children)
-                        {
-                            if (child.Size < 4)
-                                continue;
+                        ReadPurchases(node, player.Purchases);
+                        break;
 
-                            DateTime? bought = SafeDate(child);
-                            if (bought.HasValue)
-                                player.Purchases.Record(child.Token(0), bought.Value);
-                        }
+                    case "outfit stock":
+                        ReadPurchases(node, player.OutfitStock);
                         break;
 
                     case "conditions":
@@ -387,6 +370,7 @@ namespace EndlessSky.Sim
 
             if (planet != null && data.Planets.TryGetValue(planet, out Planet? landed))
                 player.Land(landed);
+            if (player.CurrentPlanet == null) player.OutfitStock.Clear();
 
             foreach (DataNode cargo in cargoNodes)
                 player.Fleet.RestoreCargo(ReadCargo(cargo));
@@ -570,6 +554,39 @@ namespace EndlessSky.Sim
                 return;
 
             missions.Restore(mission, node);
+        }
+
+        private static void WritePurchases(DataWriter writer, string name, PurchaseLog log)
+        {
+            if (!log.Records.Any()) return;
+            writer.Write(name);
+            writer.BeginChild();
+            foreach (var entry in log.Records.OrderBy(e => e.Key, StringComparer.Ordinal))
+                foreach (int dayNumber in entry.Value)
+                {
+                    if (dayNumber < 0) writer.Write(entry.Key, "day", dayNumber);
+                    else
+                    {
+                        DateOnly day = DateOnly.FromDayNumber(dayNumber);
+                        writer.Write(entry.Key, day.Day, day.Month, day.Year);
+                    }
+                }
+            writer.EndChild();
+        }
+
+        private static void ReadPurchases(DataNode node, PurchaseLog log)
+        {
+            foreach (DataNode child in node.Children)
+            {
+                if (child.Size >= 3 && child.Token(1) == "day")
+                {
+                    if (int.TryParse(child.Token(2), System.Globalization.NumberStyles.Integer,
+                        System.Globalization.CultureInfo.InvariantCulture, out int day))
+                        log.RecordDay(child.Token(0), day);
+                }
+                else if (child.Size >= 4 && SafeDate(child) is DateTime day)
+                    log.Record(child.Token(0), day);
+            }
         }
 
         private static DateTime? SafeDate(DataNode node)

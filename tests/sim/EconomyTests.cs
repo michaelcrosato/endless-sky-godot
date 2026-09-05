@@ -231,14 +231,18 @@ namespace EndlessSky.Tests
             Assert.AreEqual(1, Outfitting.Install(ship, data.Outfits["Bulky Thing"]));
             Assert.AreEqual(5.0, ship.Attributes.Get("outfit space"), 1e-9);
 
+            data.LoadText("outfitter Shop\nplanet Home\n\toutfitter Shop\nsystem Sol\n\tobject Home\n");
             var player = new PlayerState(data);
+            player.EnterSystem(data.Systems["Sol"]);
+            ship.CurrentSystem = player.CurrentSystem;
             player.Fleet.Add(ship);
             player.Fleet.SetFlagship(ship);
             player.SetCredits(1000);
+            player.Land(data.Planets["Home"]);
 
             TradeResult sold = Trading.SellOutfit(player, ship, data.Outfits["Expansion"]);
 
-            Assert.AreNotEqual(TradeResult.Ok, sold,
+            Assert.AreEqual(TradeResult.DoesNotFit, sold,
                 "the expansion is holding the bulky outfit; it cannot come off");
             Assert.AreEqual(1, ship.Outfits.Count(o => o.Name == "Expansion"),
                 "and it is still installed");

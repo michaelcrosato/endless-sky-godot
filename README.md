@@ -47,6 +47,12 @@ not stock. You can sell your last ship and save while remaining at the port with
 cargo ashore. Select a **FOR SALE** row and press **B** to buy a replacement before
 departing. Purchase quotes include the installed outfits.
 
+At the outfitter, **Left/Right** selects a local ship and **Up/Down** selects
+equipment. **B** buys and installs; **N** removes and sells. Installed equipment
+appears even when the shop does not normally stock it. Sold outfits remain available
+to buy back until departure, including through save/load, at their used price.
+The selected item shows both purchase and sale quotes.
+
 Owned escorts fly and fight alongside the flagship. Press **G** to gather, **H**
 to hold position, **V** to follow, or **F** to attack the nearest hostile. Escorts
 follow jumps using their own drives and fuel; hold keeps them behind until recalled.
@@ -146,7 +152,8 @@ folders must be below `build/`. A failed export preserves the previous package.
 The script regressions above check replacement, native template discovery and
 failure handling without Godot or export templates. `smoke-package.ps1` copies the
 package to a temporary directory, clears the data override, and verifies save/load,
-bounty payment, owned escort travel and ship replacement from another working directory. It checks the loaded dataset's
+bounty payment, owned escort travel, ship replacement and outfit buyback from another
+working directory. It checks the loaded dataset's
 path as well as success; logs remain in `reports/`. CI builds and runs the Linux
 release package through these same commands.
 

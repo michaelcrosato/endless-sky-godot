@@ -1,7 +1,7 @@
 #Requires -Version 7
 <#
 .SYNOPSIS
-  Runs save/load, paid-bounty, owned-escort and shipyard scenarios from a relocated release package.
+  Runs save/load, paid-bounty, owned-escort and port-shop scenarios from a relocated release package.
 .DESCRIPTION
   Copies the whole package outside the repository, clears the data override and
   launches from a separate working directory. Requires the bundled dataset,
@@ -48,7 +48,7 @@ try {
     $expectedData = '(?m)^\[data\] loaded .+ from ' + [regex]::Escape($dataPath.Replace('\', '/')) + '\r?$'
     $env:ENDLESS_SKY_DATA = $null
 
-    foreach ($scenario in 'save', 'mission', 'fleet', 'shipyard') {
+    foreach ($scenario in 'save', 'mission', 'fleet', 'shipyard', 'outfitter') {
         $stdout = Join-Path $reports "package-$scenario-$id.log"
         $stderr = Join-Path $reports "package-$scenario-$id-error.log"
         $launch = @{

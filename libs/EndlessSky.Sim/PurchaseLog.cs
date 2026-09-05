@@ -1,12 +1,11 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace EndlessSky.Sim
 {
     /// <summary>
     /// When the player bought each thing they own, so it can be valued when they sell
-    /// it. Port of the player's half of upstream <c>Depreciation</c>.
+    /// it. Shop stock uses the same records, selling the oldest copy first.
     /// </summary>
     /// <remarks>
     /// Depreciation only means anything if something remembers the purchase.
@@ -23,9 +22,13 @@ namespace EndlessSky.Sim
     /// </remarks>
     public class PurchaseLog
     {
-        // Purchase dates per item, kept sorted so the newest is last.
-        private readonly Dictionary<string, List<DateTime>> _bought =
-            new Dictionary<string, List<DateTime>>(StringComparer.Ordinal);
+        // Ordinal days allow unknown, fully depreciated stock even at DateTime.MinValue.
+        // Upstream also stores integer days, with oldest stock and newest owned items first.
+        private readonly Dictionary<string, List<int>> _bought =
+            new Dictionary<string, List<int>>(StringComparer.Ordinal);
+        private readonly bool _oldestFirst;
+
+        public PurchaseLog(bool oldestFirst = false) => _oldestFirst = oldestFirst;
 
         /// <summary>The record key for an outfit.</summary>
         public static string OutfitKey(string name) => "outfit:" + name;
@@ -34,17 +37,25 @@ namespace EndlessSky.Sim
         public static string ShipKey(string model) => "ship:" + model;
 
         /// <summary>Every key with a record, for saving.</summary>
-        public IEnumerable<KeyValuePair<string, List<DateTime>>> Records => _bought;
+        public IEnumerable<KeyValuePair<string, List<int>>> Records => _bought;
 
         /// <summary>Notes that the player bought one of something on a given day.</summary>
-        public void Record(string key, DateTime day, int count = 1)
+        public void Record(string key, DateTime day, int count = 1) =>
+            RecordDay(key, DateOnly.FromDateTime(day).DayNumber, count);
+
+        /// <summary>Transfers an item's existing age instead of making a used purchase new.</summary>
+        public void RecordAge(string key, DateTime today, int age, int count = 1) =>
+            RecordDay(key, DateOnly.FromDateTime(today).DayNumber - Math.Clamp(age, 0, Depreciation.MaxAge), count);
+
+        internal void RecordDay(string key, int day, int count = 1)
         {
-            if (string.IsNullOrEmpty(key) || count <= 0)
+            if (string.IsNullOrEmpty(key) || count <= 0 || day < -Depreciation.MaxAge
+                || day > DateOnly.MaxValue.DayNumber)
                 return;
 
-            if (!_bought.TryGetValue(key, out List<DateTime>? days))
+            if (!_bought.TryGetValue(key, out List<int>? days))
             {
-                days = new List<DateTime>();
+                days = new List<int>();
                 _bought[key] = days;
             }
 
@@ -58,18 +69,18 @@ namespace EndlessSky.Sim
         public int? PeekAge(string key, DateTime today)
         {
             if (string.IsNullOrEmpty(key) ||
-                !_bought.TryGetValue(key, out List<DateTime>? days) || days.Count == 0)
+                !_bought.TryGetValue(key, out List<int>? days) || days.Count == 0)
                 return null;
-            return Math.Max(0, (int)(today - days[^1]).TotalDays);
+            return Math.Max(0, DateOnly.FromDateTime(today).DayNumber - days[_oldestFirst ? 0 : days.Count - 1]);
         }
 
-        /// <summary>Consumes the newest purchase and returns its age, or null if unknown.</summary>
+        /// <summary>Consumes the next record and returns its age, or null if unknown.</summary>
         public int? TakeAge(string key, DateTime today)
         {
             int? age = PeekAge(key, today);
             if (!age.HasValue) return null;
-            List<DateTime> days = _bought[key];
-            days.RemoveAt(days.Count - 1);
+            List<int> days = _bought[key];
+            days.RemoveAt(_oldestFirst ? 0 : days.Count - 1);
             if (days.Count == 0)
                 _bought.Remove(key);
             return age;
@@ -77,6 +88,8 @@ namespace EndlessSky.Sim
 
         /// <summary>How many purchases are on record for an item.</summary>
         public int Count(string key) =>
-            _bought.TryGetValue(key, out List<DateTime>? days) ? days.Count : 0;
+            _bought.TryGetValue(key, out List<int>? days) ? days.Count : 0;
+
+        public void Clear() => _bought.Clear();
     }
 }

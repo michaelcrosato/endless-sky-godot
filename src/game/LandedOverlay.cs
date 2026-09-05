@@ -49,6 +49,8 @@ namespace EndlessSky.Game
         private List<Ship> _shipyardOwned = new();
         private Dictionary<string, long> _shipyardPrices = new();
         private List<string> _outfitterStock = new();
+        private List<Ship> _outfitterShips = new();
+        private Ship? _outfitterShip;
         private List<Mission> _jobs = new();
 
         private Counter _counter = Counter.Trade;
@@ -166,11 +168,6 @@ namespace EndlessSky.Game
             _shipyardPrices = _shipyardStock.ToDictionary(model => model,
                 model => _universe.BuildShip(model).Cost, StringComparer.Ordinal);
 
-            _outfitterStock = Trading.OutfitsFor(_universe, _planet)
-                .Where(_universe.Outfits.ContainsKey)
-                .OrderBy(o => o, StringComparer.Ordinal)
-                .ToList();
-
             // The JOB board shows jobs. Missions declare which counter offers them, and
             // asking for everything put boarding missions, shipyard missions and the
             // ones that fire on entering a system on the same list as the work.
@@ -239,6 +236,19 @@ namespace EndlessSky.Game
                 _counter = (Counter)(((int)_counter + 1) % 4);
                 _message = "";
                 Refresh();
+            }
+
+            if (_counter == Counter.Outfitter)
+            {
+                bool left = ui.Pressed(Key.Left);
+                bool right = ui.Pressed(Key.Right);
+                if (left != right && _outfitterShips.Count > 0)
+                {
+                    int index = _outfitterShips.IndexOf(_outfitterShip!);
+                    _outfitterShip = _outfitterShips[(index + (right ? 1 : -1) + _outfitterShips.Count) % _outfitterShips.Count];
+                    _message = "";
+                    Refresh();
+                }
             }
 
             int count = CurrentCount();
@@ -460,11 +470,11 @@ namespace EndlessSky.Game
                 case Counter.Outfitter:
                 {
                     string outfit = _outfitterStock[index];
-                    Ship? flagship = _player.Fleet.Flagship;
-                    TradeResult result = flagship is null
+                    TradeResult result = _outfitterShip is null
                         ? TradeResult.NotOwned
-                        : Trading.BuyOutfit(_player, _universe, flagship, outfit);
+                        : Trading.BuyOutfit(_player, _universe, _outfitterShip, outfit);
                     _message = result == TradeResult.Ok ? $"installed {outfit}" : Explain(result);
+                    if (result == TradeResult.Ok) FleetChanged?.Invoke();
                     break;
                 }
 
@@ -558,12 +568,12 @@ namespace EndlessSky.Game
                 case Counter.Outfitter:
                 {
                     string name = _outfitterStock[index];
-                    Ship? flagship = _player.Fleet.Flagship;
                     Outfit? outfit = _universe.Outfits.TryGetValue(name, out Outfit? found) ? found : null;
 
-                    _message = flagship is null || outfit is null
-                        ? "nothing to sell"
-                        : Explain(Trading.SellOutfit(_player, flagship, outfit), $"sold {name}");
+                    TradeResult result = _outfitterShip is null || outfit is null
+                        ? TradeResult.NotOwned : Trading.SellOutfit(_player, _outfitterShip, outfit);
+                    _message = Explain(result, $"sold {name}");
+                    if (result == TradeResult.Ok) FleetChanged?.Invoke();
                     break;
                 }
 
@@ -650,6 +660,7 @@ namespace EndlessSky.Game
         private void Refresh()
         {
             _shipyardOwned = Trading.ShipsToSell(_player).ToList();
+            RefreshOutfitter();
             _selected[_counter] = Math.Clamp(Selection(), 0, Math.Max(0, CurrentCount() - 1));
             _quotes = Trading.CommoditiesFor(_universe, _player)
                 .OrderBy(q => q.Commodity, StringComparer.Ordinal)
@@ -662,6 +673,8 @@ namespace EndlessSky.Game
             _listLabel.Text = string.Join("\n", _shipForSale != null ? ShipSaleLines()
                 : _departure != null ? DepartureLines()
                 : IsOfferingMission ? OfferLines() : Lines());
+            if (_counter == Counter.Outfitter && !HasDialog)
+                _listLabel.Text = OutfitHeading() + "\n\n" + _listLabel.Text;
 
             Ship? flagship = _player.Fleet.Flagship;
             string hold = $"   cargo {_player.Fleet.CargoUsed(_player.CurrentSystem)}/{_player.Fleet.CargoCapacity(_player.CurrentSystem)} t" +
@@ -680,7 +693,7 @@ namespace EndlessSky.Game
         {
             Counter.Trade => "B buy 5t · N sell 5t",
             Counter.Shipyard => Selection() < _shipyardOwned.Count ? "N sell selected ship" : "B buy selected ship",
-            Counter.Outfitter => "B install · N remove",
+            Counter.Outfitter => "←/→ ship · B buy · N sell",
             Counter.Jobs => "B accept / hand in · N abandon",
             _ => "",
         };
@@ -738,10 +751,10 @@ namespace EndlessSky.Game
                     for (int i = 0; i < _outfitterStock.Count; i++)
                     {
                         string name = _outfitterStock[i];
-                        Outfit outfit = _universe.Outfits[name];
-                        int installed = _player.Fleet.Flagship?.Outfits.Count(o => o.Name == name) ?? 0;
-                        lines.Add($"{Cursor(i, selected)}{name,-30} {outfit.Cost,9:n0} cr" +
-                                  (installed > 0 ? $"   fitted {installed}" : ""));
+                        int installed = _outfitterShip?.Outfits.Count(o => o.Name == name) ?? 0;
+                        int stock = _player.OutfitStock.Count(PurchaseLog.OutfitKey(name));
+                        lines.Add($"{Cursor(i, selected)}{name}   fitted {installed}" +
+                                  (stock > 0 ? $"   buyback {stock}" : ""));
                     }
 
                     if (lines.Count == 0) lines.Add("   (no outfitter on this world)");
@@ -783,20 +796,51 @@ namespace EndlessSky.Game
             // Window the list around the selection. A job board can hold hundreds of
             // entries - New Boston offers 424 - and rendering them all runs off the
             // bottom of the screen and past the status line with it.
-            const int Rows = 12;
-            int first = Math.Max(0, Math.Min(selected - Rows / 2, lines.Count - Rows));
-            var window = lines.Skip(first).Take(Rows).ToList();
+            // Reserve the outfitter's three heading lines within the same height,
+            // keeping the footer above the opening tutorial at 1280×720.
+            int rows = _counter == Counter.Outfitter ? 9 : 12;
+            int first = Math.Max(0, Math.Min(selected - rows / 2, lines.Count - rows));
+            var window = lines.Skip(first).Take(rows).ToList();
 
-            if (lines.Count > Rows)
+            if (lines.Count > rows)
             {
                 window.Add($"   … {lines.Count} entries, showing {first + 1}-{first + window.Count}");
             }
 
-            while (window.Count < Rows) window.Add("");
+            while (window.Count < rows) window.Add("");
             return window;
         }
 
         private static string Cursor(int index, int selected) => index == selected ? "▶ " : "   ";
+
+        private void RefreshOutfitter()
+        {
+            int index = _selected.GetValueOrDefault(Counter.Outfitter);
+            string? selected = index < _outfitterStock.Count ? _outfitterStock[index] : null;
+            _outfitterShips = Trading.ShipsToOutfit(_player).ToList();
+            if (_outfitterShip == null || !_outfitterShips.Contains(_outfitterShip))
+                _outfitterShip = _outfitterShips.Contains(_player.Flagship!)
+                    ? _player.Flagship : _outfitterShips.FirstOrDefault();
+            _outfitterStock = Trading.OutfitsToShow(_player, _universe, _outfitterShip).ToList();
+            int sameItem = selected == null ? -1 : _outfitterStock.IndexOf(selected);
+            _selected[Counter.Outfitter] = sameItem >= 0 ? sameItem : Math.Clamp(index, 0, Math.Max(0, _outfitterStock.Count - 1));
+        }
+
+        private string OutfitHeading()
+        {
+            if (_outfitterShip == null) return "No owned ship available at this outfitter.";
+            string role = ReferenceEquals(_outfitterShip, _player.Flagship) ? "flagship"
+                : _outfitterShip.IsParked ? "parked" : "escort";
+            string heading = $"EQUIPPING  {_outfitterShip.GivenName ?? _outfitterShip.Definition.DisplayName} · {role}" +
+                $"   ({_outfitterShips.IndexOf(_outfitterShip) + 1}/{_outfitterShips.Count})";
+            if (_outfitterStock.Count == 0) return heading;
+            Outfit outfit = _universe.Outfits[_outfitterStock[Selection()]];
+            long? buy = Trading.OutfitPurchaseValue(_player, _universe, outfit);
+            Outfit? fitted = _outfitterShip.Outfits.FirstOrDefault(o => o.Name == outfit.Name);
+            string purchase = buy.HasValue ? $"Buy {buy:n0} cr" : "Not for sale";
+            string sale = fitted == null ? "not installed" : $"sell {Trading.OutfitSaleValue(_player, fitted):n0} cr";
+            return heading + $"\n{outfit.Name}: {purchase} · {sale}";
+        }
 
         private IEnumerable<string> ShipSaleLines()
         {

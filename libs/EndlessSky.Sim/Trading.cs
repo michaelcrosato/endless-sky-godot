@@ -47,7 +47,7 @@ namespace EndlessSky.Sim
         /// for a quarter rather than for full price.
         /// </summary>
         public static long SaleValue(long cost, int ageInDays = MaxAge) =>
-            (long)(cost * Fraction(ageInDays));
+            ageInDays <= GracePeriod ? cost : (long)(cost * Fraction(ageInDays));
     }
 
     /// <summary>
@@ -262,7 +262,14 @@ namespace EndlessSky.Sim
 
         /// <summary>Owned hulls available to this shipyard, including models it does not stock.</summary>
         public static IEnumerable<Ship> ShipsToSell(PlayerState player) =>
-            player?.CurrentPlanet is { HasShipyard: true } && player.CurrentSystem != null
+            player?.CurrentPlanet is { HasShipyard: true } ? ShipsAtPort(player) : Enumerable.Empty<Ship>();
+
+        /// <summary>Owned local hulls the outfitter can equip, including parked ships.</summary>
+        public static IEnumerable<Ship> ShipsToOutfit(PlayerState player) =>
+            player?.CurrentPlanet is { HasOutfitter: true } ? ShipsAtPort(player) : Enumerable.Empty<Ship>();
+
+        private static IEnumerable<Ship> ShipsAtPort(PlayerState player) =>
+            player.CurrentSystem != null
                 ? player.Fleet.Ships.Where(s => ReferenceEquals(s.CurrentSystem, player.CurrentSystem)
                     && !s.IsDestroyed && !s.IsEnteringHyperspace && !s.IsHyperspacing)
                 : Enumerable.Empty<Ship>();
@@ -297,40 +304,76 @@ namespace EndlessSky.Sim
             return TradeResult.Ok;
         }
 
-        /// <summary>
-        /// Buys an outfit and installs it on a ship. The fit is checked BEFORE the
-        /// money changes hands, so a refusal never costs the player anything.
-        /// </summary>
+        /// <summary>Stock and installed equipment visible at the current outfitter.</summary>
+        public static IEnumerable<string> OutfitsToShow(PlayerState player, GameData data, Ship? ship)
+        {
+            if (player.CurrentPlanet is not { HasOutfitter: true } where)
+                return Enumerable.Empty<string>();
+            var names = OutfitsFor(data, where).ToHashSet(StringComparer.Ordinal);
+            if (ship != null && ShipsToOutfit(player).Contains(ship))
+                names.UnionWith(ship.Outfits.Select(o => o.Name));
+            return data.Outfits.Keys.Where(name => names.Contains(name)
+                || player.OutfitStock.Count(PurchaseLog.OutfitKey(name)) > 0)
+                .OrderBy(name => name, StringComparer.Ordinal);
+        }
+
+        /// <summary>Next purchase price, taking the oldest used stock before new items.</summary>
+        public static long? OutfitPurchaseValue(PlayerState player, GameData data, Outfit outfit)
+        {
+            if (player.CurrentPlanet is not { HasOutfitter: true } where) return null;
+            int? age = player.OutfitStock.PeekAge(PurchaseLog.OutfitKey(outfit.Name), player.Date);
+            if (!age.HasValue && !OutfitsFor(data, where).Contains(outfit.Name, StringComparer.Ordinal))
+                return null;
+            return OutfitValue(outfit, age ?? 0);
+        }
+
+        /// <summary>Sale price of the newest owned copy; unknown ages are fully depreciated.</summary>
+        public static long OutfitSaleValue(PlayerState player, Outfit outfit, int ageInDays = Depreciation.MaxAge) =>
+            OutfitValue(outfit, player.Purchases.PeekAge(PurchaseLog.OutfitKey(outfit.Name), player.Date) ?? ageInDays);
+
+        private static long OutfitValue(Outfit outfit, int age) =>
+            outfit.Attributes.Get("installable") < 0 ? outfit.Cost : Depreciation.SaleValue(outfit.Cost, age);
+
+        private static TradeResult CanOutfit(PlayerState player, Ship ship)
+        {
+            if (!player.Fleet.Ships.Contains(ship)) return TradeResult.NotOwned;
+            if (player.CurrentPlanet is not { HasOutfitter: true } || player.CurrentSystem == null)
+                return TradeResult.NotSold;
+            return ShipsToOutfit(player).Contains(ship) ? TradeResult.Ok : TradeResult.NotHere;
+        }
+
+        /// <summary>Buys and installs one outfit; refusals do not change money, stock or equipment.</summary>
         public static TradeResult BuyOutfit(PlayerState player, GameData data, Ship ship,
                                             string outfitName)
         {
             if (player is null || data is null || ship is null || string.IsNullOrEmpty(outfitName))
                 return TradeResult.NoSuchThing;
 
-            Planet? where = player.CurrentPlanet;
-            if (where is null)
-                return TradeResult.NotSold;
-
             if (!data.Outfits.TryGetValue(outfitName, out Outfit? outfit))
                 return TradeResult.NoSuchThing;
 
-            if (!OutfitsFor(data, where).Contains(outfitName, StringComparer.Ordinal))
-                return TradeResult.NotSold;
+            TradeResult access = CanOutfit(player, ship);
+            if (access != TradeResult.Ok) return access;
+            long? value = OutfitPurchaseValue(player, data, outfit);
+            if (!value.HasValue) return TradeResult.NotSold;
+            long cost = value.Value;
 
             if (!Outfitting.Fits(ship, outfit))
                 return TradeResult.DoesNotFit;
 
-            if (player.Credits < outfit.Cost)
+            if (player.Credits < cost)
                 return TradeResult.CannotAfford;
+            Int128 balance = (Int128)player.Credits - cost;
+            if (balance > long.MaxValue || balance < long.MinValue) return TradeResult.CreditLimit;
 
-            player.AddCredits(-outfit.Cost);
+            int crew = ship.Crew;
+            player.SetCredits((long)balance);
             ship.AddOutfit(outfit);
-
-            // Note when it was bought, so selling it back is priced on how long the
-            // player kept it. Without this every sale falls through to the no-record
-            // default -- the 0.25 floor -- and buying anything by mistake costs three
-            // quarters of its price.
-            player.Purchases.Record(PurchaseLog.OutfitKey(outfit.Name), player.Date);
+            ServiceOutfittedShip(ship, outfit, crew, 1);
+            player.Fleet.RefreshFlagship();
+            string key = PurchaseLog.OutfitKey(outfit.Name);
+            int age = player.OutfitStock.TakeAge(key, player.Date) ?? 0;
+            player.Purchases.RecordAge(key, player.Date, age);
             return TradeResult.Ok;
         }
 
@@ -341,11 +384,12 @@ namespace EndlessSky.Sim
             if (player is null || ship is null || outfit is null)
                 return TradeResult.NoSuchThing;
 
-            if (!ship.Outfits.Any(o => ReferenceEquals(o, outfit) ||
-                                       string.Equals(o.Name, outfit.Name, StringComparison.Ordinal)))
-            {
-                return TradeResult.NotOwned;
-            }
+            TradeResult access = CanOutfit(player, ship);
+            if (access != TradeResult.Ok) return access;
+            // Use the installed definition, never a caller-supplied same-name price or capacity.
+            Outfit? installed = ship.Outfits.FirstOrDefault(o => o.Name == outfit.Name);
+            if (installed is null) return TradeResult.NotOwned;
+            outfit = installed;
 
             // Taking an outfit off can break the ship as surely as putting one on:
             // upstream gates every uninstall on CanAdd(outfit, -1)
@@ -356,17 +400,28 @@ namespace EndlessSky.Sim
             if (Outfitting.CanInstall(ship, outfit, -1) != -1)
                 return TradeResult.DoesNotFit;
 
-            if (ship.RemoveOutfit(outfit) == 0)
-                return TradeResult.NotOwned;
+            long value = OutfitSaleValue(player, outfit, ageInDays);
+            Int128 balance = (Int128)player.Credits + value;
+            if (balance > long.MaxValue || balance < long.MinValue) return TradeResult.CreditLimit;
 
-            // The player's own record when there is one; the caller's age otherwise,
-            // which defaults to fully depreciated exactly as upstream treats an item it
-            // has no record of -- a hull's stock loadout, say, which was never bought.
-            int age = player.Purchases.TakeAge(PurchaseLog.OutfitKey(outfit.Name), player.Date)
-                      ?? ageInDays;
-
-            player.AddCredits(Depreciation.SaleValue(outfit.Cost, age));
+            int crew = ship.Crew;
+            if (ship.RemoveOutfit(outfit) == 0) return TradeResult.NotOwned;
+            ServiceOutfittedShip(ship, outfit, crew, -1);
+            player.Fleet.RefreshFlagship();
+            string key = PurchaseLog.OutfitKey(outfit.Name);
+            int age = player.Purchases.TakeAge(key, player.Date) ?? ageInDays;
+            player.OutfitStock.RecordAge(key, player.Date, age);
+            player.SetCredits((long)balance);
             return TradeResult.Ok;
+        }
+
+        private static void ServiceOutfittedShip(Ship ship, Outfit outfit, int crew, int direction)
+        {
+            long adjustment = (long)(outfit.Attributes.Get("required crew") + outfit.Attributes.Get("mandatory crew")) * direction;
+            if (direction < 0 || crew + adjustment <= ship.Bunks)
+                crew = (int)Math.Clamp(crew + adjustment, 0, int.MaxValue);
+            ship.Crew = Math.Min(ship.Bunks, Math.Max(crew, ship.RequiredCrew));
+            ship.Recharge(RechargeType.All);
         }
     }
 }

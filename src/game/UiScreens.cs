@@ -84,6 +84,7 @@ namespace EndlessSky.Game
             ("Esc", "pause menu, or close a screen", "anywhere"),
             ("Tab", "switch counter", "landed"),
             ("Up / Down", "select", "landed"),
+            ("Left / Right", "select ship at the outfitter", "landed"),
             ("B", "buy, accept a job, or hand it in", "landed"),
             ("N", "sell, or abandon a job", "landed"),
             ("D", "depart", "landed"),

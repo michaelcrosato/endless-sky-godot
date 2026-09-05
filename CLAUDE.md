@@ -39,6 +39,7 @@ owned by a different session. This repo is the Godot arm of that comparison.
 | Tutorial smoke (land → job → jump → deliver) | `pwsh tools/run.ps1 -Headless -Frames 20000 -UserArgs '--tutorial-smoke'` |
 | Owned fleet smoke (fight → hold → jump → reload → deliver) | `pwsh tools/run.ps1 -Headless -Frames 20000 -UserArgs '--fleet-smoke'` |
 | Shipyard smoke (sell last ship → reload → buy → depart) | `pwsh tools/run.ps1 -Headless -Frames 20000 -UserArgs '--shipyard-smoke'` |
+| Outfitter smoke (sell escort gun → reload → buy back → depart and fire) | `pwsh tools/run.ps1 -Headless -Frames 20000 -UserArgs '--outfitter-smoke'` |
 | Regenerate the universe | `python tools/worldgen/worldgen.py` |
 | Open the editor | `pwsh tools/editor.ps1` |
 | Export a build | `pwsh tools/export.ps1 -Preset "Windows Desktop" -Release` |

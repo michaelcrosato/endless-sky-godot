@@ -24,7 +24,7 @@ namespace EndlessSky.Tests.Presentation
             public int Saves, Loads, Departures;
 
             public Session(int counter = 0, int price = 100, int? freight = null, int ships = 1, int cargo = 0,
-                int stockOutfitCost = 0)
+                int stockOutfitCost = 0, bool outfitter = false)
             {
                 var data = new GameData();
                 Data = data;
@@ -38,6 +38,9 @@ namespace EndlessSky.Tests.Presentation
                 data.Trade.SetPrice("Sol", "Food", price);
                 if (stockOutfitCost > 0)
                     data.LoadText($"outfit Scanner\n\tcost {stockOutfitCost}\nship Trader\n\toutfits\n\t\tScanner 1\n");
+                if (outfitter)
+                    data.LoadText("outfit Battery\n\tcost 200\noutfitter Shelf\n\tBattery\n" +
+                        "planet Home\n\toutfitter Shelf\n");
                 Player = new PlayerState(data);
                 for (int i = 0; i < ships; i++)
                 {
@@ -98,6 +101,82 @@ namespace EndlessSky.Tests.Presentation
                 AssertThat(capture.SavePng(ProjectSettings.GlobalizePath($"res://reports/{name}.png")))
                     .IsEqual(Error.Ok);
             }
+        }
+
+        [TestCase]
+        [RequireGodotRuntime]
+        public async Task OutfitterSelectsLocalEscortsAndBuysBackUnstockedEquipment()
+        {
+            var session = new Session(ships: 3, stockOutfitCost: 400, outfitter: true);
+            try
+            {
+                Ship flagship = session.Player.Flagship!;
+                Ship remote = session.Player.Fleet.Ships[1];
+                Ship escort = session.Player.Fleet.Ships[2];
+                session.Data.LoadText("system Remote\n\tpos 100 0\n");
+                remote.CurrentSystem = session.Data.Systems["Remote"];
+                escort.GivenName = "Selected escort";
+                escort.IsParked = true;
+                session.Tap(Key.Tab);
+                session.Tap(Key.Tab);
+                session.Frame(Key.Right);
+                session.Frame(Key.Right);
+                session.Frame();
+                session.Tap(Key.Down); // Scanner is installed but not normally sold here.
+                AssertBool(session.Port.FindChildren("*", "Label", true, false).OfType<Label>()
+                    .Any(label => label.Text.Contains("Selected escort · parked")
+                        && label.Text.Contains("Scanner: Not for sale · sell 100 cr"))).IsTrue();
+                session.Tap(Key.N);
+                AssertThat(escort.Outfits.Count).IsEqual(0);
+                AssertThat(flagship.Outfits.Count).IsEqual(1);
+                AssertThat(remote.Outfits.Count).IsEqual(1);
+                AssertThat(session.Player.Credits).IsEqual(1100L);
+                AssertBool(session.Port.FindChildren("*", "Label", true, false).OfType<Label>()
+                    .Any(label => label.Text.Contains("Scanner: Buy 100 cr") && label.Text.Contains("buyback 1"))).IsTrue();
+                await session.Capture("outfitter-buyback");
+                session.Tap(Key.B);
+                AssertThat(escort.Outfits.Single().Name).IsEqual("Scanner");
+                AssertThat(session.Player.Credits).IsEqual(1000L);
+                AssertThat(session.Player.Flagship).IsEqual(flagship);
+                session.Tap(Key.B); // Used stock is exhausted; this does not buy a new copy.
+                AssertThat(escort.Outfits.Count).IsEqual(1);
+                AssertThat(session.Player.Credits).IsEqual(1000L);
+            }
+            finally { await session.Release(); }
+        }
+
+        [TestCase]
+        [RequireGodotRuntime]
+        public async Task OutfitterSelectionSurvivesMenusAndFollowsTheItemWhenRowsChange()
+        {
+            var session = new Session(counter: 2, ships: 2, stockOutfitCost: 400, outfitter: true);
+            try
+            {
+                Ship flagship = session.Player.Flagship!;
+                Ship escort = session.Player.Fleet.Ships[1];
+                session.Tap(Key.Down); // Scanner on the flagship.
+                session.Tap(Key.Escape);
+                session.Tap(Key.Right, Key.N);
+                AssertThat(flagship.Outfits.Count).IsEqual(1);
+                AssertThat(escort.Outfits.Count).IsEqual(1);
+                session.Tap(Key.Escape);
+                session.Tap(Key.N);
+                session.Tap(Key.Right);
+                session.Tap(Key.N); // Same item remains selected on the escort.
+                AssertThat(flagship.Outfits.Count).IsEqual(0);
+                AssertThat(escort.Outfits.Count).IsEqual(0);
+                AssertThat(session.Player.Credits).IsEqual(1200L);
+                session.Tap(Key.B);
+                session.Tap(Key.B);
+                AssertThat(escort.Outfits.Count).IsEqual(2);
+                AssertThat(session.Player.Credits).IsEqual(1000L);
+                session.Tap(Key.Left); // No Scanner row on this ship after buyback stock is exhausted.
+                session.Tap(Key.B);
+                AssertThat(flagship.Outfits.Single().Name).IsEqual("Battery");
+                AssertThat(session.Player.Credits).IsEqual(800L);
+                await session.Capture("outfitter-installed");
+            }
+            finally { await session.Release(); }
         }
 
         [TestCase]

@@ -300,6 +300,7 @@ namespace EndlessSky.Tests
             // cost three quarters of its price.
             PlayerState player = Landed(out GameData data);
             Ship flagship = data.BuildShip("Shuttle");
+            flagship.CurrentSystem = player.CurrentSystem;
             player.Fleet.Add(flagship);
             player.Fleet.SetFlagship(flagship);
             long before = player.Credits;
@@ -321,6 +322,7 @@ namespace EndlessSky.Tests
             // player kept it, not a flat penalty for selling anything at all.
             PlayerState player = Landed(out GameData data);
             Ship flagship = data.BuildShip("Shuttle");
+            flagship.CurrentSystem = player.CurrentSystem;
             player.Fleet.Add(flagship);
             player.Fleet.SetFlagship(flagship);
             Ship ship = player.Fleet.Flagship!;
@@ -342,6 +344,7 @@ namespace EndlessSky.Tests
             // record for it and upstream treats it as fully depreciated.
             PlayerState player = Landed(out GameData data);
             Ship flagship = data.BuildShip("Shuttle");
+            flagship.CurrentSystem = player.CurrentSystem;
             player.Fleet.Add(flagship);
             player.Fleet.SetFlagship(flagship);
             Ship ship = player.Fleet.Flagship!;

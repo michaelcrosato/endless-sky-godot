@@ -21,7 +21,7 @@ namespace EndlessSky.Sim
     /// are transcribed from that source.
     ///
     /// INCOMPLETE, tracked rather than dropped: the "required crew" special case for
-    /// automatons, licence requirements, and outfitter stock lists.
+    /// automatons and licence requirements. Stock and transactions are handled by Trading.
     /// </remarks>
     public static class Outfitting
     {

@@ -301,6 +301,7 @@ namespace EndlessSky.Game
         public override void _PhysicsProcess(double delta)
         {
             if (_shipyardSmoke && StepShipyardSmoke()) return;
+            if (_outfitterSmoke && StepOutfitterSmoke()) return;
             if (_ship == null)
             {
                 return;
@@ -370,7 +371,7 @@ namespace EndlessSky.Game
             // exactly zero times — so CI's smoke run proved the scene could be built
             // and nothing whatever about whether it runs.
             if (_simFrames == 1 && _capturePath == null && !_landAtStart && !_missionSmoke
-                && !_saveSmoke && !_fleetSmoke && !_shipyardSmoke && !IsHeadless)
+                && !_saveSmoke && !_fleetSmoke && !_shipyardSmoke && !_outfitterSmoke && !IsHeadless)
             {
                 _ui?.Show(UiScreen.MainMenu);
                 return;
@@ -2218,6 +2219,8 @@ namespace EndlessSky.Game
 
         public override void _ExitTree()
         {
+            if (_outfitterSmokePath != null)
+                DirAccess.RemoveAbsolute(ProjectSettings.GlobalizePath(_outfitterSmokePath));
             if (_shipyardSmokePath != null)
                 DirAccess.RemoveAbsolute(ProjectSettings.GlobalizePath(_shipyardSmokePath));
             if (_fleetSmokePath != null)
@@ -2271,6 +2274,10 @@ namespace EndlessSky.Game
                 else if (arg == "--shipyard-smoke")
                 {
                     _shipyardSmoke = true;
+                }
+                else if (arg == "--outfitter-smoke")
+                {
+                    _outfitterSmoke = true;
                 }
                 else if (arg == "--land-smoke")
                 {
