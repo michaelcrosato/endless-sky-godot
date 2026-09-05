@@ -29,8 +29,10 @@ not artifacts available from a clone. CI runs the reproducible checks below.
 | Combat scope and arrivals | Clear transient ships, shots and combat views on arrival and load without resetting the flagship's resources or armament. All pilots target the combat field's ships, with other systems excluded. Update the pilot's system and exploration history on real jumps. | Two target-selection regressions and runtime save, bounty-arrival and tutorial-arrival probes failed before the fixes. Reload clears a firing traffic ship and its view; arrival clears the previous fight; tutorial checks the pilot's location and visited system. |
 | Mission persistence | Save actual NPC ships, their allegiance, condition, locations and individual objective events, plus mission passengers. Restore missions after pilot placement; recover missing targets in older saves without repeating acceptance. | All ten new cases failed before the fix. They cover partial bounties, escorts that jumped, mission failure, payload, legacy placement, empty instances, aggregate-only records and repeated saves. The real bounty now reloads during combat and after victory, then lands and collects payment. |
 | Weapon duplication and cleanup | Let mount reconstruction arm existing outfits without installing additional copies. Share ship serialization and smoke diagnostics; remove the unused NPC placement flag and the load overload that attached missions to a different player. | The stronger bounty smoke caught a cannon count doubling from 2 to 4 on load. It now passes both reloads with the stock loadout; existing ship and save regressions still pass. |
+| Combat visibility | Scale camera distance and zoom to the hull and viewport, and bound velocity look-ahead by the visible frame. Show shields, hull, energy, heat and disabled/overheated warnings in the flight HUD; advertise fire and zoom controls. | All three new engine regressions failed before the fix: large-hull framing, fast flight in every direction, and zoom after a flagship change. They now pass, including portrait framing. Rendered battles at 1920×1080 and 1280×720 show both ships, projectiles and readable telemetry. |
+| Capture dimensions | Honor explicit engine window mode and resolution options ahead of saved preferences, and include image dimensions in capture logs. | A requested 1280×720 capture previously became 1920×1080 when settings loaded. The same command now produces a verified 1280×720 image without changing the saved preferences. |
 
-Latest local validation: **814 simulation tests, 15 engine tests, zero failures or
+Latest local validation: **814 simulation tests, 18 engine tests, zero failures or
 skips**, and Debug/Release builds with zero warnings or errors. All five runtime
 smokes passed their documented contract, including winning and collecting a bounty.
 The current Windows release also passed both bounty reloads and payment when launched
@@ -77,11 +79,9 @@ still contain meaningful work and need further implementation and verification:
 - **Delivery:** verify a Linux release export and review dependency/CI
   reproducibility. Fresh checkout validation, Windows release packaging and
   relocated startup are verified above.
-- **UX and content:** the rendered reload check shows the large Prism X fills much
-  of the combat view while its target is outside the frame; review camera framing
-  by hull size and add readable combat condition information. Also inspect smaller
-  windows, input remapping, audio, and Reach content for currently unused
-  event/conversation/wormhole systems.
+- **UX and content:** add target identification and target condition information;
+  inspect windows below 1280×720, input remapping, audio, and Reach content for
+  currently unused event/conversation/wormhole systems.
 
 `docs/MILESTONES.md` and `rg -n INCOMPLETE libs src` retain the broader parity
 inventory. Do not delete unfinished systems to make the audit appear complete.

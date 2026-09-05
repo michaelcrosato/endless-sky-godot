@@ -40,6 +40,8 @@ namespace EndlessSky.Game
         private CameraRig _camera = null!;    // set with _ship; guarded by _ship != null
         private readonly List<StellarObjectView> _stellarViews = new();
         private Label? _statusLabel;
+        private Label? _conditionLabel;
+        private Label? _conditionWarning;
 
         /// <summary>The system dial: where everything in this system is, and what is landable.</summary>
         private SystemRadar? _radar;
@@ -2089,6 +2091,17 @@ namespace EndlessSky.Game
             _statusLabel.AddThemeConstantOverride("outline_size", 3);
             _statusLabel.AddThemeColorOverride("font_outline_color", new Color(0f, 0f, 0f, 0.9f));
             column.AddChild(_statusLabel);
+            if (errorMessage == null)
+            {
+                _conditionLabel = new Label();
+                _conditionLabel.AddThemeFontSizeOverride("font_size", 15);
+                _conditionLabel.AddThemeColorOverride("font_color", new Color(0.72f, 0.85f, 0.94f));
+                column.AddChild(_conditionLabel);
+                _conditionWarning = new Label { Visible = false };
+                _conditionWarning.AddThemeFontSizeOverride("font_size", 15);
+                _conditionWarning.AddThemeColorOverride("font_color", new Color(1f, 0.56f, 0.36f));
+                column.AddChild(_conditionWarning);
+            }
             if (errorMessage != null)
             {
                 _statusLabel.Text = " ";
@@ -2128,7 +2141,7 @@ namespace EndlessSky.Game
                 // which was all it used to do, so a player with no world under them
                 // pressed it, saw nothing happen, and concluded landing was broken.
                 Text = "↑ thrust · ←/→ turn · ↓ brake · L land (again: next world) · J jump · " +
-                       "M map · I status · F1 controls · ESC menu",
+                       "Space fire · Wheel zoom · M map · I status · F1 controls · ESC menu",
             };
             keys.AddThemeFontSizeOverride("font_size", 12);
             keys.AddThemeColorOverride("font_color", new Color(0.40f, 0.48f, 0.56f));
@@ -2152,8 +2165,24 @@ namespace EndlessSky.Game
             _statusLabel.Text =
                 $"{speed:0} KM/S · {pct:0}%   HDG {_ship.Facing.AbsDegrees:000}°   FUEL {_ship.Fuel:0}{status}";
 
+            if (_conditionLabel != null)
+                _conditionLabel.Text =
+                    $"SHIELDS {ResourcePercent(_ship.Shields, _ship.MaxShields)}   " +
+                    $"HULL {ResourcePercent(_ship.Hull, _ship.MaxHull)}\n" +
+                    $"ENERGY {ResourcePercent(_ship.Energy, _ship.MaxEnergy)}   " +
+                    $"HEAT {ResourcePercent(_ship.Heat, _ship.MaxHeat)}";
+            if (_conditionWarning != null)
+            {
+                _conditionWarning.Text = _ship.IsOverheated ? "OVERHEATED"
+                    : _ship.IsDisabled ? "DISABLED" : string.Empty;
+                _conditionWarning.Visible = _conditionWarning.Text.Length > 0;
+            }
+
             _radar?.Track(_ship, _radarObjects);
         }
+
+        private static string ResourcePercent(double amount, double capacity) =>
+            capacity > 0 ? $"{Math.Max(0, amount) / capacity * 100:0}%" : "—";
 
         public override void _ExitTree()
         {
@@ -2239,7 +2268,8 @@ namespace EndlessSky.Game
         {
             Image image = GetViewport().GetTexture().GetImage();
             Error err = image.SavePng(_capturePath);
-            GD.Print($"[flight] capture {(err == Error.Ok ? "saved" : $"FAILED ({err})")}: {_capturePath}");
+            GD.Print($"[flight] capture {(err == Error.Ok ? "saved" : $"FAILED ({err})")}: " +
+                     $"{_capturePath} ({image.GetWidth()}x{image.GetHeight()})");
         }
 
         /// <summary>

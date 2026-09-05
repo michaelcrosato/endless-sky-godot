@@ -1,3 +1,4 @@
+using System.Linq;
 using Godot;
 
 namespace EndlessSky.Game
@@ -34,9 +35,19 @@ namespace EndlessSky.Game
             var mode = (DisplayServer.WindowMode)(int)config.GetValue(
                 Section, "window_mode", (int)DisplayServer.WindowMode.Windowed);
 
+            // Explicit engine launch options take precedence over remembered window
+            // settings. This also makes a requested capture resolution reproducible.
+            // Godot removes recognized engine options from OS.GetCmdlineArgs().
+            string[] args = System.Environment.GetCommandLineArgs().Skip(1)
+                .TakeWhile(arg => arg is not "--" and not "++").ToArray();
+            bool explicitMode = args.Any(arg => arg is "--windowed" or "-w"
+                or "--fullscreen" or "-f" or "--maximized" or "-m");
+            if (explicitMode)
+                mode = DisplayServer.WindowGetMode();
+
             // Size before mode: setting a size while fullscreen is ignored, and the
             // window would come back windowed at whatever it happened to be.
-            if (mode == DisplayServer.WindowMode.Windowed)
+            if (mode == DisplayServer.WindowMode.Windowed && !args.Contains("--resolution"))
             {
                 var size = new Vector2I(
                     (int)config.GetValue(Section, "width", 1600),
@@ -46,7 +57,8 @@ namespace EndlessSky.Game
                     DisplayServer.WindowSetSize(size);
             }
 
-            DisplayServer.WindowSetMode(mode);
+            if (!explicitMode)
+                DisplayServer.WindowSetMode(mode);
 
             DisplayServer.WindowSetVsyncMode((bool)config.GetValue(Section, "vsync", true)
                 ? DisplayServer.VSyncMode.Enabled
