@@ -47,6 +47,10 @@ namespace EndlessSky.Sim
 
         public string DisplayName => VariantName ?? Name;
 
+        private ShipDefinition? _baseModel;
+        /// <summary>The stock chassis underlying a variant, used by the depreciation ledger.</summary>
+        public ShipDefinition BaseModel => _baseModel ?? this;
+
         public string Sprite { get; private set; } = string.Empty;
 
         public string Category { get; private set; } = string.Empty;
@@ -230,6 +234,7 @@ namespace EndlessSky.Sim
             {
                 return;
             }
+            _baseModel = baseShip;
 
             if (Attributes.Values.Count == 0)
             {

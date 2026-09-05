@@ -10,7 +10,7 @@ namespace EndlessSky.Game
         private bool _shipyardSmoke;
         private int _shipyardSmokeStage, _shipyardSmokeFrames, _shipyardSmokeStockIndex;
         private string? _shipyardSmokePath, _shipyardSmokeCommodity, _shipyardSmokeModel;
-        private long _shipyardSmokePurchasePrice;
+        private Int128 _shipyardSmokePurchasePrice;
         private Point _shipyardSmokeDeparture;
 
         // Uses stock ships and the real port/menu actions. The landing approach is
@@ -26,14 +26,18 @@ namespace EndlessSky.Game
                 if (port == null) return EndShipyardSmoke(false, "the starting system has no usable shipyard");
                 string[] stock = Trading.ShipsFor(_universe, port.Planet!).Where(_universe.Ships.ContainsKey)
                     .OrderBy(s => s, StringComparer.Ordinal).ToArray();
-                Ship? replacement = stock.Select(_universe.BuildShip).Where(s => s.Cargo.Capacity >= 5).MinBy(s => s.Cost);
+                Ship? replacement = stock.Contains(_ship.Definition.DisplayName, StringComparer.Ordinal)
+                    && _ship.Cargo.Capacity >= 5 ? _universe.BuildShip(_ship.Definition.DisplayName)
+                    : stock.Select(_universe.BuildShip).Where(s => s.Cargo.Capacity >= 5).MinBy(s => s.Cost);
                 if (replacement == null) return EndShipyardSmoke(false, "no stock replacement with cargo space");
                 _shipyardSmokeModel = replacement.Definition.DisplayName;
                 _shipyardSmokeStockIndex = Array.IndexOf(stock, _shipyardSmokeModel);
-                _shipyardSmokePurchasePrice = replacement.Cost;
+                _shipyardSmokePurchasePrice = Trading.ShipPurchaseValue(_player, replacement);
                 // Explicit funds make this a transaction fixture, independent of
                 // how much a new pilot can afford at this particular yard.
-                _player.SetCredits(Math.Max(_player.Credits, replacement.Cost));
+                if (_shipyardSmokePurchasePrice > long.MaxValue)
+                    return EndShipyardSmoke(false, "the fixture cannot fund this replacement");
+                _player.SetCredits((long)Int128.Max(_player.Credits, _shipyardSmokePurchasePrice));
                 _ship.Position = port.Position;
                 _ship.Velocity = Point.Zero;
                 _ship.TargetStellar = port;
@@ -43,7 +47,7 @@ namespace EndlessSky.Game
                     return EndShipyardSmoke(false, "could not prepare five tons of cargo");
                 _player.AdjustBasis(_shipyardSmokeCommodity, 500);
                 Ship sold = _ship;
-                long afterSale = _player.Credits + Trading.ShipSaleValue(_player, sold);
+                Int128 afterSale = _player.Credits + Trading.ShipSaleValue(_player, sold);
                 SmokeKey(Key.Tab);
                 SmokeKey(Key.N);
                 if (_landedOverlay?.IsConfirmingShipSale != true)
@@ -68,6 +72,10 @@ namespace EndlessSky.Game
                     || _ship != null || _shipView.Visible || _field!.Ships.Count != 0)
                     return EndShipyardSmoke(false, "shipless reload did not restore cargo, money and an empty combat field");
 
+                if (replacement.Definition.Name == sold.Definition.Name
+                    && Trading.ShipPurchaseValue(_player, replacement) >= _shipyardSmokePurchasePrice)
+                    return EndShipyardSmoke(false, "reload lost the used hull and outfit purchase prices");
+
                 // A valid port is required when the save has no flagship.
                 string invalid = string.Join("\n", before.Split('\n').Where(line => !line.StartsWith("planet ", StringComparison.Ordinal)));
                 if (!SaveSlot.Save(invalid, _shipyardSmokePath) || LoadFrom(_shipyardSmokePath)
@@ -80,11 +88,22 @@ namespace EndlessSky.Game
             {
                 SmokeKey(Key.Tab);
                 for (int i = 0; i < _shipyardSmokeStockIndex; i++) SmokeKey(Key.Down);
+                Ship model = _universe!.BuildShip(_shipyardSmokeModel!);
+                Int128 usedPrice = Trading.ShipPurchaseValue(_player, model);
+                var records = model.Outfits.Where(o => o.Attributes.Get("installable") >= 0)
+                    .GroupBy(o => o.Name, StringComparer.Ordinal).ToDictionary(group => group.Key,
+                        group => (Stock: _player.StockDepreciation.Count(PurchaseLog.OutfitKey(group.Key)),
+                            Owned: _player.Purchases.Count(PurchaseLog.OutfitKey(group.Key)), Count: group.Count()));
                 long beforePurchase = _player.Credits;
                 SmokeKey(Key.B);
                 if (_ship == null || _ship.Definition.DisplayName != _shipyardSmokeModel
-                    || _player.Credits != beforePurchase - _shipyardSmokePurchasePrice)
+                    || _player.Credits != beforePurchase - usedPrice || usedPrice > _shipyardSmokePurchasePrice)
                     return EndShipyardSmoke(false, "the replacement purchase did not bind the new flagship");
+                foreach (var record in records)
+                    if (_player.StockDepreciation.Count(PurchaseLog.OutfitKey(record.Key)) != Math.Max(0, record.Value.Stock - record.Value.Count)
+                        || _player.Purchases.Count(PurchaseLog.OutfitKey(record.Key)) != record.Value.Owned + record.Value.Count)
+                        return EndShipyardSmoke(false, "buying the ship did not transfer its outfit ages");
+                GD.Print($"[smoke] replacement bought for {usedPrice} cr (new {_shipyardSmokePurchasePrice} cr); outfit ages transferred");
                 SmokeKey(Key.D);
                 if (_ship == null || _isLanded || _landedOverlay != null || _ui.Port != null || !_shipView.Visible
                     || _ship.Cargo.Count(_shipyardSmokeCommodity!) != 5 || _player.Fleet.PortCargo != null)

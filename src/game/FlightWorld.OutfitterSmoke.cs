@@ -53,14 +53,14 @@ namespace EndlessSky.Game
                 SmokeKey(Key.N);
                 if (_player.Credits != _outfitterSmokeCredits + _outfitterSmokeValue
                     || _outfitterSmokeEscort.Outfits.Count(o => o == _outfitterSmokeOutfit) != _outfitterSmokeInstalled - 1
-                    || _player.OutfitStock.Count(PurchaseLog.OutfitKey(_outfitterSmokeOutfit!.Name)) != 1)
+                    || _player.Stock(_outfitterSmokeOutfit!.Name) != 1)
                     return EndOutfitterSmoke(false, "the selected escort did not sell its unlisted gun: " +
                         string.Join(" / ", _landedOverlay!.FindChildren("*", "Label", true, false)
                             .OfType<Label>().Select(label => label.Text)));
                 string before = SaveGame.Write(_player, _missions);
                 _outfitterSmokePath = $"user://smoke-outfitter-{Guid.NewGuid():N}.txt";
                 if (!SmokeSaveMenu(_outfitterSmokePath, load: false)) return EndOutfitterSmoke(false, "outfitter save failed");
-                _player.OutfitStock.Clear();
+                _player.StockDepreciation.Clear();
                 _player.SetCredits(0);
                 if (!SmokeSaveMenu(_outfitterSmokePath, load: true)
                     || !SavedStateMatches(before, SaveGame.Write(_player, _missions)))
@@ -78,7 +78,7 @@ namespace EndlessSky.Game
                 if (_player.Credits != _outfitterSmokeCredits
                     || escort.Outfits.Count(o => o == _outfitterSmokeOutfit) != _outfitterSmokeInstalled
                     || Trading.OutfitSaleValue(_player, _outfitterSmokeOutfit!) != _outfitterSmokeValue
-                    || _player.OutfitStock.Count(PurchaseLog.OutfitKey(_outfitterSmokeOutfit!.Name)) != 0)
+                    || _player.Stock(_outfitterSmokeOutfit!.Name) != 0)
                     return EndOutfitterSmoke(false, "buyback changed the price, age or installed count");
                 SmokeKey(Key.D);
                 WeaponMount? mount = escort.Mounts.FirstOrDefault(m => m.Weapon == _outfitterSmokeOutfit.Weapon);

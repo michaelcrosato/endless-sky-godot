@@ -14,8 +14,9 @@
   flagship jumps, follows on its own fuel, reloads mid-jump and delivers its cargo.
   Only its landing approaches are positioned. All save checks use temporary slots.
   Shipyard uses stock ships and explicit starting funds, confirms sale of the last
-  hull, reloads without a flagship, buys a replacement at the quoted price and departs
-  with saved cargo. The landing approach and initial coasting speed are set.
+  hull, reloads without a flagship, buys a replacement at its used hull/outfit quote,
+  verifies transfer of its outfit ages and departs with saved cargo. The landing
+  approach and initial coasting speed are set.
   Outfitter sells an escort's unlisted stock gun, reloads its buyback price and
   inventory, reinstalls it, departs and fires the rearmed mount. The landing is positioned.
 .PARAMETER Frames

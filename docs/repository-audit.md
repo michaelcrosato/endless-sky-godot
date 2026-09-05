@@ -51,8 +51,9 @@ not artifacts available from a clone. CI runs the reproducible checks below.
 | Jumps in saved games | Save the committed jump's phase, destination, drive kind and latched fuel cost for every serialized ship. Resume the remaining travel without charging the fuel again. Reject an impossible outbound phase that would never reach arrival. | Ten save cases compare original and restored ships through departure, outbound travel and inbound deceleration for hyperdrives and jump drives. The invalid-phase regression failed before validation was added. Four additional cases pin targetability at the upstream frame-70 threshold. The runtime fleet smoke reloads an escort during its outbound jump, then requires its correct arrival, fuel, combat membership and freight. |
 | Shipyard sales and replacement | Select an individual local hull, including models the yard does not stock, and confirm its quoted sale value. Reject remote, destroyed and jumping hulls, ports without a yard, sales in flight and credit overflow. Allow the last ship to be sold; retain the port, cargo and mission freight through reload and replacement purchase. Do not promote unavailable hulls. Remove the obsolete last-ship prohibition and share port reconstruction. | Twelve new simulation cases cover sale eligibility, cargo and freight without ships, reload, replacement, unavailable flagships and retained purchase history after overflow. An existing test was corrected against upstream's unrestricted last-ship sale. Five engine cases verify exact selection, unlisted models, cancellation/held keys, replacement and a 1,300-credit equipped quote for a 1,000-credit hull with a 300-credit outfit. The runtime smoke uses stock ships and explicit funds, confirms the last sale, saves and reloads through menus, rejects a shipless flight save, buys a replacement and coasts through normal physics with five saved tons. The landing approach and initial coasting speed are set. Captures at 1280×720 exposed an empty tutorial panel over the shipless port; it is now hidden along with flight hints. |
 | Outfitter transactions and buyback | Select a local owned ship without changing flagship, expose its unlisted installed equipment, and quote the next purchase and sale. Reject inaccessible hulls and payment overflow before changing equipment or purchase records. Sold outfits remain in port stock through save/load; the shop sells its oldest copy first and preserves its age on buyback. Successful departure clears the stock. Outfit changes update hardpoints, crew and resource capacities; servicing can restore a disabled hull's flagship eligibility. | Twenty-two new simulation cases cover access, refusal state, spoofed definitions, crew/resources, depreciation order, departure, malformed saves and boundary dates/credits. Existing capacity and age fixtures now establish a real outfitter location. Two engine cases cover escort selection, remote/parked ships, held keys, modal isolation and item selection as rows change. The runtime scenario sells an unlisted stock gun from an escort, saves and reloads through menus, buys it back at the used quote, departs and fires the restored mount. Graphical port tests and 1280×720 captures check the quotes and controls; the outfitter reserves space for its heading so the tutorial does not cover the footer. |
+| Ship pricing and stock transfers | Value hulls and each outfit type at their own ages, truncate once per outfit group, and consume the corresponding records on ship transactions. Variants use their stock chassis model and price. Track signed outfit quantities separately from used-stock ages, preserving upstream's distinction between whole-ship and individual outfit sales. Refresh purchase quotes after transactions, reject payment/stock overflow before changing state, and remove a redundant hardpoint rebuild. | Eleven new simulation cases cover included-outfit resale, mixed and missing ages, group rounding, stock exhaustion, variant migration, legacy buyback saves, departure and payment/stock limits. Two engine cases verify used purchase quotes and the sale confirmation for recently installed equipment. The shipyard runtime smoke now reloads and buys the used replacement, checks the charged price and transfer of its outfit records, then departs with saved cargo. |
 
-Latest local validation: **997 simulation tests, 44 engine tests, zero failures or
+Latest local validation: **1008 simulation tests, 46 engine tests, zero failures or
 skips**, and Debug/Release builds with zero warnings or errors. All eight runtime
 smokes passed their documented contract, including winning and collecting a bounty.
 The Windows release package also passed save/load, both bounty reloads and payment,
@@ -61,8 +62,12 @@ Native Ubuntu CI builds the Linux release and gates the same five relocated scen
 
 Outfit buyback stock belongs to the current port visit. It survives failed or
 cancelled departures, and saving does not reset depreciation. Existing purchase-date
-save records remain readable; the same date format stores shop stock under `outfit stock`.
+save records remain readable. Signed quantities are saved under `stock`; ages of
+sold hulls and outfits use `stock depreciation`. The former `outfit stock` records
+migrate to both quantities and ages, and variant purchase keys migrate to their chassis model.
 An ordinal `day` record can represent a fully depreciated item before year 1.
+Older saves cannot recover purchase ages that were never recorded for included
+outfits; those items retain the upstream unknown-age depreciation floor.
 
 Owned escorts retain their positions, systems, freight and committed jumps on load.
 Flight orders and uncommitted navigation targets are not saved: escorts return to
@@ -151,8 +156,8 @@ still contain meaningful work and need further implementation and verification:
   passengers and stored outfits remain incomplete.
   The shipyard and outfitter likewise filter by system and travel state until per-ship
   planets are modeled. Licences, outfit cargo/storage, linked outfit removal and
-  automaton crew rules remain incomplete. Ship transactions still need separate
-  hull/outfit depreciation and outfit-stock transfers, chassis-only sales and trade-in.
+  automaton crew rules remain incomplete. Ship transactions still need chassis-only
+  sales with outfit storage and trade-in.
   Applied changes to market definitions share the wider universe-persistence gap above.
 - **Simulation boundary:** much of the session's orchestration still lives in the
   presentation layer. Move rules into the engine-free layer with behavioral coverage.

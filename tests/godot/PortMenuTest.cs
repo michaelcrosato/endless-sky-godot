@@ -181,6 +181,55 @@ namespace EndlessSky.Tests.Presentation
 
         [TestCase]
         [RequireGodotRuntime]
+        public async Task ShipyardRefreshesUsedPurchaseQuotesAfterSellingAndBuying()
+        {
+            var session = new Session(counter: 1, stockOutfitCost: 300);
+            try
+            {
+                session.Tap(Key.N);
+                session.Tap(Key.Enter);
+                AssertThat(session.Player.Credits).IsEqual(1325L);
+                AssertBool(session.Port.FindChildren("*", "Label", true, false).OfType<Label>()
+                    .Any(label => label.Text.Contains("FOR SALE") && label.Text.Contains("325 cr"))).IsTrue();
+                await session.Capture("shipyard-used-price");
+                session.Tap(Key.B);
+                AssertThat(session.Player.Credits).IsEqual(1000L);
+                AssertThat(session.Player.Flagship!.Outfits.Single().Name).IsEqual("Scanner");
+                AssertThat(Trading.OutfitSaleValue(session.Player, session.Data.Outfits["Scanner"])).IsEqual(75L);
+                AssertBool(session.Port.FindChildren("*", "Label", true, false).OfType<Label>()
+                    .Any(label => label.Text.Contains("FOR SALE") && label.Text.Contains("1,300 cr"))).IsTrue();
+            }
+            finally { await session.Release(); }
+        }
+
+        [TestCase]
+        [RequireGodotRuntime]
+        public async Task ShipSaleConfirmationPreservesTheValueOfRecentlyInstalledEquipment()
+        {
+            var session = new Session(counter: 2, stockOutfitCost: 300, outfitter: true);
+            try
+            {
+                session.Tap(Key.B); // Install a new 200-credit battery on the old ship.
+                AssertThat(session.Player.Credits).IsEqual(800L);
+                session.Tap(Key.Tab);
+                session.Tap(Key.Tab);
+                session.Tap(Key.Tab);
+                session.Tap(Key.N);
+                AssertBool(session.Port.FindChildren("*", "Label", true, false).OfType<Label>()
+                    .Any(label => label.Text.Contains("Sell Trader for 525 cr?"))).IsTrue();
+                await session.Capture("shipyard-mixed-age-sale");
+                session.Tap(Key.Enter);
+                AssertThat(session.Player.Credits).IsEqual(1325L);
+                AssertThat(session.Player.Stock("Scanner")).IsEqual(1L);
+                AssertThat(session.Player.Stock("Battery")).IsEqual(0L);
+                AssertThat(Trading.OutfitPurchaseValue(session.Player, session.Data, session.Data.Outfits["Battery"]))
+                    .IsEqual(200L);
+            }
+            finally { await session.Release(); }
+        }
+
+        [TestCase]
+        [RequireGodotRuntime]
         public async Task ShipyardSaleUsesTheSelectedLocalHull()
         {
             var session = new Session(ships: 3);

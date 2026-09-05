@@ -126,7 +126,17 @@ namespace EndlessSky.Sim
 
             WritePurchases(writer, "purchases", player.Purchases);
             if (player.CurrentPlanet != null)
-                WritePurchases(writer, "outfit stock", player.OutfitStock);
+            {
+                if (player.OutfitStock.Count > 0)
+                {
+                    writer.Write("stock");
+                    writer.BeginChild();
+                    foreach (var entry in player.OutfitStock.OrderBy(e => e.Key, StringComparer.Ordinal))
+                        writer.Write(entry.Key, entry.Value);
+                    writer.EndChild();
+                }
+                WritePurchases(writer, "stock depreciation", player.StockDepreciation);
+            }
 
             // Stored conditions only. Provided ones are recomputed on load.
             var stored = player.Conditions.Values
@@ -276,6 +286,7 @@ namespace EndlessSky.Sim
             restoreEconomy = () => data.Trade.ReadEconomy(economy);
             string? system = null, planet = null;
             var cargoNodes = new List<DataNode>();
+            bool legacyStock = !file.Nodes.Any(n => n.Token(0) is "stock" or "stock depreciation");
 
             foreach (DataNode node in file.Nodes)
             {
@@ -342,11 +353,21 @@ namespace EndlessSky.Sim
                         }
 
                     case "purchases":
-                        ReadPurchases(node, player.Purchases);
+                        ReadPurchases(node, player.Purchases, data);
                         break;
 
-                    case "outfit stock":
-                        ReadPurchases(node, player.OutfitStock);
+                    case "stock":
+                        foreach (DataNode child in node.Children)
+                            if (child.Size >= 2)
+                                player.RestoreStock(child.Token(0), child.IntegerValue(1));
+                        break;
+
+                    case "stock depreciation":
+                        ReadPurchases(node, player.StockDepreciation, data);
+                        break;
+
+                    case "outfit stock" when legacyStock:
+                        ReadPurchases(node, player.StockDepreciation, data);
                         break;
 
                     case "conditions":
@@ -370,7 +391,11 @@ namespace EndlessSky.Sim
 
             if (planet != null && data.Planets.TryGetValue(planet, out Planet? landed))
                 player.Land(landed);
-            if (player.CurrentPlanet == null) player.OutfitStock.Clear();
+            if (legacyStock)
+                foreach (var entry in player.StockDepreciation.Records)
+                    if (entry.Key.StartsWith("outfit:", StringComparison.Ordinal))
+                        player.RestoreStock(entry.Key[7..], entry.Value.Count);
+            if (player.CurrentPlanet == null) player.ClearStock();
 
             foreach (DataNode cargo in cargoNodes)
                 player.Fleet.RestoreCargo(ReadCargo(cargo));
@@ -574,18 +599,23 @@ namespace EndlessSky.Sim
             writer.EndChild();
         }
 
-        private static void ReadPurchases(DataNode node, PurchaseLog log)
+        private static void ReadPurchases(DataNode node, PurchaseLog log, GameData data)
         {
             foreach (DataNode child in node.Children)
             {
+                string key = child.Token(0);
+                // Earlier saves keyed variants separately; upstream values their shared chassis model.
+                if (key.StartsWith("ship:", StringComparison.Ordinal)
+                    && data.Ships.TryGetValue(key[5..], out ShipDefinition? model))
+                    key = PurchaseLog.ShipKey(model.Name);
                 if (child.Size >= 3 && child.Token(1) == "day")
                 {
                     if (int.TryParse(child.Token(2), System.Globalization.NumberStyles.Integer,
                         System.Globalization.CultureInfo.InvariantCulture, out int day))
-                        log.RecordDay(child.Token(0), day);
+                        log.RecordDay(key, day);
                 }
                 else if (child.Size >= 4 && SafeDate(child) is DateTime day)
-                    log.Record(child.Token(0), day);
+                    log.Record(key, day);
             }
         }
 

@@ -80,7 +80,7 @@ namespace EndlessSky.Tests
             PlayerState player = Pilot(out GameData data);
             Ship ship = player.Flagship!;
             player.Purchases.Record(PurchaseLog.OutfitKey("Cannon"), player.Date);
-            player.OutfitStock.RecordAge(PurchaseLog.OutfitKey("Battery"), player.Date, 100);
+            player.StockDepreciation.RecordAge(PurchaseLog.OutfitKey("Battery"), player.Date, 100);
             if (reason == "money") player.SetCredits(0);
             if (reason == "capacity") ship.Attributes.Set("outfit space", 0);
             if (reason == "overflow") player.SetCredits(long.MaxValue);
@@ -140,7 +140,7 @@ namespace EndlessSky.Tests
             Assert.AreEqual(400, Trading.OutfitPurchaseValue(player, data, battery));
             Assert.AreEqual(TradeResult.Ok, Trading.BuyOutfit(player, data, ship, "Battery"));
             Assert.AreEqual(10000, player.Credits);
-            Assert.AreEqual(0, player.OutfitStock.Count(key));
+            Assert.AreEqual(0, player.StockDepreciation.Count(key));
             Assert.AreEqual(400, Trading.OutfitPurchaseValue(player, data, battery), "normal stock remains unlimited");
         }
 
@@ -187,7 +187,7 @@ namespace EndlessSky.Tests
             Assert.IsTrue(takeOff ? player.TakeOff() : player.Depart());
             player.Land(data.Planets["Home"]);
             Assert.IsNull(Trading.OutfitPurchaseValue(player, data, cannon));
-            Assert.IsEmpty(player.OutfitStock.Records);
+            Assert.IsEmpty(player.StockDepreciation.Records);
         }
 
         [Test]
@@ -216,9 +216,9 @@ namespace EndlessSky.Tests
             string stock = "\n\"outfit stock\"\n\t\"outfit:Cannon\" day -1001\n" +
                 "\t\"outfit:Cannon\" day nope\n\t\"outfit:Cannon\" day 999999999999\n" +
                 "\t\"outfit:Cannon\" 31 2 3013\n";
-            Assert.IsEmpty(SaveGame.Read(SaveGame.Write(player) + stock, data).OutfitStock.Records);
+            Assert.IsEmpty(SaveGame.Read(SaveGame.Write(player) + stock, data).StockDepreciation.Records);
             string valid = "\"outfit stock\"\n\t\"outfit:Cannon\" 1 1 3013\n";
-            Assert.IsEmpty(SaveGame.Read(valid, data).OutfitStock.Records);
+            Assert.IsEmpty(SaveGame.Read(valid, data).StockDepreciation.Records);
         }
 
         [TestCase(long.MaxValue)]

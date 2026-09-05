@@ -47,7 +47,7 @@ namespace EndlessSky.Game
         private List<TradeQuote> _quotes = new();
         private List<string> _shipyardStock = new();
         private List<Ship> _shipyardOwned = new();
-        private Dictionary<string, long> _shipyardPrices = new();
+        private Dictionary<string, Ship> _shipyardModels = new();
         private List<string> _outfitterStock = new();
         private List<Ship> _outfitterShips = new();
         private Ship? _outfitterShip;
@@ -165,8 +165,8 @@ namespace EndlessSky.Game
                 .OrderBy(s => s, StringComparer.Ordinal)
                 .ToList();
 
-            _shipyardPrices = _shipyardStock.ToDictionary(model => model,
-                model => _universe.BuildShip(model).Cost, StringComparer.Ordinal);
+            _shipyardModels = _shipyardStock.ToDictionary(model => model,
+                model => _universe.BuildShip(model), StringComparer.Ordinal);
 
             // The JOB board shows jobs. Missions declare which counter offers them, and
             // asking for everything put boarding missions, shipyard missions and the
@@ -613,6 +613,7 @@ namespace EndlessSky.Game
             TradeResult.NotHere => "that ship is not available here",
             TradeResult.InvalidAmount => "quantity must be positive",
             TradeResult.CreditLimit => "credit balance limit reached",
+            TradeResult.StockLimit => "this trade exceeds the shop's stock limit",
             _ => "no",
         };
 
@@ -740,7 +741,7 @@ namespace EndlessSky.Game
                     for (int i = 0; i < _shipyardStock.Count; i++)
                     {
                         string model = _shipyardStock[i];
-                        long cost = _shipyardPrices[model];
+                        Int128 cost = Trading.ShipPurchaseValue(_player, _shipyardModels[model]);
                         lines.Add($"{Cursor(i + _shipyardOwned.Count, selected)}FOR SALE  {model,-26} {cost,10:n0} cr");
                     }
 
@@ -752,7 +753,7 @@ namespace EndlessSky.Game
                     {
                         string name = _outfitterStock[i];
                         int installed = _outfitterShip?.Outfits.Count(o => o.Name == name) ?? 0;
-                        int stock = _player.OutfitStock.Count(PurchaseLog.OutfitKey(name));
+                        long stock = _player.Stock(name);
                         lines.Add($"{Cursor(i, selected)}{name}   fitted {installed}" +
                                   (stock > 0 ? $"   buyback {stock}" : ""));
                     }

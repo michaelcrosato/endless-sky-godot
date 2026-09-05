@@ -90,6 +90,51 @@ namespace EndlessSky.Sim
         public int Count(string key) =>
             _bought.TryGetValue(key, out List<int>? days) ? days.Count : 0;
 
+        /// <summary>Quotes a group without consuming records; upstream truncates once per item type.</summary>
+        public Int128 Value(string key, long cost, DateTime today, int count = 1,
+            int defaultAge = Depreciation.MaxAge)
+        {
+            if (count <= 0) return 0;
+            double fraction = 0;
+            int remaining = count;
+            int currentDay = DateOnly.FromDateTime(today).DayNumber;
+            if (_bought.TryGetValue(key, out List<int>? days))
+            {
+                int index = _oldestFirst ? 0 : days.Count - 1;
+                int direction = _oldestFirst ? 1 : -1;
+                while (remaining > 0 && index >= 0 && index < days.Count)
+                {
+                    int day = days[index], used = 0;
+                    do { used++; index += direction; }
+                    while (used < remaining && index >= 0 && index < days.Count && days[index] == day);
+                    fraction += used * Depreciation.Fraction(currentDay - day);
+                    remaining -= used;
+                }
+            }
+            fraction += remaining * Depreciation.Fraction(defaultAge);
+            // Keep exact integer prices throughout the grace period, including large quotes.
+            return fraction == count ? (Int128)count * cost : (Int128)(fraction * cost);
+        }
+
+        internal void TransferFrom(PurchaseLog source, string key, DateTime today, int count, int defaultAge)
+        {
+            if (count <= 0) return;
+            if (!_bought.TryGetValue(key, out List<int>? destination))
+                _bought[key] = destination = new List<int>();
+            if (source._bought.TryGetValue(key, out List<int>? dates))
+            {
+                int taken = Math.Min(count, dates.Count);
+                int first = source._oldestFirst ? 0 : dates.Count - taken;
+                destination.AddRange(dates.GetRange(first, taken));
+                dates.RemoveRange(first, taken);
+                if (dates.Count == 0) source._bought.Remove(key);
+                count -= taken;
+            }
+            int fallback = DateOnly.FromDateTime(today).DayNumber - Math.Clamp(defaultAge, 0, Depreciation.MaxAge);
+            for (int i = 0; i < count; i++) destination.Add(fallback);
+            destination.Sort();
+        }
+
         public void Clear() => _bought.Clear();
     }
 }

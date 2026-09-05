@@ -64,6 +64,7 @@ namespace EndlessSky.Sim
         NotHere,
         InvalidAmount,
         CreditLimit,
+        StockLimit,
     }
 
     /// <summary>
@@ -225,7 +226,7 @@ namespace EndlessSky.Sim
 
         /// <summary>
         /// Buys a ship from the planet the player is standing on, adding it to the
-        /// fleet. New stock is never depreciated, so the player pays list price.
+        /// fleet. Previously sold hulls and outfits are valued separately before new stock.
         /// </summary>
         public static TradeResult BuyShip(PlayerState player, GameData data, string model,
                                           out Ship? bought)
@@ -235,7 +236,7 @@ namespace EndlessSky.Sim
                 return TradeResult.NoSuchThing;
 
             Planet? where = player.CurrentPlanet;
-            if (where is null)
+            if (where is not { HasShipyard: true } || player.CurrentSystem == null)
                 return TradeResult.NotSold;
 
             if (!data.Ships.ContainsKey(model))
@@ -245,17 +246,20 @@ namespace EndlessSky.Sim
                 return TradeResult.NotSold;
 
             Ship ship = data.BuildShip(model);
-            ship.BuildMounts();
 
-            if (player.Credits < ship.Cost)
+            Int128 cost = ShipPurchaseValue(player, ship);
+            if (player.Credits < cost)
                 return TradeResult.CannotAfford;
+            Int128 balance = (Int128)player.Credits - cost;
+            if (balance < long.MinValue || balance > long.MaxValue) return TradeResult.CreditLimit;
+            if (!CanTransferShipStock(player, ship, -1)) return TradeResult.StockLimit;
 
-            player.AddCredits(-ship.Cost);
+            player.SetCredits((long)balance);
             ship.CurrentSystem = player.CurrentSystem;
             ship.SetLevels(shields: ship.MaxShields, hull: ship.MaxHull,
                            energy: ship.MaxEnergy, fuel: ship.MaxFuel);
             player.Fleet.Add(ship);
-            player.Purchases.Record(PurchaseLog.ShipKey(model), player.Date);
+            TransferShipStock(player, ship, buy: true, Depreciation.MaxAge);
             bought = ship;
             return TradeResult.Ok;
         }
@@ -275,9 +279,50 @@ namespace EndlessSky.Sim
                 : Enumerable.Empty<Ship>();
 
         /// <summary>The amount a sale will pay, without consuming any purchase records.</summary>
-        public static long ShipSaleValue(PlayerState player, Ship ship, int ageInDays = Depreciation.MaxAge) =>
-            Depreciation.SaleValue(ship.Cost,
-                player.Purchases.PeekAge(PurchaseLog.ShipKey(ship.Definition.DisplayName), player.Date) ?? ageInDays);
+        public static Int128 ShipSaleValue(PlayerState player, Ship ship, int ageInDays = Depreciation.MaxAge) =>
+            ShipValue(player.Purchases, ship, player.Date, ageInDays);
+
+        /// <summary>Current equipped price of a stock model, including any used components at this port.</summary>
+        public static Int128 ShipPurchaseValue(PlayerState player, Ship model) =>
+            ShipValue(player.StockDepreciation, model, player.Date, 0);
+
+        private static Int128 ShipValue(PurchaseLog log, Ship ship, DateTime today, int defaultAge)
+        {
+            Int128 value = log.Value(PurchaseLog.ShipKey(ship.Definition.Name),
+                (long)ship.Definition.BaseModel.Attributes.Get("cost"), today, defaultAge: defaultAge);
+            foreach (var group in ship.Outfits.GroupBy(o => o.Name, StringComparer.Ordinal))
+            {
+                Outfit outfit = group.First();
+                value += outfit.Attributes.Get("installable") < 0 ? (Int128)outfit.Cost * group.Count()
+                    : log.Value(PurchaseLog.OutfitKey(outfit.Name), outfit.Cost, today, group.Count(), defaultAge);
+            }
+            return value;
+        }
+
+        private static bool CanTransferShipStock(PlayerState player, Ship ship, int direction) =>
+            ship.Outfits.GroupBy(o => o.Name, StringComparer.Ordinal)
+                .All(group => player.CanChangeStock(group.Key, direction * group.Count()));
+
+        private static void TransferShipStock(PlayerState player, Ship ship, bool buy, int unknownAge)
+        {
+            PurchaseLog source = buy ? player.StockDepreciation : player.Purchases;
+            PurchaseLog destination = buy ? player.Purchases : player.StockDepreciation;
+            foreach (var group in ship.Outfits.GroupBy(o => o.Name, StringComparer.Ordinal))
+                TransferOutfitStock(player, group.First(), group.Count(), buy, individual: false, unknownAge);
+            destination.TransferFrom(source, PurchaseLog.ShipKey(ship.Definition.Name), player.Date, 1,
+                buy ? 0 : unknownAge);
+        }
+
+        private static void TransferOutfitStock(PlayerState player, Outfit outfit, int count, bool buy,
+            bool individual, int unknownAge = Depreciation.MaxAge)
+        {
+            player.ChangeStock(outfit.Name, buy ? -count : count, individualSale: individual && !buy);
+            if (outfit.Attributes.Get("installable") < 0) return;
+            PurchaseLog source = buy ? player.StockDepreciation : player.Purchases;
+            PurchaseLog destination = buy ? player.Purchases : player.StockDepreciation;
+            destination.TransferFrom(source, PurchaseLog.OutfitKey(outfit.Name), player.Date, count,
+                buy ? 0 : unknownAge);
+        }
 
         /// <summary>Sells an available ship at its depreciated value, even if it is the last hull.</summary>
         public static TradeResult SellShip(PlayerState player, Ship ship,
@@ -293,14 +338,14 @@ namespace EndlessSky.Sim
                 return TradeResult.NotSold;
             if (!ShipsToSell(player).Contains(ship)) return TradeResult.NotHere;
 
-            string key = PurchaseLog.ShipKey(ship.Definition.DisplayName);
-            long value = ShipSaleValue(player, ship, ageInDays);
+            Int128 value = ShipSaleValue(player, ship, ageInDays);
             Int128 balance = (Int128)player.Credits + value;
             if (balance > long.MaxValue || balance < long.MinValue) return TradeResult.CreditLimit;
+            if (!CanTransferShipStock(player, ship, 1)) return TradeResult.StockLimit;
 
             player.Fleet.Remove(ship);
-            player.Purchases.TakeAge(key, player.Date);
-            player.AddCredits(value);
+            TransferShipStock(player, ship, buy: false, ageInDays);
+            player.SetCredits((long)balance);
             return TradeResult.Ok;
         }
 
@@ -313,7 +358,7 @@ namespace EndlessSky.Sim
             if (ship != null && ShipsToOutfit(player).Contains(ship))
                 names.UnionWith(ship.Outfits.Select(o => o.Name));
             return data.Outfits.Keys.Where(name => names.Contains(name)
-                || player.OutfitStock.Count(PurchaseLog.OutfitKey(name)) > 0)
+                || player.Stock(name) > 0)
                 .OrderBy(name => name, StringComparer.Ordinal);
         }
 
@@ -321,8 +366,8 @@ namespace EndlessSky.Sim
         public static long? OutfitPurchaseValue(PlayerState player, GameData data, Outfit outfit)
         {
             if (player.CurrentPlanet is not { HasOutfitter: true } where) return null;
-            int? age = player.OutfitStock.PeekAge(PurchaseLog.OutfitKey(outfit.Name), player.Date);
-            if (!age.HasValue && !OutfitsFor(data, where).Contains(outfit.Name, StringComparer.Ordinal))
+            int? age = player.StockDepreciation.PeekAge(PurchaseLog.OutfitKey(outfit.Name), player.Date);
+            if (player.Stock(outfit.Name) <= 0 && !OutfitsFor(data, where).Contains(outfit.Name, StringComparer.Ordinal))
                 return null;
             return OutfitValue(outfit, age ?? 0);
         }
@@ -365,15 +410,14 @@ namespace EndlessSky.Sim
                 return TradeResult.CannotAfford;
             Int128 balance = (Int128)player.Credits - cost;
             if (balance > long.MaxValue || balance < long.MinValue) return TradeResult.CreditLimit;
+            if (!player.CanChangeStock(outfit.Name, -1)) return TradeResult.StockLimit;
 
             int crew = ship.Crew;
             player.SetCredits((long)balance);
             ship.AddOutfit(outfit);
             ServiceOutfittedShip(ship, outfit, crew, 1);
             player.Fleet.RefreshFlagship();
-            string key = PurchaseLog.OutfitKey(outfit.Name);
-            int age = player.OutfitStock.TakeAge(key, player.Date) ?? 0;
-            player.Purchases.RecordAge(key, player.Date, age);
+            TransferOutfitStock(player, outfit, 1, buy: true, individual: true);
             return TradeResult.Ok;
         }
 
@@ -403,14 +447,13 @@ namespace EndlessSky.Sim
             long value = OutfitSaleValue(player, outfit, ageInDays);
             Int128 balance = (Int128)player.Credits + value;
             if (balance > long.MaxValue || balance < long.MinValue) return TradeResult.CreditLimit;
+            if (!player.CanChangeStock(outfit.Name, 1, individualSale: true)) return TradeResult.StockLimit;
 
             int crew = ship.Crew;
             if (ship.RemoveOutfit(outfit) == 0) return TradeResult.NotOwned;
             ServiceOutfittedShip(ship, outfit, crew, -1);
             player.Fleet.RefreshFlagship();
-            string key = PurchaseLog.OutfitKey(outfit.Name);
-            int age = player.Purchases.TakeAge(key, player.Date) ?? ageInDays;
-            player.OutfitStock.RecordAge(key, player.Date, age);
+            TransferOutfitStock(player, outfit, 1, buy: false, individual: true, ageInDays);
             player.SetCredits((long)balance);
             return TradeResult.Ok;
         }

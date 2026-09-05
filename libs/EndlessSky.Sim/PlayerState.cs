@@ -62,9 +62,6 @@ namespace EndlessSky.Sim
         /// </summary>
         public PurchaseLog Purchases { get; } = new PurchaseLog();
 
-        /// <summary>Outfits sold at this port, available to buy back until departure.</summary>
-        public PurchaseLog OutfitStock { get; } = new PurchaseLog(oldestFirst: true);
-
         public Conditions Conditions { get; }
 
         public PlayerFleet Fleet { get; }
@@ -137,7 +134,7 @@ namespace EndlessSky.Sim
                 return false;
             }
             CurrentPlanet = null;
-            OutfitStock.Clear();
+            ClearStock();
             return true;
         }
 
@@ -172,7 +169,7 @@ namespace EndlessSky.Sim
             Fleet.LeavePort();
             Fleet.LaunchEscorts(CurrentSystem, CurrentPlanet);
             CurrentPlanet = null;
-            OutfitStock.Clear();
+            ClearStock();
             return true;
         }
 

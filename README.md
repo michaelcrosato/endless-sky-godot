@@ -45,7 +45,9 @@ At the shipyard, select an owned hull and press **N** to review its sale value.
 **Enter** sells it; **Esc** keeps it. The list includes local models the yard does
 not stock. You can sell your last ship and save while remaining at the port with
 cargo ashore. Select a **FOR SALE** row and press **B** to buy a replacement before
-departing. Purchase quotes include the installed outfits.
+departing. Quotes value the hull and installed outfits at their own ages. Recently
+installed equipment retains its purchase value when sold with an older hull.
+Used components sold at this port can reduce the next ship's purchase quote until departure.
 
 At the outfitter, **Left/Right** selects a local ship and **Up/Down** selects
 equipment. **B** buys and installs; **N** removes and sells. Installed equipment
