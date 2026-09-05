@@ -352,7 +352,10 @@ namespace EndlessSky.Game
         private void AcceptOffered(Mission job)
         {
             ActiveMission? taken = _missions.Accept(job);
-            _message = taken != null ? $"accepted: {job.DisplayName}" : "could not accept";
+            _message = taken != null ? $"accepted: {job.DisplayName}"
+                : job.CargoType != null && !_player.Fleet.CanLoadMissionCargo(job.CargoTons, _player.CurrentSystem)
+                    ? $"needs {job.CargoTons} t of cargo space; {_player.Fleet.CargoFree(_player.CurrentSystem)} t free here"
+                    : "could not accept";
             RefreshStock();
             Refresh();
         }

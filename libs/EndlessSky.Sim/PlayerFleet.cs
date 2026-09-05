@@ -13,7 +13,7 @@ namespace EndlessSky.Sim
     /// mortgages and other accounts, fighter bays, passenger berths, and the
     /// per-ship "gave orders" escort command set.
     /// </remarks>
-    public class PlayerFleet
+    public partial class PlayerFleet
     {
         private readonly List<Ship> _ships = new List<Ship>();
 

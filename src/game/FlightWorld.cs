@@ -1048,7 +1048,7 @@ namespace EndlessSky.Game
             return true;
         }
 
-        /// <summary>Take the first job the counter offers, then leave the ground.</summary>
+        /// <summary>Take the first offered job that fits, then leave the ground.</summary>
         private bool TakeAJobAndLeave()
         {
             if (!_isLanded)
@@ -1059,7 +1059,7 @@ namespace EndlessSky.Game
 
             if (_missions!.Active.Count == 0)
             {
-                Mission? job = _missions.Available(_universe!, MissionLocation.Job).FirstOrDefault();
+                Mission? job = _missions.Available(_universe!, MissionLocation.Job).FirstOrDefault(_missions.CanAccept);
                 if (job == null)
                 {
                     GD.Print("[smoke] no work on this board; the tutorial should stand down");

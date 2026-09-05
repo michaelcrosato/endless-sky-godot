@@ -55,6 +55,8 @@ namespace EndlessSky.Tests
             player.Fleet.Add(freighter);
 
             player.EnterSystem(data.Systems["Sol"]);
+            shuttle.CurrentSystem = player.CurrentSystem;
+            freighter.CurrentSystem = player.CurrentSystem;
             player.MarkVisited(data.Systems["Vega"]);
             player.Land(data.Planets["Home"]);
             player.Fleet.LoadCargo("Grain", 15);

@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace EndlessSky.Sim
 {
     /// <summary>
-    /// A ship's cargo hold. Port of the commodity half of upstream <c>CargoHold</c>.
+    /// A ship's commodities and mission freight, sharing the same cargo capacity.
     /// </summary>
     /// <remarks>
     /// Cargo is measured in tons and counts toward the ship's mass, so a loaded
@@ -15,13 +15,14 @@ namespace EndlessSky.Sim
     /// throwing: upstream lets a player buy "as much as fits" and a partial fill is
     /// the normal case, not an error.
     ///
-    /// INCOMPLETE, tracked rather than dropped: outfits and mission cargo stored in
-    /// the hold, passengers and bunks, fighter bays, and per-commodity legality.
+    /// INCOMPLETE, tracked rather than dropped: outfits stored in the hold,
+    /// passengers and bunks, fighter bays, and per-commodity legality.
     /// </remarks>
     public class CargoHold
     {
         private readonly Dictionary<string, int> _commodities =
             new Dictionary<string, int>(StringComparer.Ordinal);
+        private readonly Dictionary<Guid, int> _missionCargo = new();
 
         public CargoHold(int capacity = 0)
         {
@@ -38,8 +39,45 @@ namespace EndlessSky.Sim
         public int Free => Math.Max(0, Capacity - Used);
 
         public IReadOnlyDictionary<string, int> Commodities => _commodities;
+        public IReadOnlyDictionary<Guid, int> MissionCargo => _missionCargo;
 
-        public bool IsEmpty => Used == 0;
+        public bool IsEmpty => Used == 0 && _missionCargo.Count == 0;
+
+        /// <summary>Loads freight for one mission, including a zero-ton parcel marker.</summary>
+        public int AddMissionCargo(Guid mission, int tons)
+        {
+            if (mission == Guid.Empty || tons < 0)
+                return 0;
+            int loaded = Math.Min(tons, Free);
+            if (tons > 0 && loaded == 0)
+                return 0;
+            _missionCargo.TryGetValue(mission, out int held);
+            _missionCargo[mission] = held + loaded;
+            Used += loaded;
+            return loaded;
+        }
+
+        /// <summary>Removes this mission's freight without touching ordinary commodities.</summary>
+        public int RemoveMissionCargo(Guid mission)
+        {
+            if (!_missionCargo.Remove(mission, out int tons))
+                return 0;
+            Used -= tons;
+            return tons;
+        }
+
+        internal int ReserveMissionCargo(Guid mission, string commodity, int tons)
+        {
+            int moved = Math.Min(Math.Max(0, tons), Count(commodity));
+            if (moved == 0) return 0;
+            int remaining = Count(commodity) - moved;
+            if (remaining == 0) _commodities.Remove(commodity);
+            else _commodities[commodity] = remaining;
+            _missionCargo.TryGetValue(mission, out int held);
+            _missionCargo[mission] = held + moved;
+            // This is a change of ownership within the same hold, even if overfull.
+            return moved;
+        }
 
         /// <summary>
         /// Resizes the hold. Shrinking below the current load does NOT silently dump
@@ -97,12 +135,12 @@ namespace EndlessSky.Sim
             return removed;
         }
 
-        /// <summary>Unloads everything, returning what came out.</summary>
+        /// <summary>Unloads all ordinary commodities, leaving mission freight aboard.</summary>
         public Dictionary<string, int> RemoveAll()
         {
             var contents = new Dictionary<string, int>(_commodities, StringComparer.Ordinal);
+            foreach (int tons in _commodities.Values) Used -= tons;
             _commodities.Clear();
-            Used = 0;
             return contents;
         }
 

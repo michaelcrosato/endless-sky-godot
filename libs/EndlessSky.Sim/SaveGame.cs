@@ -29,6 +29,10 @@ namespace EndlessSky.Sim
     /// Ship::Save. Energy, heat, velocity and facing also survive because this port
     /// permits saving in flight. Old saves without those fields retain their defaults.
     ///
+    /// Mission UUIDs link accepted jobs to freight in individual ships' holds,
+    /// including zero-ton parcels. Old port saves reserve freight from their mixed
+    /// commodity stock once; new saves never reconstruct cargo lost during a flight.
+    ///
     /// The economy block restores supply, displayed quotes and pending sales. A
     /// staged read lets the runtime validate the pilot before replacing shared markets.
     /// Saves predating that block restart from base prices.
@@ -78,13 +82,14 @@ namespace EndlessSky.Sim
                 {
                     writer.Write("mission", taken.Mission.Name);
                     writer.BeginChild();
+                    writer.Write("uuid", taken.Id.ToString());
                     writer.Write("accepted", taken.Accepted.Day, taken.Accepted.Month,
                                  taken.Accepted.Year);
                     if (taken.Deadline.HasValue)
                         writer.Write("deadline", taken.Deadline.Value.Day,
                                      taken.Deadline.Value.Month, taken.Deadline.Value.Year);
-                    if (taken.CargoLoaded > 0)
-                        writer.Write("cargo", taken.CargoLoaded);
+                    if (taken.CargoType != null)
+                        writer.Write("cargo", taken.CargoLoaded, taken.CargoType);
                     writer.Write("passengers", taken.PassengersCarried);
                     // The destination was chosen when the job was taken; a job whose
                     // filter matches several worlds would otherwise pick a different
@@ -211,6 +216,10 @@ namespace EndlessSky.Sim
             writer.BeginChild();
             foreach (var entry in cargo.Commodities.OrderBy(e => e.Key, StringComparer.Ordinal))
                 writer.Write("commodity", entry.Key, entry.Value);
+            // Upstream only saves at ports and repopulates freight from missions.
+            // In-flight saves must retain its actual carrier and any missing cargo.
+            foreach (var entry in cargo.MissionCargo.OrderBy(e => e.Key))
+                writer.Write("mission", entry.Key.ToString(), entry.Value);
             writer.EndChild();
         }
 
@@ -438,8 +447,13 @@ namespace EndlessSky.Sim
                         break;
                     case "cargo":
                         foreach (DataNode entry in child.Children)
+                        {
                             if (entry.Token(0) == "commodity" && entry.Size >= 3)
                                 ship.LoadCargo(entry.Token(1), (int)entry.Value(2));
+                            else if (entry.Token(0) == "mission" && entry.Size >= 3
+                                && Guid.TryParse(entry.Token(1), out Guid id))
+                                ship.LoadMissionCargo(id, (int)Math.Clamp(entry.IntegerValue(2), 0, int.MaxValue));
+                        }
                         break;
                 }
             }

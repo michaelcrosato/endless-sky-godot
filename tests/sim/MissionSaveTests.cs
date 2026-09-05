@@ -31,6 +31,7 @@ namespace EndlessSky.Tests
             _player.SetDate(new DateTime(3014, 3, 21));
             _player.Fleet.Add(_data.BuildShip("Raider"));
             _player.EnterSystem(_data.Systems["Sol"]);
+            _player.Flagship!.CurrentSystem = _player.CurrentSystem;
             _player.Land(_data.Planets["Home"]);
             _log = new MissionLog(_player, new NpcSpawner(_data, random: _ => 0));
         }
@@ -160,7 +161,8 @@ namespace EndlessSky.Tests
             Assert.Multiple(() =>
             {
                 Assert.AreEqual(taken.PassengersCarried, log.Active.Single().PassengersCarried);
-                Assert.AreEqual(3, player.Fleet.CargoCount("Grain"));
+                Assert.AreEqual(3, player.Flagship!.Cargo.MissionCargo[taken.Id]);
+                Assert.AreEqual(0, player.Fleet.CargoCount("Grain"));
                 Assert.AreEqual(_player.Credits, player.Credits);
                 Assert.AreEqual(_player.Conditions.Get("Test: active"), player.Conditions.Get("Test: active"));
                 Assert.AreEqual(_player.Conditions.Get("Test: offered"), player.Conditions.Get("Test: offered"));

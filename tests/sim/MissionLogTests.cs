@@ -47,6 +47,7 @@ namespace EndlessSky.Tests
             player.Fleet.SetFlagship(hauler);
             player.SetCredits(10_000);
             player.EnterSystem(data.Systems["Sol"]);
+            hauler.CurrentSystem = player.CurrentSystem;
             player.Land(data.Planets["Home"]);
             return new MissionLog(player);
         }
@@ -100,6 +101,7 @@ namespace EndlessSky.Tests
             player.Fleet.Add(hauler);
             player.Fleet.SetFlagship(hauler);
             player.EnterSystem(data.Systems["Sol"]);
+            hauler.CurrentSystem = player.CurrentSystem;
             player.Land(data.Planets["Home"]);
             return new MissionLog(player);
         }
@@ -162,6 +164,7 @@ namespace EndlessSky.Tests
             player.Land(data.Planets["Home"]);
 
             var log = new MissionLog(player);
+            hauler.CurrentSystem = player.CurrentSystem;
             ActiveMission grain = log.Accept(data.Missions["Deliver Grain"])!;
             log.Accept(data.Missions["Rival"]);
 
@@ -328,23 +331,24 @@ namespace EndlessSky.Tests
             ActiveMission taken = log.Accept(data.Missions["Deliver Grain"])!;
 
             Assert.AreEqual(20, taken.CargoLoaded, "the hold should take the whole load");
-            Assert.AreEqual(20, player.Fleet.CargoCount("Grain"));
+            Assert.AreEqual(20, player.Flagship!.Cargo.MissionCargo[taken.Id]);
+            Assert.AreEqual(0, player.Fleet.CargoCount("Grain"));
             Assert.AreEqual(11_000, player.Credits, "the advance is paid on acceptance");
             Assert.AreEqual(1, player.Conditions.Get("Deliver Grain: active"));
         }
 
         [Test]
-        public void AHoldTooSmallLoadsWhatFitsAndSaysSo()
+        public void AHoldTooSmallRejectsTheJobWithoutPayingAnAdvance()
         {
             MissionLog log = Start(out PlayerState player, out GameData data);
 
             // Fill the hold so only a little room is left.
             player.Fleet.LoadCargo("Ballast", 40);
 
-            ActiveMission taken = log.Accept(data.Missions["Deliver Grain"])!;
-
-            Assert.AreEqual(10, taken.CargoLoaded, "only what fits goes aboard");
-            Assert.AreEqual(0, player.Fleet.CargoFree());
+            Assert.IsNull(log.Accept(data.Missions["Deliver Grain"]));
+            Assert.AreEqual(10, player.Fleet.CargoFree());
+            Assert.AreEqual(10_000, player.Credits);
+            Assert.IsEmpty(log.Active);
         }
 
         // --- Completing -----------------------------------------------------------
@@ -382,7 +386,8 @@ namespace EndlessSky.Tests
             Assert.IsTrue(log.Complete(taken));
 
             Assert.AreEqual(afterAdvance + 50_000, player.Credits);
-            Assert.AreEqual(0, player.Fleet.CargoCount("Grain"), "the cargo is handed over");
+            Assert.AreEqual(0, player.Flagship!.Cargo.Used, "the cargo is handed over");
+            Assert.IsEmpty(player.Flagship.Cargo.MissionCargo);
             Assert.AreEqual(1, player.Conditions.Get("grain delivered"));
             Assert.AreEqual(MissionOutcome.Completed, taken.Outcome);
             Assert.IsEmpty(log.Active);
@@ -396,7 +401,7 @@ namespace EndlessSky.Tests
             MissionLog log = Start(out PlayerState player, out GameData data);
             ActiveMission taken = log.Accept(data.Missions["Deliver Grain"])!;
 
-            player.Fleet.UnloadCargo("Grain", 20);
+            player.Fleet.RemoveMissionCargo(taken.Id);
             player.Land(data.Planets["Away"]);
 
             Assert.IsFalse(log.CanComplete(taken));
@@ -456,7 +461,8 @@ namespace EndlessSky.Tests
             log.Abort(taken);
 
             Assert.AreEqual(MissionOutcome.Aborted, taken.Outcome);
-            Assert.AreEqual(0, player.Fleet.CargoCount("Grain"));
+            Assert.AreEqual(0, player.Flagship!.Cargo.Used);
+            Assert.IsEmpty(player.Flagship.Cargo.MissionCargo);
             Assert.AreEqual(0, player.Conditions.Get("Deliver Grain: active"));
         }
 
@@ -540,6 +546,7 @@ namespace EndlessSky.Tests
             Planet start = data.Planets.Values.First(p => p.HasSpaceport && p.IsInhabited);
             player.EnterSystem(data.Systems.Values
                 .FirstOrDefault(s => s.AllObjects().Any(o => o.PlanetName == start.Name)));
+            ship.CurrentSystem = player.CurrentSystem;
             player.Land(start);
 
             var log = new MissionLog(player);

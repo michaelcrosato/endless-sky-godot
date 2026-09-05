@@ -21,7 +21,7 @@ namespace EndlessSky.Tests.Presentation
             public readonly MissionLog Missions;
             public int Saves, Loads, Departures;
 
-            public Session(int counter = 0, int price = 100)
+            public Session(int counter = 0, int price = 100, int? freight = null)
             {
                 var data = new GameData();
                 data.LoadText("trade\n\tcommodity Food 50 100\n" +
@@ -29,6 +29,7 @@ namespace EndlessSky.Tests.Presentation
                     "planet Home\n\tspaceport Busy\n" +
                     "system Sol\n\tpos 0 0\n\tobject Home\n\ttrade Food 100\n" +
                     "mission Delivery\n\tjob\n\tdestination Home\n" +
+                    (freight.HasValue ? $"\tcargo Food {freight.Value}\n" : "") +
                     "\ton offer\n\t\tdialog Ready\n\ton accept\n\t\tpayment 20\n");
                 data.Trade.SetPrice("Sol", "Food", price);
                 Player = new PlayerState(data);
@@ -76,6 +77,47 @@ namespace EndlessSky.Tests.Presentation
                 SceneTree tree = (SceneTree)Engine.GetMainLoop();
                 await tree.ToSignal(tree, SceneTree.SignalName.ProcessFrame);
             }
+        }
+
+        [TestCase]
+        [RequireGodotRuntime]
+        public async Task AcceptedFreightCannotBeSoldAtTheTradeCounter()
+        {
+            var session = new Session(counter: 3, freight: 20);
+            try
+            {
+                session.Tap(Key.B);
+                session.Tap(Key.Enter);
+                AssertThat(session.Missions.Active.Count).IsEqual(1);
+                AssertThat(session.Player.Fleet.CargoUsed()).IsEqual(20);
+                session.Tap(Key.Tab);
+                session.Tap(Key.N);
+                AssertThat(session.Player.Fleet.CargoUsed()).IsEqual(20);
+                AssertThat(session.Player.Fleet.CargoCount("Food")).IsEqual(0);
+                AssertThat(session.Player.Credits).IsEqual(1020L);
+                session.Tap(Key.B);
+                session.Tap(Key.N);
+                AssertThat(session.Player.Fleet.CargoUsed()).IsEqual(20);
+                AssertThat(session.Player.Credits).IsEqual(1020L);
+            }
+            finally { await session.Release(); }
+        }
+
+        [TestCase]
+        [RequireGodotRuntime]
+        public async Task AJobThatDoesNotFitCannotPayAnAdvanceOrTakeAHoldPartially()
+        {
+            var session = new Session(counter: 3, freight: 50);
+            try
+            {
+                session.Tap(Key.B);
+                session.Tap(Key.Enter);
+                AssertThat(session.Missions.Active.Count).IsEqual(0);
+                AssertThat(session.Player.Fleet.CargoUsed()).IsEqual(0);
+                AssertThat(session.Player.Credits).IsEqual(1000L);
+                AssertThat(session.Player.Conditions.Get("Delivery: active")).IsEqual(0L);
+            }
+            finally { await session.Release(); }
         }
 
         [TestCase]

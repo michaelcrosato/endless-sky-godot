@@ -43,8 +43,9 @@ not artifacts available from a clone. CI runs the reproducible checks below.
 | Native export tools | Share Godot template lookup across hosts, honor Linux's XDG data directory, use native curl and temporary paths, validate downloaded template versions and remove owned download staging directories. | Linux PowerShell reproduced a null-path failure before the fix. CI then caught multiple curl candidates being invoked as one command; a regression reproduced it before selecting the first. Windows/Linux cases cover archive installation, rejected versions, download failure and cleanup, plus missing templates, release/debug arguments and failed/missing/empty exports. |
 | Linux release and relocation | Add `smoke-package.ps1` and make the Linux release export and relocated save/bounty scenarios gate CI. | Windows and Linux release packages passed from temporary copies outside the repository with an unrelated working directory and no data override. The smoke requires the loaded dataset to be inside that copy. Linux runtime validation passed in WSL and native Ubuntu CI; graphical Linux rendering is not yet verified. |
 | Fleet servicing | Limit port repairs and refuelling to ships in the current system; remote ships receive only their own regeneration. Ignore takeoff requests without a landed pilot, system and flagship. | Eight new cases failed before the fix. They now cover remote ships with no generator or each of four generator types, plus invalid takeoff states. The existing local-escort, parked and disabled checks remain in place. |
+| Mission freight | Give each accepted job its own freight identity and require the whole load to fit in local holds. Freight uses space and mass but cannot be sold or substituted for another job. Completion, abort, expiry and failure release only that job's load; missing or destroyed carriers fail the job at the next mission check. | Twelve initial cases failed before separation, and four carrier-loss cases failed before lifecycle integration. Twenty-one simulation cases now cover those paths, remote freight, zero-ton parcels, legacy partial loads and repeated per-ship reloads. Two engine cases exercise acceptance and selling at the actual port counters. |
 
-Latest local validation: **863 simulation tests, 27 engine tests, zero failures or
+Latest local validation: **884 simulation tests, 29 engine tests, zero failures or
 skips**, and Debug/Release builds with zero warnings or errors. All five runtime
 smokes passed their documented contract, including winning and collecting a bounty.
 The Windows and Linux release packages also passed save/load, both bounty reloads
@@ -52,8 +53,16 @@ and payment from relocated copies with no data override.
 
 Older saves never recorded NPC ships or their history, so they recreate those
 targets once at load; missing historical kills cannot be recovered. New saves
-retain each NPC's mission template index and actual ships. Migration across changed
-mission templates and upstream UUID identity are still incomplete.
+retain each NPC's mission template index and actual ships. Mission definitions are
+still resolved by name; migration across changed definitions and full upstream
+mission-save compatibility remain incomplete.
+
+New saves retain mission UUIDs, cargo type, required tonnage and each ship's actual
+freight, including zero-ton parcels. A reload cannot refill missing freight from
+the player's own commodities. Older port saves mixed those goods together; they
+reserve only existing cargo, in saved mission and ship order. The original owner
+of overlapping loads cannot be recovered from that old format. A legacy partial
+load does not qualify for full delivery payment.
 
 Economy saves retain current displayed quotes even when supply's eight-digit
 serialization crosses a price boundary. They do not retain the random generator's
@@ -100,8 +109,9 @@ still contain meaningful work and need further implementation and verification:
 - **Gameplay rules:** mission NPC spawn/despawn gates, landing permissions, the
   opening debt/conversation flow and turret firing arcs remain incomplete.
 - **Economy:** commodity cost basis, individual port services and per-ship landing
-  clearance remain incomplete. Applied changes to market definitions share the
-  wider universe-persistence gap above.
+  clearance remain incomplete. Landed cargo pooling and redistribution when selling
+  a loaded ship are also missing; removing its hold currently loses its freight.
+  Applied changes to market definitions share the wider universe-persistence gap above.
 - **Simulation boundary:** much of the session's orchestration still lives in the
   presentation layer. Move rules into the engine-free layer with behavioral coverage.
   Commodity transactions now use that layer; preserve the actual player-facing flow.

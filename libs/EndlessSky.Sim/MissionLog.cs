@@ -22,11 +22,14 @@ namespace EndlessSky.Sim
         public ActiveMission(Mission mission, DateTime accepted, DateTime? deadline)
         {
             Mission = mission ?? throw new ArgumentNullException(nameof(mission));
+            CargoType = mission.CargoType;
             Accepted = accepted;
             Deadline = deadline;
         }
 
         public Mission Mission { get; }
+        public Guid Id { get; internal set; } = Guid.NewGuid();
+        public string? CargoType { get; internal set; }
 
         public DateTime Accepted { get; }
 
@@ -48,7 +51,7 @@ namespace EndlessSky.Sim
 
         public MissionOutcome Outcome { get; internal set; } = MissionOutcome.Active;
 
-        /// <summary>Cargo actually loaded, which may be less than asked if the hold was small.</summary>
+        /// <summary>Freight accepted for this job; all of it must survive for delivery.</summary>
         public int CargoLoaded { get; internal set; }
 
         public int PassengersCarried { get; internal set; }
@@ -95,8 +98,7 @@ namespace EndlessSky.Sim
     ///
     /// INCOMPLETE, tracked rather than dropped: waypoints and stopovers (upstream
     /// refuses completion while any remain), mission timers, fines and outfit
-    /// transfers as part of a completion action, and per-ship distribution of mission
-    /// cargo across a fleet.
+    /// transfers as part of a completion action, and passenger distribution across ships.
     /// </remarks>
     public class MissionLog
     {
@@ -179,19 +181,23 @@ namespace EndlessSky.Sim
             return action;
         }
 
+        /// <summary>Whether this job can be accepted with the local cargo space.</summary>
+        /// <remarks>
+        /// Freight must fit in the local holds in full before accepting. Each job has
+        /// its own manifest, so its goods cannot be sold or delivered for another job.
+        /// </remarks>
+        public bool CanAccept(Mission? mission) =>
+            mission != null && !_active.Any(a => ReferenceEquals(a.Mission, mission))
+            && (mission.CargoType == null
+                || _player.Fleet.CanLoadMissionCargo(mission.CargoTons, _player.CurrentSystem));
+
         /// <summary>
         /// Takes a mission: fires its accept action, loads its cargo and passengers,
         /// and starts its clock.
         /// </summary>
-        /// <remarks>
-        /// Cargo is loaded through the fleet's hold, so a mission asking for more tons
-        /// than the player can carry loads what fits and reports it. Upstream refuses
-        /// the offer outright in that case; recording the shortfall keeps the
-        /// information rather than discarding it.
-        /// </remarks>
         public ActiveMission? Accept(Mission mission)
         {
-            if (mission is null || _active.Any(a => ReferenceEquals(a.Mission, mission)))
+            if (!CanAccept(mission))
                 return null;
 
             // Fix the destination first: a mission's deadline is base plus a
@@ -209,8 +215,8 @@ namespace EndlessSky.Sim
                 Destination = destination,
             };
 
-            if (mission.CargoTons > 0 && mission.CargoType != null)
-                taken.CargoLoaded = _player.Fleet.LoadCargo(mission.CargoType, mission.CargoTons);
+            if (taken.CargoType != null)
+                taken.CargoLoaded = _player.Fleet.LoadMissionCargo(taken.Id, mission.CargoTons, _player.CurrentSystem);
 
             taken.PassengersCarried = mission.Passengers;
 
@@ -348,8 +354,8 @@ namespace EndlessSky.Sim
                 return false;
 
             // The cargo has to still be aboard.
-            if (taken.CargoLoaded > 0 && taken.Mission.CargoType != null &&
-                _player.Fleet.CargoCount(taken.Mission.CargoType) < taken.CargoLoaded)
+            if (taken.CargoType != null &&
+                !_player.Fleet.CanDeliverMissionCargo(taken.Id, taken.CargoLoaded, _player.CurrentSystem))
             {
                 return false;
             }
@@ -372,9 +378,6 @@ namespace EndlessSky.Sim
             if (!CanComplete(taken))
                 return false;
 
-            if (taken.CargoLoaded > 0 && taken.Mission.CargoType != null)
-                _player.Fleet.UnloadCargo(taken.Mission.CargoType, taken.CargoLoaded);
-
             _player.AddCredits(taken.Mission.Fire(MissionTrigger.Complete, _player.Conditions));
             Finish(taken, MissionOutcome.Completed);
             return true;
@@ -385,9 +388,6 @@ namespace EndlessSky.Sim
         {
             if (taken is null || taken.Outcome != MissionOutcome.Active)
                 return;
-
-            if (taken.CargoLoaded > 0 && taken.Mission.CargoType != null)
-                _player.Fleet.UnloadCargo(taken.Mission.CargoType, taken.CargoLoaded);
 
             // Giving up is not the same as failing. Upstream fires ABORT and only falls
             // back to FAIL when the mission defines no abort action
@@ -521,7 +521,7 @@ namespace EndlessSky.Sim
 
         /// <summary>
         /// Advances every active mission a day's worth: expires deadlines and fails
-        /// missions whose fail conditions have come true.
+        /// missions whose fail conditions have come true or whose freight was lost.
         /// </summary>
         /// <returns>The missions that ended.</returns>
         public IReadOnlyList<ActiveMission> Step()
@@ -532,13 +532,18 @@ namespace EndlessSky.Sim
             {
                 bool overdue = taken.IsOverdue(_player.Date);
                 bool failed = taken.Mission.HasFailed(_player.Conditions);
+                // Like Mission::Do's DESTROY handling, even a zero-ton parcel is
+                // lost with its carrier. Missing cargo also covers removed ships and
+                // in-flight saves made after a loss. Remote freight is still intact.
+                bool cargoLost = taken.CargoType != null
+                    && !_player.Fleet.HasMissionCargo(taken.Id, taken.CargoLoaded);
                 bool npcLost = taken.Npcs.Count > 0
                     ? taken.Npcs.Any(n => n.HasFailed())
                     : taken.Mission.Npcs.Any(npc =>
                         taken.NpcEvents.TryGetValue(npc, out ShipEvent happened) &&
                         npc.HasFailed(happened));
 
-                if (!overdue && !failed && !npcLost)
+                if (!overdue && !failed && !npcLost && !cargoLost)
                     continue;
 
                 _player.AddCredits(taken.Mission.Fire(MissionTrigger.Fail, _player.Conditions));
@@ -558,6 +563,9 @@ namespace EndlessSky.Sim
             DateTime accepted = _player.Date, deadline = default;
             bool hasDeadline = false;
             int cargo = 0;
+            string? cargoType = mission.CargoType;
+            Guid? id = null;
+            bool hasManifest = false;
             int passengers = mission.Passengers;
             string? destination = null;
             DataNode? savedNpcs = null;
@@ -566,6 +574,10 @@ namespace EndlessSky.Sim
             {
                 switch (child.Token(0))
                 {
+                    case "uuid":
+                        hasManifest = true;
+                        if (Guid.TryParse(child.Token(1), out Guid parsed) && parsed != Guid.Empty) id = parsed;
+                        break;
                     case "accepted" when child.Size >= 4:
                         accepted = ReadDate(child) ?? accepted;
                         break;
@@ -580,7 +592,8 @@ namespace EndlessSky.Sim
                         break;
 
                     case "cargo" when child.Size >= 2:
-                        cargo = (int)child.Value(1);
+                        cargo = (int)Math.Clamp(child.IntegerValue(1), 0, int.MaxValue);
+                        if (child.Size >= 3) cargoType = child.Token(2);
                         break;
 
                     case "passengers" when child.Size >= 2:
@@ -599,7 +612,9 @@ namespace EndlessSky.Sim
 
             var taken = new ActiveMission(mission, accepted, hasDeadline ? deadline : null)
             {
-                CargoLoaded = cargo,
+                Id = id ?? Guid.NewGuid(),
+                CargoType = cargoType,
+                CargoLoaded = hasManifest ? cargo : Math.Max(cargo, mission.CargoTons),
                 PassengersCarried = passengers,
 
                 // Saves written before destinations were recorded have none; resolving
@@ -607,6 +622,9 @@ namespace EndlessSky.Sim
                 Destination = destination
                     ?? mission.ResolveDestination(_player.Data, _player.CurrentSystem?.Name),
             };
+
+            if (!hasManifest && taken.CargoType != null)
+                _player.Fleet.ReserveLegacyMissionCargo(taken.Id, taken.CargoType, taken.CargoLoaded);
 
             if (savedNpcs != null)
             {
@@ -652,6 +670,7 @@ namespace EndlessSky.Sim
 
         private void Finish(ActiveMission taken, MissionOutcome outcome)
         {
+            _player.Fleet.RemoveMissionCargo(taken.Id);
             taken.Outcome = outcome;
             _active.Remove(taken);
             _finished.Add(taken);

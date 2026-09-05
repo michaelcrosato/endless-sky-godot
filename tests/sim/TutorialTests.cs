@@ -240,6 +240,12 @@ namespace EndlessSky.Tests
             var player = new PlayerState(universe);
             start.ApplyTo(player, universe);
             player.Land(universe.Planets[start.PlanetName!]);
+            string model = Trading.ShipsFor(universe, player.CurrentPlanet!)
+                .OrderBy(name => universe.Ships[name].Attributes.Get("cost"))
+                .ThenBy(name => name, StringComparer.Ordinal).First();
+            Ship ship = universe.BuildShip(model);
+            ship.CurrentSystem = player.CurrentSystem;
+            player.Fleet.Add(ship);
 
             var missions = new MissionLog(player);
             List<Mission> board = missions.Available(universe, MissionLocation.Job).ToList();
@@ -249,7 +255,9 @@ namespace EndlessSky.Tests
 
             Assert.IsNotEmpty(board, "step 2 asks the player to take a job, so one must be offered");
 
-            ActiveMission? taken = missions.Accept(board[0]);
+            Mission? job = board.FirstOrDefault(missions.CanAccept);
+            Assert.IsNotNull(job, "the actual starting ship must be able to carry an offered job");
+            ActiveMission? taken = missions.Accept(job!);
             Assert.IsNotNull(taken, "and it must be acceptable");
 
             string? destination = taken!.Destination;
@@ -266,6 +274,8 @@ namespace EndlessSky.Tests
             // job in, so the data has to permit that once the player is standing in the
             // right place: the cargo still aboard, the conditions satisfiable, the
             // deadline not already past on arrival.
+            player.EnterSystem(universe.SystemOf(destination));
+            ship.CurrentSystem = player.CurrentSystem;
             player.Land(universe.Planets[destination!]);
 
             long before = player.Credits;

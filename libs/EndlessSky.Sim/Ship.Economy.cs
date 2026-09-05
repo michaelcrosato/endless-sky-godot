@@ -120,5 +120,18 @@ namespace EndlessSky.Sim
             SyncCargoCapacity();
             return removed;
         }
+
+        public int LoadMissionCargo(Guid mission, int tons)
+        {
+            int loaded = Cargo.AddMissionCargo(mission, tons);
+            SyncCargoCapacity();
+            return loaded;
+        }
+
+        public void RemoveMissionCargo(Guid mission)
+        {
+            Cargo.RemoveMissionCargo(mission);
+            SyncCargoCapacity();
+        }
     }
 }
