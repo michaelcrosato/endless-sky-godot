@@ -1344,12 +1344,8 @@ namespace EndlessSky.Game
             _isLanded = false;
             _ship.Velocity = Point.Zero;
 
-            // Servicing the fleet is the simulation's rule, not this screen's: it
-            // restores shields, hull, energy and fuel on every ship that is neither
-            // parked nor a wreck, or only what each ship makes for itself at a world
-            // with no port. This used to top up the flagship's fuel and nothing else,
-            // so every escort carried its battle damage for the rest of the game and no
-            // hull was ever repaired anywhere.
+            // The simulation services local ships at this port. Remote ships get
+            // only their own regeneration; parked and disabled ships are skipped.
             _player.TakeOff();
 
             GD.Print($"[flight] departed (credits={_credits:n0} fuel={_ship.Fuel:0} " +

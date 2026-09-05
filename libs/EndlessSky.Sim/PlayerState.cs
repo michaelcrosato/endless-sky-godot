@@ -124,7 +124,7 @@ namespace EndlessSky.Sim
         /// <remarks>
         /// Parked and disabled ships are skipped, exactly as upstream skips them: a
         /// hull left in a hangar is not being serviced, and a wreck is not repaired by
-        /// landing beside one.
+        /// landing beside one. Remote ships receive only what they generate themselves.
         ///
         /// Before this existed the only thing landing did was top up the FLAGSHIP'S
         /// fuel, so every escort in the fleet carried its battle damage for the rest of
@@ -132,13 +132,16 @@ namespace EndlessSky.Sim
         /// </remarks>
         public void TakeOff()
         {
+            if (CurrentSystem is null || CurrentPlanet is null || Flagship is null)
+                return;
+
             RechargeType port = CurrentPlanet is { HasSpaceport: true }
                 ? RechargeType.All
                 : RechargeType.None;
 
             foreach (Ship ship in Fleet.Ships)
                 if (!ship.IsParked && !ship.IsDisabled)
-                    ship.Recharge(port);
+                    ship.Recharge(ship.CurrentSystem == CurrentSystem ? port : RechargeType.None);
 
             Depart();
         }

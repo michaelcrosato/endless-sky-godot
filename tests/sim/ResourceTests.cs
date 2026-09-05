@@ -151,7 +151,7 @@ namespace EndlessSky.Tests
         }
 
         [Test]
-        public void TakingOffRechargesTheWholeFleetButNotParkedOrCrippledShips()
+        public void TakingOffRechargesTheLocalFleetButNotParkedOrCrippledShips()
         {
             // PlayerInfo.cpp:1870 skips parked and disabled ships entirely: a hull left
             // in a hangar is not being serviced, and a wreck is not repaired by landing
@@ -181,7 +181,10 @@ namespace EndlessSky.Tests
             Ship wreck = data.BuildShip("Hauler");
 
             foreach (Ship ship in new[] { flagship, escort, parked, wreck })
+            {
+                ship.CurrentSystem = data.Systems["Sol"];
                 player.Fleet.Add(ship);
+            }
 
             player.Fleet.SetFlagship(flagship);
             parked.IsParked = true;
@@ -199,6 +202,73 @@ namespace EndlessSky.Tests
             Assert.AreEqual(escort.MaxShields, escort.Shields, 1e-9, "and every escort with it");
             Assert.AreEqual(0.0, parked.Shields, 1e-9, "a parked hull is not being serviced");
             Assert.IsTrue(wreck.IsDisabled, "and a wreck is not repaired by landing beside one");
+        }
+
+        [TestCase("")]
+        [TestCase("shield generation")]
+        [TestCase("hull repair rate")]
+        [TestCase("energy generation")]
+        [TestCase("fuel generation")]
+        public void TakeOffGivesRemoteShipsOnlyTheirOwnGeneration(string generation)
+        {
+            var data = new GameData();
+            data.LoadText("planet Home\n\tspaceport Busy\nsystem Sol\n\tpos 0 0\n\tobject Home\n" +
+                "system Vega\n\tpos 100 0\n");
+            var player = new PlayerState(data);
+            Ship local = Make("shields 200", "\"energy capacity\" 500", "\"fuel capacity\" 300");
+            Ship remote = Make("shields 200", "\"energy capacity\" 500", "\"fuel capacity\" 300",
+                generation.Length > 0 ? $"\"{generation}\" 1" : string.Empty);
+            local.CurrentSystem = data.Systems["Sol"];
+            remote.CurrentSystem = data.Systems["Vega"];
+            player.Fleet.Add(local);
+            player.Fleet.Add(remote);
+            foreach (Ship ship in new[] { local, remote })
+                ship.SetLevels(shields: 10, hull: 500, energy: 5, fuel: 7, heat: 50);
+            player.EnterSystem(local.CurrentSystem);
+            player.Land(data.Planets["Home"]);
+
+            player.TakeOff();
+
+            Assert.Multiple(() =>
+            {
+                Assert.AreEqual(200, local.Shields);
+                Assert.AreEqual(1000, local.Hull);
+                Assert.AreEqual(500, local.Energy);
+                Assert.AreEqual(300, local.Fuel);
+                Assert.AreEqual(generation == "shield generation" ? 200 : 10, remote.Shields);
+                Assert.AreEqual(generation == "hull repair rate" ? 1000 : 500, remote.Hull);
+                Assert.AreEqual(generation == "energy generation" ? 500 : 5, remote.Energy);
+                Assert.AreEqual(generation == "fuel generation" ? 300 : 7, remote.Fuel);
+                Assert.AreEqual(0, remote.Heat, "remote ships still receive upstream's no-port recharge");
+                Assert.IsNull(player.CurrentPlanet);
+            });
+        }
+
+        [TestCase("in flight")]
+        [TestCase("missing system")]
+        [TestCase("missing flagship")]
+        public void TakeOffNeedsALandedPilotWithASystemAndFlagship(string state)
+        {
+            var data = new GameData();
+            data.LoadText("planet Home\n\tspaceport Busy\nsystem Sol\n\tpos 0 0\n\tobject Home\n");
+            var player = new PlayerState(data);
+            Ship ship = Make("\"energy capacity\" 500", "\"energy generation\" 1");
+            ship.CurrentSystem = data.Systems["Sol"];
+            ship.SetLevels(energy: 5, heat: 50);
+            if (state != "missing flagship") player.Fleet.Add(ship);
+            player.EnterSystem(ship.CurrentSystem);
+            if (state != "in flight") player.Land(data.Planets["Home"]);
+            if (state == "missing system") player.CurrentSystem = null;
+            Planet? before = player.CurrentPlanet;
+
+            player.TakeOff();
+
+            Assert.Multiple(() =>
+            {
+                Assert.AreSame(before, player.CurrentPlanet, "a rejected takeoff must not change location");
+                Assert.AreEqual(5, ship.Energy, "it must not trigger an instant recharge");
+                Assert.AreEqual(50, ship.Heat);
+            });
         }
 
         // --- Disabled and overheated ----------------------------------------------
