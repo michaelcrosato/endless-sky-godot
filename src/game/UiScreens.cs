@@ -174,8 +174,8 @@ namespace EndlessSky.Game
                     $"{_player.Fleet.CargoUsed()} / {_player.Fleet.CargoCapacity()} tons", 24),
             });
 
-            var hold = _player.Fleet.Ships
-                .SelectMany(s => s.Cargo.Commodities)
+            var hold = _player.Fleet.AllCargo
+                .SelectMany(c => c.Commodities)
                 .GroupBy(e => e.Key, e => e.Value)
                 .Select(g => (Name: g.Key, Tons: g.Sum()))
                 .Where(e => e.Tons > 0)

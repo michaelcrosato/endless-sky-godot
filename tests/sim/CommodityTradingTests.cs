@@ -48,6 +48,9 @@ namespace EndlessSky.Tests
             Assert.AreEqual(TradeResult.Ok,
                 Trading.BuyCommodity(player, data, "Food", requested, out int bought));
             Assert.AreEqual(expectedTons, bought);
+            Assert.AreEqual(expectedTons, player.Fleet.PortCargo!.Count("Food"));
+            Assert.AreEqual(0, player.Flagship!.CargoMass, "purchased goods are ashore until departure");
+            Assert.IsTrue(player.TakeOff());
             Assert.AreEqual(expectedTons, player.Flagship!.Cargo.Count("Food"));
             Assert.AreEqual(expectedTons, player.Flagship.CargoMass);
             Assert.AreEqual(remaining, player.Credits);
@@ -122,6 +125,8 @@ namespace EndlessSky.Tests
             Assert.AreEqual(TradeResult.Ok, Trading.SellCommodity(player, data, "Food", 2, out int sold));
             Assert.AreEqual(2, sold);
             Assert.AreEqual(700, player.Credits);
+            Assert.AreEqual(1, player.Fleet.PortCargo!.Count("Food"));
+            Assert.IsTrue(player.TakeOff());
             Assert.AreEqual(1, player.Flagship!.Cargo.Count("Food"));
             Assert.AreEqual(1, player.Flagship.CargoMass);
         }
@@ -141,8 +146,9 @@ namespace EndlessSky.Tests
 
             Assert.AreEqual(TradeResult.Ok, Trading.BuyCommodity(player, data, "Food", 50, out int bought));
             Assert.AreEqual(12, bought);
-            Assert.AreEqual(10, player.Flagship.Cargo.Count("Food"));
-            Assert.AreEqual(10, escort.Cargo.Count("Food"));
+            Assert.AreEqual(8, player.Flagship.Cargo.Count("Food"));
+            Assert.AreEqual(0, escort.Cargo.Count("Food"));
+            Assert.AreEqual(12, player.Fleet.PortCargo!.Count("Food"));
             Assert.AreEqual(20, player.Fleet.CargoCapacity(player.CurrentSystem));
             Assert.AreEqual(20, player.Fleet.CargoUsed(player.CurrentSystem));
             Assert.AreEqual(0, player.Fleet.CargoFree(player.CurrentSystem));
@@ -212,8 +218,10 @@ namespace EndlessSky.Tests
             Assert.AreSame(player.CurrentSystem, bought!.CurrentSystem);
             Assert.AreEqual(TradeResult.Ok, Trading.BuyCommodity(player, data, "Food", 5, out int tons));
             Assert.AreEqual(5, tons);
-            Assert.AreEqual(5, bought.Cargo.Count("Food"));
+            Assert.AreEqual(5, player.Fleet.PortCargo!.Count("Food"));
             Assert.AreEqual(8500, player.Credits);
+            Assert.IsTrue(player.TakeOff());
+            Assert.AreEqual(5, bought.Cargo.Count("Food"));
         }
 
         [Test]

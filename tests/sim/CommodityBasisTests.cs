@@ -92,8 +92,10 @@ namespace EndlessSky.Tests
             data.Trade.SetPrice("Sol", "Food", 200);
             Trading.BuyCommodity(player, data, "Food", 10, out _);
             player.Fleet.SetFlagship(second);
+            Assert.IsTrue(player.Depart());
             if (parked) first.IsParked = true;
             else first.CurrentSystem = data.Systems["Vega"];
+            player.Land(data.Planets["Home"]);
             Trading.SellCommodity(player, data, "Food", 5, out _);
             Assert.AreEqual(2250, SavedBasis(player));
             Assert.AreEqual(10, first.Cargo.Count("Food"));
@@ -108,7 +110,7 @@ namespace EndlessSky.Tests
             log.Accept(data.Missions["Freight"]);
             Trading.SellCommodity(player, data, "Food", 2, out _);
             Assert.AreEqual(300, SavedBasis(player));
-            Assert.AreEqual(23, player.Flagship!.Cargo.Used);
+            Assert.AreEqual(23, player.Fleet.CargoUsed());
             log.Abort(log.Active.Single());
             Assert.AreEqual(300, SavedBasis(player));
         }
@@ -136,6 +138,7 @@ namespace EndlessSky.Tests
             AddShip(player);
             data.Trade.SetPrice("Sol", "Food", 200);
             Trading.BuyCommodity(player, data, "Food", 10, out _);
+            Assert.IsTrue(player.Depart());
             Assert.IsTrue(player.Fleet.Remove(first));
             Assert.AreEqual(1500, SavedBasis(player));
             Assert.IsFalse(player.Fleet.Remove(first));
@@ -237,6 +240,7 @@ namespace EndlessSky.Tests
             data.Trade.SetPrice("Sol", "Food", 200);
             Trading.BuyCommodity(player, data, "Food", 10, out _);
             player.Fleet.SetFlagship(survivor);
+            Assert.IsTrue(player.Depart());
             if (remote) lost.CurrentSystem = data.Systems["Vega"];
             lost.SetLevels(hull: -1);
             player.Depart();
@@ -260,6 +264,7 @@ namespace EndlessSky.Tests
             Ship survivor = AddShip(player);
             survivor.LoadCargo("Food", 1);
             player.Fleet.SetFlagship(survivor);
+            Assert.IsTrue(player.Depart());
             player.Fleet.Ships[0].SetLevels(hull: -1);
             player.Fleet.Ships[1].SetLevels(hull: -1);
             player.Land(data.Planets["Home"]);

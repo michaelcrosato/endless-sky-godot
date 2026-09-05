@@ -48,6 +48,7 @@ namespace EndlessSky.Tests
             PlayerState player = Pilot(out GameData data, out MissionLog log);
             double empty = player.Flagship!.Mass;
             log.Accept(data.Missions["A"]);
+            Assert.IsTrue(player.Depart());
             Assert.Multiple(() =>
             {
                 Assert.AreEqual(20, player.Flagship.Cargo.Used);
@@ -65,7 +66,7 @@ namespace EndlessSky.Tests
             Assert.AreEqual(TradeResult.NotOwned, Trading.SellCommodity(player, data, "Food", 20, out int sold));
             Assert.AreEqual(0, sold);
             Assert.AreEqual(10000, player.Credits);
-            Assert.AreEqual(20, player.Flagship!.Cargo.Used);
+            Assert.AreEqual(20, player.Fleet.CargoUsed());
         }
 
         [Test]
@@ -89,13 +90,15 @@ namespace EndlessSky.Tests
             Ship first = player.Flagship!;
             first.LoadCargo("Metal", 5);
             ActiveMission a = log.Accept(data.Missions["A"])!;
-            Ship second = AddShip(player, data);
+            AddShip(player, data);
             ActiveMission b = log.Accept(data.Missions["B"])!;
-            player.Fleet.Remove(first);
+            first.Attributes.Set("cargo space", 20);
+            Assert.IsTrue(player.Depart());
+            player.Fleet.Remove(player.Fleet.Ships.Single(s => s.Cargo.MissionCargo.ContainsKey(a.Id)));
             Arrive(player, data);
             Assert.IsFalse(log.CanComplete(a));
             Assert.IsFalse(log.Complete(a));
-            Assert.AreEqual(20, second.Cargo.Used);
+            Assert.IsTrue(player.Fleet.HasMissionCargo(b.Id, 20));
             Assert.IsTrue(log.Complete(b));
             Assert.AreEqual(12000, player.Credits);
         }
@@ -107,12 +110,18 @@ namespace EndlessSky.Tests
             Ship first = player.Flagship!;
             first.LoadCargo("Food", 5);
             ActiveMission a = log.Accept(data.Missions["A"])!;
-            Ship second = AddShip(player, data);
+            AddShip(player, data);
             ActiveMission b = log.Accept(data.Missions["B"])!;
-            first.IsParked = true;
+            first.Attributes.Set("cargo space", 20);
+            Assert.IsTrue(player.Depart());
+            Ship carrier = player.Fleet.Ships.Single(s => s.Cargo.MissionCargo.ContainsKey(a.Id));
+            long personal = carrier.Cargo.Count("Food");
+            carrier.IsParked = true;
+            player.Fleet.SetFlagship(player.Fleet.Ships.Single(s => s.Cargo.MissionCargo.ContainsKey(b.Id)));
             log.Abort(a);
-            Assert.AreEqual(5, first.Cargo.Used);
-            Assert.AreEqual(20, second.Cargo.Used);
+            Assert.AreEqual(personal, carrier.Cargo.Used);
+            Assert.AreEqual(5, player.Fleet.AllCargo.Sum(h => h.Count("Food")));
+            Assert.IsTrue(player.Fleet.HasMissionCargo(b.Id, 20));
             Arrive(player, data);
             Assert.IsTrue(log.Complete(b));
         }
@@ -149,6 +158,7 @@ namespace EndlessSky.Tests
             PlayerState player = Pilot(out GameData data, out MissionLog log);
             Ship carrier = player.Flagship!;
             ActiveMission taken = log.Accept(data.Missions["A"])!;
+            Assert.IsTrue(player.Depart());
             Ship pilot = AddShip(player, data);
             player.Fleet.SetFlagship(pilot);
             Arrive(player, data);
@@ -165,12 +175,15 @@ namespace EndlessSky.Tests
             log.Accept(data.Missions["A"]);
             AddShip(player, data);
             log.Accept(data.Missions["B"]);
+            player.Flagship!.Attributes.Set("cargo space", 20);
+            Assert.IsTrue(player.Depart());
             string saved = SaveGame.Write(player, log);
             MissionLog? restoredLog = null;
             PlayerState restored = SaveGame.Read(saved, data, p => restoredLog = new MissionLog(p));
             Assert.AreEqual(saved, SaveGame.Write(restored, restoredLog));
             Assert.AreEqual(0, restored.Fleet.CargoCount("Food"));
-            restored.Fleet.Remove(restored.Flagship!);
+            ActiveMission a = restoredLog!.Active.Single(m => m.Mission.Name == "A");
+            restored.Fleet.Remove(restored.Fleet.Ships.Single(s => s.Cargo.MissionCargo.ContainsKey(a.Id)));
             Arrive(restored, data);
             Assert.IsFalse(restoredLog!.CanComplete(restoredLog.Active.Single(a => a.Mission.Name == "A")));
             Assert.IsTrue(restoredLog.CanComplete(restoredLog.Active.Single(a => a.Mission.Name == "B")));
@@ -184,10 +197,10 @@ namespace EndlessSky.Tests
             PlayerState restored = SaveGame.Read("system Vega\nplanet Away\nship Hauler\n\tflagship\n" +
                 "\tcargo\n\t\tcommodity Food 25\nmission A\n\tcargo 20\n", data,
                 p => log = new MissionLog(p));
-            Assert.AreEqual(25, restored.Flagship!.Cargo.Used);
+            Assert.AreEqual(25, restored.Fleet.CargoUsed());
             Assert.AreEqual(5, restored.Fleet.CargoCount("Food"));
             Assert.IsTrue(log!.Complete(log.Active.Single()));
-            Assert.AreEqual(5, restored.Flagship.Cargo.Used);
+            Assert.AreEqual(5, restored.Fleet.CargoUsed());
         }
 
         [Test]
@@ -196,6 +209,7 @@ namespace EndlessSky.Tests
             PlayerState player = Pilot(out GameData data, out MissionLog log);
             Ship carrier = player.Flagship!;
             ActiveMission taken = log.Accept(data.Missions["Parcel"])!;
+            Assert.IsTrue(player.Depart());
             AddShip(player, data);
             player.Fleet.Remove(carrier);
             Arrive(player, data);
@@ -232,7 +246,7 @@ namespace EndlessSky.Tests
             PlayerState restored = SaveGame.Read("system Vega\nplanet Away\nship Hauler\n\tflagship\n" +
                 $"\tcargo\n\t\tcommodity Food {tons}\nmission A\n\tcargo {tons}\n", data,
                 p => log = new MissionLog(p));
-            Assert.AreEqual(tons, restored.Flagship!.Cargo.Used);
+            Assert.AreEqual(tons, restored.Fleet.CargoUsed());
             Assert.AreEqual(20, log!.Active.Single().CargoLoaded);
             Assert.IsFalse(log.Complete(log.Active.Single()));
         }
@@ -243,6 +257,7 @@ namespace EndlessSky.Tests
             PlayerState player = Pilot(out GameData data, out MissionLog log);
             ActiveMission taken = log.Accept(data.Missions["Parcel"])!;
             player.Flagship!.LoadCargo("Food", 25);
+            Assert.IsTrue(player.Depart());
             Assert.AreEqual(25, player.Flagship.Cargo.RemoveAll()["Food"]);
             Assert.AreEqual(0, player.Flagship.Cargo.Used);
             Assert.IsFalse(player.Flagship.Cargo.IsEmpty, "the parcel still exists despite its zero mass");
@@ -263,9 +278,10 @@ namespace EndlessSky.Tests
         {
             PlayerState player = Pilot(out GameData data, out MissionLog log);
             Ship carrier = player.Flagship!;
-            carrier.LoadCargo("Metal", 20);
+            carrier.Attributes.Set("cargo space", 5);
             Ship survivor = AddShip(player, data);
             ActiveMission taken = log.Accept(data.Missions[name])!;
+            Assert.IsTrue(player.Depart());
             if (destroyed) carrier.SetLevels(hull: -1);
             else player.Fleet.Remove(carrier);
 

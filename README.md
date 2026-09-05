@@ -35,6 +35,12 @@ pwsh tools/run.ps1            # fly
 Press **Esc** in flight or at a port to open the menu, including **Save game**
 and **Load game**. During a mission offer, Esc declines the offer first.
 
+Cargo stays ashore while landed, including goods left over after selling a ship.
+Press **D** to depart. If the remaining ships cannot carry everything, the port
+shows which goods will be sold and freight jobs abandoned: **Enter** confirms,
+and **Esc** keeps the cargo and returns to the counter. Cargo ashore survives saving
+and loading even when it exceeds the fleet's capacity.
+
 The upstream reference is pinned in `tools/upstream-ref.txt`; local fetching and
 CI use that same commit. `get-data.ps1` checks an existing checkout before using
 it. To change the reference, review and update the pin, preserve any edits in

@@ -57,12 +57,8 @@ namespace EndlessSky.Game
         private Label _tabLabel = null!;
         private Label _statusLine = null!;
 
-        /// <summary>Credits, kept for the caller that still tracks them separately.</summary>
-        public long Credits => _player.Credits;
-
-        public bool PlanetHasSpaceport => _planet.HasSpaceport;
-
-        public event Action? Departed;
+        /// <summary>Requests departure; true means the cargo-loss warning was accepted.</summary>
+        public event Action<bool>? Departed;
 
         /// <summary>
         /// Which counter to open on. Only used to capture a screen that would
@@ -185,10 +181,24 @@ namespace EndlessSky.Game
         private int _talkChoice;
 
         public bool IsOfferingMission => _talk != null || _dialog != null;
+        private CargoDeparture? _departure;
+        public bool IsConfirmingDeparture => _departure != null;
+        public bool HasDialog => IsOfferingMission || IsConfirmingDeparture;
 
         /// <summary>Called by the shell while the port owns this frame's input.</summary>
         public void Step(GameUi ui)
         {
+            if (IsConfirmingDeparture)
+            {
+                if (ui.Pressed(Key.Escape)) { _departure = null; Refresh(); }
+                else if (ui.Pressed(Key.Enter) | ui.Pressed(Key.KpEnter))
+                {
+                    _departure = null;
+                    Departed?.Invoke(true);
+                    Refresh();
+                }
+                return;
+            }
             if (IsOfferingMission)
             {
                 StepOffer(ui);
@@ -234,7 +244,11 @@ namespace EndlessSky.Game
 
             if (depart)
             {
-                Departed?.Invoke();
+                CargoDeparture check = _player.PreviewTakeOff(_missions);
+                if (!check.CanDepart) _message = check.Refusal!;
+                else if (check.NeedsConfirmation) { _departure = check; _message = ""; }
+                else Departed?.Invoke(false);
+                Refresh();
             }
         }
 
@@ -611,9 +625,8 @@ namespace EndlessSky.Game
 
             // A dialogue takes over the panel while it is up: the counter behind it is
             // not what the player is answering.
-            _listLabel.Text = _talk != null || _dialog != null
-                ? string.Join("\n", OfferLines())
-                : string.Join("\n", Lines());
+            _listLabel.Text = string.Join("\n", _departure != null ? DepartureLines()
+                : IsOfferingMission ? OfferLines() : Lines());
 
             Ship? flagship = _player.Fleet.Flagship;
             string hold = flagship is null
@@ -624,7 +637,8 @@ namespace EndlessSky.Game
             _statusLine.Text =
                 $"credits {_player.Credits:n0}   ships {_player.Fleet.Ships.Count}" +
                 $"   missions {_missions.Active.Count}{hold}\n" +
-                $"TAB counter · ↑/↓ select · {ActionHint()} · D depart · ESC menu" +
+                (IsConfirmingDeparture ? "ENTER depart · ESC keep cargo and return"
+                    : $"TAB counter · ↑/↓ select · {ActionHint()} · D depart · ESC menu") +
                 (_message.Length > 0 ? $"\n{_message}" : "");
         }
 
@@ -742,5 +756,22 @@ namespace EndlessSky.Game
         }
 
         private static string Cursor(int index, int selected) => index == selected ? "▶ " : "   ";
+
+        private IEnumerable<string> DepartureLines()
+        {
+            yield return "Some cargo no longer fits in your ships.";
+            yield return "Leaving now will:";
+            foreach (var entry in _departure!.CommoditiesToSell.Take(3))
+                yield return $"  Sell {entry.Value:n0} t of {entry.Key}";
+            if (_departure.CommoditiesToSell.Count > 3)
+                yield return $"  Sell {_departure.CommoditiesToSell.Count - 3} other commodities";
+            if (_departure.CommoditiesToSell.Count > 0)
+                yield return (_departure.Income < 0 ? $"  Pay {-(Int128)_departure.Income:n0}" : $"  Receive {_departure.Income:n0}")
+                    + $" cr (profit {_departure.Profit:+#,0;-#,0;0} cr)";
+            foreach (Guid id in _departure.MissionsToAbort.Take(2))
+                yield return $"  Abandon: {TextSubstitution.NameOf(_missions.Active.First(m => m.Id == id).Mission, _player, _universe)}";
+            if (_departure.MissionsToAbort.Count > 2)
+                yield return $"  Abandon {_departure.MissionsToAbort.Count - 2} other jobs";
+        }
     }
 }

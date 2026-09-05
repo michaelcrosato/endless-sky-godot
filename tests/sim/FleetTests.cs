@@ -38,6 +38,21 @@ namespace EndlessSky.Tests
         // --- Roster ---------------------------------------------------------------
 
         [Test]
+        public void AcquiringAShipAssignsTheSamePlayerFactionAsTheRestOfTheFleet()
+        {
+            var fleet = new PlayerFleet();
+            Ship first = MakeShip("Shuttle");
+            Ship second = MakeShip("Star Barge");
+            var seller = new Government("Merchant");
+            second.Government = seller;
+            fleet.Add(first);
+            fleet.Add(second);
+            Assert.IsTrue(first.Government?.IsPlayer);
+            Assert.AreSame(first.Government, second.Government);
+            Assert.IsFalse(seller.IsPlayer, "ownership does not change the seller's faction");
+        }
+
+        [Test]
         public void TheFirstShipAddedBecomesTheFlagship()
         {
             var fleet = new PlayerFleet();

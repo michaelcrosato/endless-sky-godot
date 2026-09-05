@@ -1,14 +1,15 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace EndlessSky.Sim
 {
     /// <summary>
-    /// A ship's commodities and mission freight, sharing the same cargo capacity.
+    /// Commodities and mission freight in a ship or pooled ashore, sharing capacity.
     /// </summary>
     /// <remarks>
-    /// Cargo is measured in tons and counts toward the ship's mass, so a loaded
-    /// freighter genuinely handles worse than an empty one. That coupling is why this
+    /// Cargo is measured in tons and counts toward mass while aboard a ship, so a
+    /// loaded freighter handles worse than an empty one. That coupling is why this
     /// lives in the simulation rather than in a UI model.
     ///
     /// Every mutation is bounded and reports what it actually moved rather than
@@ -20,60 +21,60 @@ namespace EndlessSky.Sim
     /// </remarks>
     public class CargoHold
     {
-        private readonly Dictionary<string, int> _commodities =
-            new Dictionary<string, int>(StringComparer.Ordinal);
-        private readonly Dictionary<Guid, int> _missionCargo = new();
+        private readonly Dictionary<string, long> _commodities =
+            new Dictionary<string, long>(StringComparer.Ordinal);
+        private readonly Dictionary<Guid, long> _missionCargo = new();
 
-        public CargoHold(int capacity = 0)
+        public CargoHold(long capacity = 0)
         {
             Capacity = Math.Max(0, capacity);
         }
 
         /// <summary>Total tonnage the hold can carry.</summary>
-        public int Capacity { get; private set; }
+        public long Capacity { get; private set; }
 
         /// <summary>Tons currently carried.</summary>
-        public int Used { get; private set; }
+        public long Used { get; private set; }
 
         /// <summary>Tons still available.</summary>
-        public int Free => Math.Max(0, Capacity - Used);
+        public long Free => Math.Max(0, Capacity - Used);
 
-        public IReadOnlyDictionary<string, int> Commodities => _commodities;
-        public IReadOnlyDictionary<Guid, int> MissionCargo => _missionCargo;
+        public IReadOnlyDictionary<string, long> Commodities => _commodities;
+        public IReadOnlyDictionary<Guid, long> MissionCargo => _missionCargo;
 
         public bool IsEmpty => Used == 0 && _missionCargo.Count == 0;
 
         /// <summary>Loads freight for one mission, including a zero-ton parcel marker.</summary>
-        public int AddMissionCargo(Guid mission, int tons)
+        public long AddMissionCargo(Guid mission, long tons)
         {
             if (mission == Guid.Empty || tons < 0)
                 return 0;
-            int loaded = Math.Min(tons, Free);
+            long loaded = Math.Min(tons, Free);
             if (tons > 0 && loaded == 0)
                 return 0;
-            _missionCargo.TryGetValue(mission, out int held);
+            _missionCargo.TryGetValue(mission, out long held);
             _missionCargo[mission] = held + loaded;
             Used += loaded;
             return loaded;
         }
 
         /// <summary>Removes this mission's freight without touching ordinary commodities.</summary>
-        public int RemoveMissionCargo(Guid mission)
+        public long RemoveMissionCargo(Guid mission)
         {
-            if (!_missionCargo.Remove(mission, out int tons))
+            if (!_missionCargo.Remove(mission, out long tons))
                 return 0;
             Used -= tons;
             return tons;
         }
 
-        internal int ReserveMissionCargo(Guid mission, string commodity, int tons)
+        internal long ReserveMissionCargo(Guid mission, string commodity, long tons)
         {
-            int moved = Math.Min(Math.Max(0, tons), Count(commodity));
+            long moved = Math.Min(Math.Max(0, tons), Count(commodity));
             if (moved == 0) return 0;
-            int remaining = Count(commodity) - moved;
+            long remaining = Count(commodity) - moved;
             if (remaining == 0) _commodities.Remove(commodity);
             else _commodities[commodity] = remaining;
-            _missionCargo.TryGetValue(mission, out int held);
+            _missionCargo.TryGetValue(mission, out long held);
             _missionCargo[mission] = held + moved;
             // This is a change of ownership within the same hold, even if overfull.
             return moved;
@@ -84,24 +85,24 @@ namespace EndlessSky.Sim
         /// cargo; the hold reports as overfull until something is unloaded, which is
         /// what lets an outfitter refuse a change that would strand goods.
         /// </summary>
-        public void SetCapacity(int capacity) => Capacity = Math.Max(0, capacity);
+        public void SetCapacity(long capacity) => Capacity = Math.Max(0, capacity);
 
         /// <summary>True when a capacity change has left more aboard than fits.</summary>
         public bool IsOverfull => Used > Capacity;
 
-        public int Count(string commodity) =>
-            commodity is not null && _commodities.TryGetValue(commodity, out int tons) ? tons : 0;
+        public long Count(string commodity) =>
+            commodity is not null && _commodities.TryGetValue(commodity, out long tons) ? tons : 0;
 
         /// <summary>
         /// Loads up to <paramref name="tons"/>, limited by free space.
         /// Returns the amount actually loaded.
         /// </summary>
-        public int Add(string commodity, int tons)
+        public long Add(string commodity, long tons)
         {
             if (string.IsNullOrWhiteSpace(commodity) || tons <= 0)
                 return 0;
 
-            int loaded = Math.Min(tons, Free);
+            long loaded = Math.Min(tons, Free);
             if (loaded <= 0)
                 return 0;
 
@@ -114,13 +115,13 @@ namespace EndlessSky.Sim
         /// Unloads up to <paramref name="tons"/>, limited by what is aboard.
         /// Returns the amount actually removed.
         /// </summary>
-        public int Remove(string commodity, int tons)
+        public long Remove(string commodity, long tons)
         {
             if (commodity is null || tons <= 0)
                 return 0;
 
-            int held = Count(commodity);
-            int removed = Math.Min(tons, held);
+            long held = Count(commodity);
+            long removed = Math.Min(tons, held);
             if (removed <= 0)
                 return 0;
 
@@ -136,12 +137,29 @@ namespace EndlessSky.Sim
         }
 
         /// <summary>Unloads all ordinary commodities, leaving mission freight aboard.</summary>
-        public Dictionary<string, int> RemoveAll()
+        public Dictionary<string, long> RemoveAll()
         {
-            var contents = new Dictionary<string, int>(_commodities, StringComparer.Ordinal);
-            foreach (int tons in _commodities.Values) Used -= tons;
+            var contents = new Dictionary<string, long>(_commodities, StringComparer.Ordinal);
+            foreach (long tons in _commodities.Values) Used -= tons;
             _commodities.Clear();
             return contents;
+        }
+
+        /// <summary>Moves what fits, giving mission freight priority over commodities.</summary>
+        public void TransferAll(CargoHold destination)
+        {
+            if (ReferenceEquals(this, destination)) return;
+            // CargoHold::TransferAll puts mission cargo first. A zero-ton parcel
+            // still has to move even when the destination has no remaining space.
+            foreach (var entry in _missionCargo.OrderBy(e => e.Key).ToArray())
+            {
+                long moved = destination.AddMissionCargo(entry.Key, entry.Value);
+                if (moved == entry.Value) _missionCargo.Remove(entry.Key);
+                else _missionCargo[entry.Key] -= moved;
+                Used -= moved;
+            }
+            foreach (var entry in _commodities.OrderBy(e => e.Key, StringComparer.Ordinal).ToArray())
+                Remove(entry.Key, destination.Add(entry.Key, entry.Value));
         }
 
         /// <summary>
@@ -154,7 +172,7 @@ namespace EndlessSky.Sim
                 return 0;
 
             long total = 0;
-            foreach (KeyValuePair<string, int> entry in _commodities)
+            foreach (KeyValuePair<string, long> entry in _commodities)
             {
                 int? price = trade.Price(systemName, entry.Key);
                 if (price.HasValue)

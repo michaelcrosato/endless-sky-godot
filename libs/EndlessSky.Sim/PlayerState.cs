@@ -101,6 +101,7 @@ namespace EndlessSky.Sim
         /// <summary>Records arrival in a system, marking it visited.</summary>
         public void EnterSystem(StarSystem? system)
         {
+            if (CurrentPlanet != null && !Depart()) return;
             CurrentSystem = system;
             CurrentPlanet = null;
             if (system != null)
@@ -110,6 +111,7 @@ namespace EndlessSky.Sim
         /// <summary>Lands on a planet, marking it and its system visited.</summary>
         public void Land(Planet? planet)
         {
+            if (CurrentPlanet != null && CurrentPlanet != planet && !Depart()) return;
             CurrentPlanet = planet;
             if (planet != null)
             {
@@ -117,29 +119,41 @@ namespace EndlessSky.Sim
                 // PlayerInfo::Land removes destroyed hulls and their share of the
                 // cargo cost before the port can trade the surviving goods.
                 Fleet.RemoveDestroyed();
+                Fleet.PoolCargo(CurrentSystem);
             }
         }
 
-        public void Depart() => CurrentPlanet = null;
+        /// <summary>Leaves without port services, provided all cargo can be carried.</summary>
+        public bool Depart()
+        {
+            if (CurrentPlanet != null) Fleet.PoolCargo(CurrentSystem);
+            Fleet.DistributeCargo();
+            if (!Fleet.LeavePort())
+            {
+                Fleet.PoolCargo(CurrentSystem);
+                return false;
+            }
+            CurrentPlanet = null;
+            return true;
+        }
 
         /// <summary>
-        /// Services the fleet for the world it is standing on, and leaves the ground.
-        /// Port of the recharge loop in upstream <c>PlayerInfo::TakeOff</c>
-        /// (<c>PlayerInfo.cpp:1868-1884</c>).
+        /// Services and loads the fleet, then leaves the ground. Excess commodities
+        /// are sold and uncarryable freight jobs aborted only after confirmation.
+        /// Port of upstream <c>PlayerInfo::TakeOff</c>.
         /// </summary>
         /// <remarks>
         /// Parked and disabled ships are skipped, exactly as upstream skips them: a
         /// hull left in a hangar is not being serviced, and a wreck is not repaired by
         /// landing beside one. Remote ships receive only what they generate themselves.
         ///
-        /// Before this existed the only thing landing did was top up the FLAGSHIP'S
-        /// fuel, so every escort in the fleet carried its battle damage for the rest of
-        /// the game and no ship ever got its hull back.
+        /// An unconfirmed departure leaves the cargo ashore and does not service ships.
         /// </remarks>
-        public void TakeOff()
+        public bool TakeOff(MissionLog? missions = null, bool acceptCargoLoss = false)
         {
-            if (CurrentSystem is null || CurrentPlanet is null || Flagship is null)
-                return;
+            CargoDeparture departure = PreviewTakeOff(missions);
+            if (!departure.CanDepart || (departure.NeedsConfirmation && !acceptCargoLoss))
+                return false;
 
             RechargeType port = CurrentPlanet is { HasSpaceport: true }
                 ? RechargeType.All
@@ -149,7 +163,11 @@ namespace EndlessSky.Sim
                 if (!ship.IsParked && !ship.IsDisabled)
                     ship.Recharge(ship.CurrentSystem == CurrentSystem ? port : RechargeType.None);
 
-            Depart();
+            Fleet.DistributeCargo();
+            ResolveExcessCargo(departure, missions);
+            Fleet.LeavePort();
+            CurrentPlanet = null;
+            return true;
         }
 
         // Events waiting for their day, in schedule order.

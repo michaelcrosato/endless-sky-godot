@@ -146,6 +146,21 @@ namespace EndlessSky.Tests
 
         // --- Round trip -----------------------------------------------------------
 
+        [Test]
+        public void ReloadRetainsThePlayerFactionForEveryOwnedShipAfterAFlagshipChange()
+        {
+            GameData data = Load();
+            PlayerState player = Populated(data);
+            var faction = new Government("Player") { IsPlayer = true };
+            foreach (Ship ship in player.Fleet.Ships) ship.Government = faction;
+            player.Fleet.SetFlagship(player.Fleet.Ships[1]);
+            string saved = SaveGame.Write(player);
+            PlayerState restored = SaveGame.Read(saved, data);
+            Assert.IsTrue(restored.Fleet.Ships.All(s => s.Government?.IsPlayer == true));
+            Assert.IsTrue(restored.Fleet.Ships.All(s => ReferenceEquals(s.Government, restored.Flagship!.Government)));
+            Assert.AreEqual(saved, SaveGame.Write(restored));
+        }
+
         [TestCase(9_007_199_254_740_993L)]
         [TestCase(-9_007_199_254_740_993L)]
         [TestCase(long.MaxValue)]
@@ -183,6 +198,7 @@ namespace EndlessSky.Tests
             data.Ships["Shuttle"].Attributes.Set("fuel capacity", 500);
             data.Ships["Shuttle"].Attributes.Set("bunks", 10);
             PlayerState original = Populated(data);
+            Assert.IsTrue(original.Depart(), "per-ship cargo identity is saved while in flight");
             Ship flagship = original.Fleet.Flagship!;
             Ship parked = original.Fleet.Ships[1];
             flagship.GivenName = "Homeward Bound";

@@ -29,8 +29,9 @@ namespace EndlessSky.Sim
     /// Ship::Save. Energy, heat, velocity and facing also survive because this port
     /// permits saving in flight. Old saves without those fields retain their defaults.
     ///
-    /// Mission UUIDs link accepted jobs to freight in individual ships' holds,
-    /// including zero-ton parcels. Old port saves reserve freight from their mixed
+    /// Mission UUIDs link accepted jobs to freight aboard ships or pooled ashore,
+    /// including zero-ton parcels. A root cargo block preserves the port inventory
+    /// even if the remaining ships cannot carry it. Old saves reserve freight from mixed
     /// commodity stock once; new saves never reconstruct cargo lost during a flight.
     ///
     /// The economy block restores supply, displayed quotes and pending sales. A
@@ -81,6 +82,8 @@ namespace EndlessSky.Sim
 
             foreach (Ship ship in player.Fleet.Ships)
                 WriteShip(writer, ship, ReferenceEquals(ship, player.Fleet.Flagship));
+
+            if (player.Fleet.PortCargo != null) WriteCargo(writer, player.Fleet.PortCargo);
 
             foreach (string system in player.VisitedSystems.OrderBy(s => s, StringComparer.Ordinal))
                 writer.Write("visited", system);
@@ -279,6 +282,7 @@ namespace EndlessSky.Sim
             DataNode? economy = file.Nodes.LastOrDefault(n => n.Token(0) == "economy");
             restoreEconomy = () => data.Trade.ReadEconomy(economy);
             string? system = null, planet = null;
+            var cargoNodes = new List<DataNode>();
 
             foreach (DataNode node in file.Nodes)
             {
@@ -333,9 +337,7 @@ namespace EndlessSky.Sim
                         break;
 
                     case "cargo":
-                        foreach (DataNode child in node.Children)
-                            if (child.Token(0) == "commodity" && child.Size >= 3)
-                                player.Fleet.LoadCargo(child.Token(1), (int)child.Value(2));
+                        cargoNodes.Add(node);
                         break;
 
                     case "scheduled event" when node.Size >= 5:
@@ -379,6 +381,9 @@ namespace EndlessSky.Sim
 
             if (planet != null && data.Planets.TryGetValue(planet, out Planet? landed))
                 player.Land(landed);
+
+            foreach (DataNode cargo in cargoNodes)
+                player.Fleet.RestoreCargo(ReadCargo(cargo));
 
             // Mission fallback destinations and legacy NPC placement need the loaded
             // location, date and conditions, regardless of the save's field order.
@@ -464,14 +469,7 @@ namespace EndlessSky.Sim
                         overheated = true;
                         break;
                     case "cargo":
-                        foreach (DataNode entry in child.Children)
-                        {
-                            if (entry.Token(0) == "commodity" && entry.Size >= 3)
-                                ship.LoadCargo(entry.Token(1), (int)entry.Value(2));
-                            else if (entry.Token(0) == "mission" && entry.Size >= 3
-                                && Guid.TryParse(entry.Token(1), out Guid id))
-                                ship.LoadMissionCargo(id, (int)Math.Clamp(entry.IntegerValue(2), 0, int.MaxValue));
-                        }
+                        ship.LoadFrom(ReadCargo(child));
                         break;
                 }
             }
@@ -485,6 +483,20 @@ namespace EndlessSky.Sim
                            heat: heat ?? 0.0, overheated: overheated);
 
             return ship;
+        }
+
+        private static CargoHold ReadCargo(DataNode node)
+        {
+            var cargo = new CargoHold(long.MaxValue);
+            foreach (DataNode entry in node.Children)
+            {
+                if (entry.Token(0) == "commodity" && entry.Size >= 3)
+                    cargo.Add(entry.Token(1), entry.IntegerValue(2));
+                else if (entry.Token(0) == "mission" && entry.Size >= 3
+                    && Guid.TryParse(entry.Token(1), out Guid id))
+                    cargo.AddMissionCargo(id, entry.IntegerValue(2));
+            }
+            return cargo;
         }
 
         internal static NpcInstance ReadNpc(DataNode node, MissionNpc template, GameData data)

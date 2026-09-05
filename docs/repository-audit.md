@@ -45,8 +45,10 @@ not artifacts available from a clone. CI runs the reproducible checks below.
 | Fleet servicing | Limit port repairs and refuelling to ships in the current system; remote ships receive only their own regeneration. Ignore takeoff requests without a landed pilot, system and flagship. | Eight new cases failed before the fix. They now cover remote ships with no generator or each of four generator types, plus invalid takeoff states. The existing local-escort, parked and disabled checks remain in place. |
 | Mission freight | Give each accepted job its own freight identity and require the whole load to fit in local holds. Freight uses space and mass but cannot be sold or substituted for another job. Completion, abort, expiry and failure release only that job's load; missing or destroyed carriers fail the job at the next mission check. | Twelve initial cases failed before separation, and four carrier-loss cases failed before lifecycle integration. Twenty-one simulation cases now cover those paths, remote freight, zero-ton parcels, legacy partial loads and repeated per-ship reloads. Two engine cases exercise acceptance and selling at the actual port counters. |
 | Commodity purchase costs | Track remaining cost across all owned commodities and remove a proportional share on sale or ship loss. Keep exact integer rounding across multiple holds, save the basis, and show average cost and realized profit at the trade counter. Refresh displayed quotes after a change. | Twenty-two new simulation cases cover mixed prices, partial trades, remote and parked stock, freight exclusion, free goods, missing legacy costs, 64-bit limits and combined ship losses. Eleven initial cases failed before implementation; later loss checks caught retained wrecks and per-ship rounding. The engine test and 1280×720 captures verify the average, actual sale price and profit. The runtime save smoke also changes and restores commodity costs. |
+| Cargo ashore and departure | Pool local active ships' goods at landing, preserve them when hulls are sold, and distribute mission freight before ordinary commodities at departure. Show the proposed excess sale and job abandonment before confirmation; cancellation keeps the cargo and avoids servicing ships. Save overfull port inventories separately from ship holds. Remove the obsolete presentation credit balance. | Eighteen new simulation cases cover cargo mass, ship sales, saved overfull freight, zero-ton parcels, remote and parked holds, four-billion-ton pools, purchase costs and payment limits. Seven initial cases failed before implementation. Three engine cases exercise the actual shipyard and warning, simultaneous keys and confirmation. The 1280×720 captures show both warnings and cancellation; the runtime save smoke reloads an overfull inventory, cancels and then confirms a five-ton sale and launch. |
+| Owned ship factions | Assign the shared player government when a hull enters the owned fleet, including purchases and reloads. The combat layer uses that same government. | The extended runtime smoke caught the former flagship losing its faction after a later reload. Two simulation regressions reproduced acquisition and multi-ship reload failures; both now pass. Upstream assigns the player government in `PlayerInfo::AddStockShip` and after loading owned ships. |
 
-Latest local validation: **906 simulation tests, 30 engine tests, zero failures or
+Latest local validation: **926 simulation tests, 33 engine tests, zero failures or
 skips**, and Debug/Release builds with zero warnings or errors. All five runtime
 smokes passed their documented contract, including winning and collecting a bounty.
 The Windows and Linux release packages also passed save/load, both bounty reloads
@@ -58,8 +60,10 @@ retain each NPC's mission template index and actual ships. Mission definitions a
 still resolved by name; migration across changed definitions and full upstream
 mission-save compatibility remain incomplete.
 
-New saves retain mission UUIDs, cargo type, required tonnage and each ship's actual
-freight, including zero-ton parcels. A reload cannot refill missing freight from
+New saves retain mission UUIDs, cargo type, required tonnage and freight aboard
+ships or pooled ashore, including zero-ton parcels. A root cargo block retains the
+landed inventory even after a ship sale leaves the remaining fleet too small.
+Per-ship cargo remains distinct in flight. A reload cannot refill missing freight from
 the player's own commodities. Older port saves mixed those goods together; they
 reserve only existing cargo, in saved mission and ship order. The original owner
 of overlapping loads cannot be recovered from that old format. A legacy partial
@@ -99,7 +103,9 @@ Use `-Preset Linux` for Linux packaging and package smokes; run the resulting
 executable on Linux. `tools/smoke-package.ps1 -Frames 1` is also a failure probe.
 
 Running the port engine suite with a display also writes
-`reports/port-average-cost.png` and `reports/port-sale-profit.png`:
+`reports/port-average-cost.png`, `reports/port-sale-profit.png`,
+`reports/port-cargo-warning.png`, `reports/port-cargo-kept.png` and
+`reports/port-freight-warning.png`:
 
 ```powershell
 . tools/_env.ps1
@@ -119,12 +125,15 @@ still contain meaningful work and need further implementation and verification:
 - **Persistence:** changed universe data, reputation, transient jumps, and per-ship
   weapon mount assignments still need round-trip coverage. Inspect escort
   reconstruction as well.
+- **Owned escorts:** fleet ownership and cargo carriers persist, but owned escorts
+  still need runtime rendering and travel alongside the flagship.
 - **Gameplay rules:** mission NPC spawn/despawn gates, landing permissions, the
   opening debt/conversation flow and turret firing arcs remain incomplete.
 - **Economy:** individual port services and per-ship landing clearance remain
   incomplete. Cargo jettison/plunder needs cost accounting when those flows are
-  implemented. Landed cargo pooling and redistribution when selling a loaded ship
-  are also missing; removing its hold currently loses its freight.
+  implemented. Cargo pooling currently uses same-system active ships as an
+  approximation for ships landed at the same planet; individual landing state,
+  passengers and stored outfits remain incomplete.
   Applied changes to market definitions share the wider universe-persistence gap above.
 - **Simulation boundary:** much of the session's orchestration still lives in the
   presentation layer. Move rules into the engine-free layer with behavioral coverage.

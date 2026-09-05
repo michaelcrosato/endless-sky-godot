@@ -77,11 +77,7 @@ namespace EndlessSky.Game
         private bool _landAtStart;
         private UiScreen _landedStartScreen;
         private bool _isLanded;
-        private long _credits = 480_000; // vanilla start: mortgaged to the hilt
-
-        // The player as the simulation models one: fleet, money, date, where they have
-        // been. The loose _credits field above is kept in step with it so the existing
-        // HUD and log lines carry on working.
+        // The player's fleet, money, date, and travel history live in the simulation.
         private PlayerState _player = null!;      // set with _ship
         private MissionLog _missions = null!;     // set with _ship
 
@@ -252,14 +248,13 @@ namespace EndlessSky.Game
             if (_start != null)
             {
                 _start.ApplyTo(_player, universe);
-                _credits = _player.Credits;
                 GD.Print($"[start] {_start.DisplayName}: {_startPlanet}, {_startSystem}, " +
-                         $"{startDate:d MMM yyyy}, {_credits:n0} credits, " +
+                         $"{startDate:d MMM yyyy}, {_player.Credits:n0} credits, " +
                          $"{_player.Conditions.Values.Count} conditions set");
             }
             else
             {
-                _player.SetCredits(_credits);
+                _player.SetCredits(480_000);
             }
 
             _player.EnterSystem(system);
@@ -1301,24 +1296,19 @@ namespace EndlessSky.Game
                     _ship.CurrentSystem.Name, _universe);
                 _landedOverlay.Departed += OnDepart;
                 _ui.Port = _landedOverlay;
-                GD.Print($"[flight] landed on {planet.Name} (credits={_credits:n0})");
+                GD.Print($"[flight] landed on {planet.Name} (credits={_player.Credits:n0})");
                 return;
             }
         }
 
-        private void OnDepart()
+        private void OnDepart(bool acceptCargoLoss = false)
         {
             if (_landedOverlay == null || _ship == null)
             {
                 return;
             }
 
-            _credits = _landedOverlay.Credits;
-
-            // Leaving the ground is TakeOff's job, below, because what the world
-            // services depends on which world the player is still standing on. Clearing
-            // the planet here first would make every departure look like one from a
-            // world with no port.
+            if (!_player.TakeOff(_missions, acceptCargoLoss)) return;
 
             // The flagship may have changed at the shipyard.
             if (_player.Fleet.Flagship != null && !ReferenceEquals(_player.Fleet.Flagship, _ship))
@@ -1327,7 +1317,6 @@ namespace EndlessSky.Game
                 replacement.Position = _ship.Position;
                 replacement.Facing = _ship.Facing;
                 replacement.CurrentSystem = _ship.CurrentSystem;
-                replacement.Government = _playerGovernment;
 
                 // Rebuild mounts from the existing inventory. Installing the weapons
                 // again would add free copies whenever the hull has spare hardpoints.
@@ -1344,11 +1333,7 @@ namespace EndlessSky.Game
             _isLanded = false;
             _ship.Velocity = Point.Zero;
 
-            // The simulation services local ships at this port. Remote ships get
-            // only their own regeneration; parked and disabled ships are skipped.
-            _player.TakeOff();
-
-            GD.Print($"[flight] departed (credits={_credits:n0} fuel={_ship.Fuel:0} " +
+            GD.Print($"[flight] departed (credits={_player.Credits:n0} fuel={_ship.Fuel:0} " +
                      $"hull={_ship.Hull:0}/{_ship.MaxHull:0})");
         }
 
@@ -1500,14 +1485,13 @@ namespace EndlessSky.Game
         /// </remarks>
         private void BuildCombat(GameData universe)
         {
-            _playerGovernment = new Government("Player") { IsPlayer = true };
-            _ship!.Government = _playerGovernment;
+            _playerGovernment = _player.Fleet.Government;
 
             // The hardpoints the hull was designed with. Without this the player's
             // ship carries no mounts at all - not empty ones, none - so it can never
             // fire, never be armed at an outfitter, and never finish a combat job.
             // Every NPC in the game called this; the player alone never did.
-            _ship.BuildMounts();
+            _ship!.BuildMounts();
 
             ResetLocalCombat(universe);
         }
@@ -2434,6 +2418,7 @@ namespace EndlessSky.Game
                         s.Outfits.Any(o => o.IsWeapon && o.Attributes.Get("gun ports") < 0)
                         && s.Mounts.Any(m => m.IsEmpty && !m.IsTurret));
                     Outfit[] stock = replacement.Outfits.ToArray();
+                    replacement.CurrentSystem = _player.CurrentSystem;
                     _player.Fleet.Add(replacement);
                     _player.Fleet.SetFlagship(replacement);
                     OnDepart();
@@ -2441,12 +2426,75 @@ namespace EndlessSky.Game
                         && _player.CurrentPlanet == null && ReferenceEquals(_ship, replacement)
                         && stock.SequenceEqual(replacement.Outfits);
                 }
+                if (restored) restored = SmokePortCargoDeparture(path, market.Commodity);
                 GD.Print(restored
-                    ? "[smoke] PASS: flight and port menus restored pilot, cargo costs and markets; invalid save rejected; old combat cleared; flagship departed with its stock outfits"
+                    ? "[smoke] PASS: flight and port menus restored pilot, cargo costs and markets; invalid save rejected; old combat cleared; flagship retained stock outfits; excess cargo reloaded, cancelled and sold on confirmed departure"
                     : "[smoke] FAIL: restored state differs from the saved game");
                 GetTree().Quit(restored ? 0 : 1);
             }
             finally { DirAccess.RemoveAbsolute(ProjectSettings.GlobalizePath(path)); }
+        }
+
+        private bool SmokePortCargoDeparture(string path, string commodity)
+        {
+            StellarObject? port = _ship!.CurrentSystem?.AllObjects().FirstOrDefault(o => _ship.CanEverLandOn(o));
+            if (port == null) return false;
+            _ship.Position = port.Position;
+            _ship.Velocity = Point.Zero;
+            _ship.TargetStellar = port;
+            TryLand();
+            if (!_isLanded) return false;
+
+            long capacity = _player.Fleet.CargoCapacity(_player.CurrentSystem);
+            Ship extra = _universe.Ships.Keys.Select(_universe.BuildShip).First(s => s.Cargo.Capacity >= 5);
+            extra.CurrentSystem = _player.CurrentSystem;
+            _player.Fleet.Add(extra);
+            int amount = checked((int)(capacity + 5 - _player.Fleet.CargoUsed(_player.CurrentSystem)));
+            int price = _universe.Trade.Price(_player.CurrentSystem!.Name, commodity) ?? 0;
+            if (price <= 0 || _player.Fleet.LoadCargo(commodity, amount, _player.CurrentSystem) != amount)
+                return false;
+            _player.AdjustBasis(commodity, (long)amount * price);
+            extra.IsParked = true;
+
+            // The parked ship is already empty; all goods remain ashore, five tons
+            // beyond what the ships still departing can carry. Exercise the real slot.
+            string before = SaveGame.Write(_player, _missions);
+            if (!SmokeSaveMenu(path, load: false)) return false;
+            _player.Fleet.UnloadCargo(commodity, 5, _player.CurrentSystem);
+            if (!SmokeSaveMenu(path, load: true)
+                || !SavedStateMatches(before, SaveGame.Write(_player, _missions))) return false;
+
+            long credits = _player.Credits;
+            long basis = _player.CostBasis[commodity] - _player.GetBasis(commodity, 5);
+            Func<Key, bool> readKeys = _ui.KeyDown;
+            void Frame(params Key[] down)
+            {
+                _ui.KeyDown = key => down.Contains(key);
+                _ui._Process(1.0 / 60.0);
+            }
+            try
+            {
+                Frame();
+                Frame(Key.D);
+                Frame();
+                if (_landedOverlay?.IsConfirmingDeparture != true) return false;
+                Frame(Key.Escape);
+                Frame();
+                if (!_isLanded || _landedOverlay.IsConfirmingDeparture || _ui.Screen != UiScreen.None
+                    || !SavedStateMatches(before, SaveGame.Write(_player, _missions))) return false;
+                Frame(Key.D);
+                Frame();
+                Frame(Key.Enter);
+                Frame();
+                bool departed = !_isLanded && _landedOverlay == null && _ui.Port == null
+                    && _player.CurrentPlanet == null && _player.Fleet.PortCargo == null
+                    && _player.Fleet.CargoUsed(_player.CurrentSystem) == capacity
+                    && _player.Credits == credits + 5L * price && _player.CostBasis[commodity] == basis;
+                GD.Print(departed ? "[smoke] excess cargo survived reload and cancellation; confirmation sold five tons and launched"
+                    : "[smoke] FAIL: excess cargo departure changed the wrong state");
+                return departed;
+            }
+            finally { _ui.KeyDown = readKeys; }
         }
 
         private bool SmokeSaveMenu(string path, bool load)
@@ -2575,7 +2623,6 @@ namespace EndlessSky.Game
             restoreEconomy();
             _player = restored;
             _missions = restoredLog ?? new MissionLog(restored);
-            _credits = restored.Credits;
 
             // The restored hull is a different object, so everything holding the old
             // one has to be pointed at the new one: the view, the camera, the combat

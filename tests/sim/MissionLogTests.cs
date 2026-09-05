@@ -331,7 +331,7 @@ namespace EndlessSky.Tests
             ActiveMission taken = log.Accept(data.Missions["Deliver Grain"])!;
 
             Assert.AreEqual(20, taken.CargoLoaded, "the hold should take the whole load");
-            Assert.AreEqual(20, player.Flagship!.Cargo.MissionCargo[taken.Id]);
+            Assert.AreEqual(20, player.Fleet.PortCargo!.MissionCargo[taken.Id]);
             Assert.AreEqual(0, player.Fleet.CargoCount("Grain"));
             Assert.AreEqual(11_000, player.Credits, "the advance is paid on acceptance");
             Assert.AreEqual(1, player.Conditions.Get("Deliver Grain: active"));

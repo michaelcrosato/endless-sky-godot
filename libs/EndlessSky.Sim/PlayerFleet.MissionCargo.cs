@@ -7,13 +7,18 @@ namespace EndlessSky.Sim
     {
         public bool CanLoadMissionCargo(int tons, StarSystem? system) =>
             system != null && tons >= 0 && Ordered(system).Any()
-            && Ordered(system).Sum(s => (long)s.Cargo.Free) >= tons;
+            && CargoFree(system) >= tons;
 
         /// <summary>Distributes freight among local holds, retaining its mission identity.</summary>
         public int LoadMissionCargo(Guid mission, int tons, StarSystem? system)
         {
             if (mission == Guid.Empty || !CanLoadMissionCargo(tons, system))
                 return 0;
+            if (HasPortCargoHere(system))
+            {
+                RefreshPortCapacity();
+                return (int)PortCargo!.AddMissionCargo(mission, tons);
+            }
             int remaining = tons;
             foreach (Ship ship in Ordered(system))
             {
@@ -27,14 +32,15 @@ namespace EndlessSky.Sim
         public bool HasMissionCargo(Guid mission, int tons)
         {
             var carriers = _ships.Where(s => s.Cargo.MissionCargo.ContainsKey(mission)).ToArray();
-            return tons >= 0 && carriers.Length > 0
+            return tons >= 0 && (carriers.Length > 0 || PortCargo?.MissionCargo.ContainsKey(mission) == true)
                 && carriers.All(s => !s.IsDestroyed)
-                && carriers.Sum(s => (long)s.Cargo.MissionCargo[mission]) >= tons;
+                && AllCargo.Sum(h => h.MissionCargo.TryGetValue(mission, out long amount) ? amount : 0) >= tons;
         }
 
         /// <summary>All of this job's freight must still exist in the delivery system.</summary>
         public bool CanDeliverMissionCargo(Guid mission, int tons, StarSystem? system) =>
             system != null && HasMissionCargo(mission, tons)
+            && (PortCargo?.MissionCargo.ContainsKey(mission) != true || ReferenceEquals(PortSystem, system))
             && _ships.All(s => !s.Cargo.MissionCargo.ContainsKey(mission)
                 || ReferenceEquals(s.CurrentSystem, system));
 
@@ -42,6 +48,7 @@ namespace EndlessSky.Sim
         {
             // Ended jobs must also release freight on parked or remote ships.
             foreach (Ship ship in _ships) ship.RemoveMissionCargo(mission);
+            PortCargo?.RemoveMissionCargo(mission);
         }
 
         /// <summary>
@@ -52,13 +59,15 @@ namespace EndlessSky.Sim
         {
             if (tons == 0)
             {
-                Flagship?.LoadMissionCargo(mission, 0);
+                if (PortCargo != null) PortCargo.AddMissionCargo(mission, 0);
+                else Flagship?.LoadMissionCargo(mission, 0);
                 return;
             }
             int remaining = tons;
+            if (PortCargo != null) remaining -= (int)PortCargo.ReserveMissionCargo(mission, commodity, remaining);
             foreach (Ship ship in _ships)
             {
-                int moved = ship.Cargo.ReserveMissionCargo(mission, commodity, remaining);
+                int moved = (int)ship.Cargo.ReserveMissionCargo(mission, commodity, remaining);
                 remaining -= moved;
                 if (remaining == 0) break;
             }

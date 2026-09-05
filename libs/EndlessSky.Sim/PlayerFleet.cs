@@ -26,6 +26,9 @@ namespace EndlessSky.Sim
         /// <summary>The ship the player flies. Null when the fleet is empty.</summary>
         public Ship? Flagship { get; private set; }
 
+        /// <summary>The faction shared by all owned ships, including parked and remote hulls.</summary>
+        public Government Government { get; } = new Government("Player") { IsPlayer = true };
+
         /// <summary>Ships that are neither parked nor destroyed: the ones actually flying.</summary>
         public IEnumerable<Ship> ActiveShips =>
             _ships.Where(s => !s.IsParked && !s.IsDestroyed);
@@ -39,6 +42,9 @@ namespace EndlessSky.Sim
             if (ship is null || _ships.Contains(ship))
                 return;
 
+            // PlayerInfo assigns the player government on purchase and load. A
+            // ship's manufacturer or previous owner does not remain its allegiance.
+            ship.Government = Government;
             _ships.Add(ship);
             Flagship ??= ship;
         }
@@ -109,12 +115,12 @@ namespace EndlessSky.Sim
         // --- Cargo ----------------------------------------------------------------
 
         /// <summary>Combined hold capacity, optionally limited to ships in one system.</summary>
-        public int CargoCapacity(StarSystem? system = null) => Ordered(system).Sum(s => s.Cargo.Capacity);
+        public long CargoCapacity(StarSystem? system = null) => Ordered(system).Sum(s => s.Cargo.Capacity);
 
         /// <summary>Tons carried, optionally limited to ships in one system.</summary>
-        public int CargoUsed(StarSystem? system = null) => Ordered(system).Sum(s => s.Cargo.Used);
+        public long CargoUsed(StarSystem? system = null) => CargoHolds(system).Sum(h => h.Used);
 
-        public int CargoFree(StarSystem? system = null) => Math.Max(0, CargoCapacity(system) - CargoUsed(system));
+        public long CargoFree(StarSystem? system = null) => Math.Max(0, CargoCapacity(system) - CargoUsed(system));
 
         /// <summary>
         /// Loads a commodity across the fleet, filling ships in order until the tonnage
@@ -130,6 +136,11 @@ namespace EndlessSky.Sim
             if (string.IsNullOrWhiteSpace(commodity) || tons <= 0)
                 return 0;
 
+            if (HasPortCargoHere(system))
+            {
+                RefreshPortCapacity();
+                return (int)PortCargo!.Add(commodity, tons);
+            }
             int remaining = tons;
 
             // Flagship first, then escorts, so a single-ship fleet behaves obviously.
@@ -151,6 +162,7 @@ namespace EndlessSky.Sim
                 return 0;
 
             int remaining = tons;
+            if (HasPortCargoHere(system)) remaining -= (int)PortCargo!.Remove(commodity, remaining);
             foreach (Ship ship in Ordered(system))
             {
                 if (remaining <= 0)
@@ -164,11 +176,11 @@ namespace EndlessSky.Sim
 
         /// <summary>How much of a commodity the fleet is carrying in total.</summary>
         public long CargoCount(string commodity, StarSystem? system = null) =>
-            Ordered(system).Sum(s => (long)s.Cargo.Count(commodity));
+            CargoHolds(system).Sum(h => h.Count(commodity));
 
         /// <summary>What the fleet's cargo would fetch at a system's prices.</summary>
         public long CargoValueAt(TradeData trade, string systemName) =>
-            ActiveShips.Sum(s => s.Cargo.ValueAt(trade, systemName));
+            CargoHolds().Sum(h => h.ValueAt(trade, systemName));
 
         private IEnumerable<Ship> Ordered(StarSystem? system = null)
         {

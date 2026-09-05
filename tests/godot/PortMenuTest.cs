@@ -22,24 +22,29 @@ namespace EndlessSky.Tests.Presentation
             public readonly MissionLog Missions;
             public int Saves, Loads, Departures;
 
-            public Session(int counter = 0, int price = 100, int? freight = null)
+            public Session(int counter = 0, int price = 100, int? freight = null, int ships = 1, int cargo = 0)
             {
                 var data = new GameData();
                 data.LoadText("trade\n\tcommodity Food 50 100\n" +
-                    "ship Trader\n\tattributes\n\t\tmass 80\n\t\thull 500\n\t\t\"cargo space\" 40\n" +
-                    "planet Home\n\tspaceport Busy\n" +
+                    "ship Trader\n\tattributes\n\t\tcost 1000\n\t\tmass 80\n\t\thull 500\n\t\t\"cargo space\" 40\n" +
+                    "shipyard Yard\n\tTrader\nplanet Home\n\tspaceport Busy\n\tshipyard Yard\n" +
                     "system Sol\n\tpos 0 0\n\tobject Home\n\ttrade Food 100\n" +
                     "mission Delivery\n\tjob\n\tdestination Home\n" +
                     (freight.HasValue ? $"\tcargo Food {freight.Value}\n" : "") +
                     "\ton offer\n\t\tdialog Ready\n\ton accept\n\t\tpayment 20\n");
                 data.Trade.SetPrice("Sol", "Food", price);
                 Player = new PlayerState(data);
-                Ship flagship = data.BuildShip("Trader");
-                flagship.CurrentSystem = data.Systems["Sol"];
-                Player.Fleet.Add(flagship);
+                for (int i = 0; i < ships; i++)
+                {
+                    Ship ship = data.BuildShip("Trader");
+                    ship.CurrentSystem = data.Systems["Sol"];
+                    Player.Fleet.Add(ship);
+                }
                 Player.SetCredits(1000);
                 Player.EnterSystem(data.Systems["Sol"]);
                 Player.Land(data.Planets["Home"]);
+                Player.Fleet.LoadCargo("Food", cargo);
+                Player.AdjustBasis("Food", cargo * 50L);
                 Missions = new MissionLog(Player);
                 ((SceneTree)Engine.GetMainLoop()).Root.AddChild(_root);
                 Ui.Bind(Player, Missions, data, () => Player.Fleet.Flagship);
@@ -55,7 +60,7 @@ namespace EndlessSky.Tests.Presentation
                     Port = LandedOverlay.Open(_root, Player, Missions, data.Planets["Home"], "Sol", data);
                 }
                 finally { LandedOverlay.OpenOnCounter = previous; }
-                Port.Departed += () => Departures++;
+                Port.Departed += _ => Departures++;
                 Ui.Port = Port;
             }
 
@@ -88,6 +93,94 @@ namespace EndlessSky.Tests.Presentation
                 AssertThat(capture.SavePng(ProjectSettings.GlobalizePath($"res://reports/{name}.png")))
                     .IsEqual(Error.Ok);
             }
+        }
+
+        [TestCase]
+        [RequireGodotRuntime]
+        public async Task CancellingExcessCargoDepartureKeepsGoodsAndConsumesTheKeys()
+        {
+            var session = new Session(counter: 1, ships: 2, cargo: 60);
+            try
+            {
+                session.Tap(Key.N);
+                AssertThat(session.Player.Fleet.Ships.Count).IsEqual(1);
+                string before = SaveGame.Write(session.Player, session.Missions);
+                session.Tap(Key.D);
+                AssertBool(session.Port.IsConfirmingDeparture).IsTrue();
+                AssertBool(session.Port.FindChildren("*", "Label", true, false).OfType<Label>()
+                    .Any(label => label.Text.Contains("Sell 20 t of Food")
+                        && label.Text.Contains("profit +1,000 cr"))).IsTrue();
+                await session.Capture("port-cargo-warning");
+                session.Frame(Key.Escape, Key.Enter, Key.B, Key.N, Key.D);
+                session.Frame(Key.Enter, Key.B, Key.N, Key.D);
+                AssertBool(session.Port.IsConfirmingDeparture).IsFalse();
+                AssertThat(session.Ui.Screen).IsEqual(UiScreen.None);
+                AssertThat(session.Departures).IsEqual(0);
+                AssertThat(SaveGame.Write(session.Player, session.Missions)).IsEqual(before);
+                await session.Capture("port-cargo-kept");
+            }
+            finally { await session.Release(); }
+        }
+
+        [TestCase]
+        [RequireGodotRuntime]
+        public async Task ConfirmingExcessCargoDepartureSellsOnceAndLoadsTheRemainingHull()
+        {
+            var session = new Session(counter: 1, ships: 2, cargo: 60);
+            try
+            {
+                session.Port.Departed += confirmed =>
+                {
+                    AssertBool(confirmed).IsTrue();
+                    AssertBool(session.Player.TakeOff(session.Missions, confirmed)).IsTrue();
+                    session.Ui.Port = null;
+                    session.Port.Hide();
+                };
+                session.Tap(Key.N);
+                long credits = session.Player.Credits;
+                session.Frame(Key.D, Key.Enter);
+                AssertBool(session.Port.IsConfirmingDeparture).IsTrue();
+                AssertThat(session.Departures).IsEqual(0);
+                session.Frame();
+                session.Frame(Key.KpEnter, Key.D, Key.N, Key.B);
+                session.Frame(Key.KpEnter, Key.D, Key.N, Key.B);
+                AssertThat(session.Departures).IsEqual(1);
+                AssertThat(session.Player.Credits).IsEqual(credits + 2000L);
+                AssertThat(session.Player.Flagship!.Cargo.Count("Food")).IsEqual(40L);
+                AssertThat(session.Player.CostBasis["Food"]).IsEqual(2000L);
+                AssertBool(session.Player.CurrentPlanet == null).IsTrue();
+                AssertBool(session.Player.Fleet.PortCargo == null).IsTrue();
+            }
+            finally { await session.Release(); }
+        }
+
+        [TestCase]
+        [RequireGodotRuntime]
+        public async Task FreightWarningNamesTheJobBeforeAbandoningIt()
+        {
+            var session = new Session(counter: 3, freight: 60, ships: 2);
+            try
+            {
+                session.Tap(Key.B);
+                session.Tap(Key.Enter);
+                ActiveMission job = session.Missions.Active.Single();
+                session.Tap(Key.Tab);
+                session.Tap(Key.Tab);
+                session.Tap(Key.N);
+                session.Tap(Key.D);
+                AssertBool(session.Port.IsConfirmingDeparture).IsTrue();
+                AssertThat(job.Outcome).IsEqual(MissionOutcome.Active);
+                AssertBool(session.Port.FindChildren("*", "Label", true, false).OfType<Label>()
+                    .Any(label => label.Text.Contains("Abandon: Delivery"))).IsTrue();
+                await session.Capture("port-freight-warning");
+                session.Port.Departed += confirmed =>
+                    AssertBool(session.Player.TakeOff(session.Missions, confirmed)).IsTrue();
+                session.Tap(Key.Enter);
+                AssertThat(job.Outcome).IsEqual(MissionOutcome.Aborted);
+                AssertThat(session.Departures).IsEqual(1);
+                AssertThat(session.Player.Fleet.CargoUsed()).IsEqual(0L);
+            }
+            finally { await session.Release(); }
         }
 
         [TestCase]

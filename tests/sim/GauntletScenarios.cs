@@ -306,10 +306,10 @@ namespace EndlessSky.Tests
             player.Fleet.SetFlagship(hauler);
             player.SetCredits(1_000_000);
 
-            int capacity = player.Fleet.CargoCapacity();
+            long capacity = player.Fleet.CargoCapacity();
             Assert.Greater(capacity, 0, "a freighter has hold space");
 
-            int tons = Math.Min(capacity, 20);
+            int tons = (int)Math.Min(capacity, 20);
             long spend = (long)tons * cheapest.Price;
             player.AddCredits(-spend);
             int loaded = player.Fleet.LoadCargo(commodity, tons);

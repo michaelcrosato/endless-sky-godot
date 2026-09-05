@@ -108,7 +108,7 @@ namespace EndlessSky.Sim
         /// </summary>
         public int LoadCargo(string commodity, int tons)
         {
-            int loaded = Cargo.Add(commodity, tons);
+            int loaded = (int)Cargo.Add(commodity, tons);
             SyncCargoCapacity();
             return loaded;
         }
@@ -116,14 +116,14 @@ namespace EndlessSky.Sim
         /// <summary>Unloads cargo and updates mass. Returns tons removed.</summary>
         public int UnloadCargo(string commodity, int tons)
         {
-            int removed = Cargo.Remove(commodity, tons);
+            int removed = (int)Cargo.Remove(commodity, tons);
             SyncCargoCapacity();
             return removed;
         }
 
         public int LoadMissionCargo(Guid mission, int tons)
         {
-            int loaded = Cargo.AddMissionCargo(mission, tons);
+            int loaded = (int)Cargo.AddMissionCargo(mission, tons);
             SyncCargoCapacity();
             return loaded;
         }
@@ -131,6 +131,18 @@ namespace EndlessSky.Sim
         public void RemoveMissionCargo(Guid mission)
         {
             Cargo.RemoveMissionCargo(mission);
+            SyncCargoCapacity();
+        }
+
+        internal void UnloadInto(CargoHold destination)
+        {
+            Cargo.TransferAll(destination);
+            SyncCargoCapacity();
+        }
+
+        internal void LoadFrom(CargoHold source)
+        {
+            source.TransferAll(Cargo);
             SyncCargoCapacity();
         }
     }

@@ -124,7 +124,7 @@ namespace EndlessSky.Game
                 _was[key] = down;
             }
 
-            if (!IsModal && Port?.IsOfferingMission == true)
+            if (!IsModal && Port?.HasDialog == true)
             {
                 Port.Step(this);
                 return;

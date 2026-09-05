@@ -176,7 +176,7 @@ namespace EndlessSky.Sim
                 return TradeResult.NotOwned;
 
             player.AddCredits((long)sold * price);
-            player.AdjustBasis(commodity, -basis);
+            player.RemoveBasis(commodity, basis);
             profit = (long)margin;
             data.Trade.AddPurchase(player.CurrentSystem!.Name, commodity, -sold);
             return TradeResult.Ok;

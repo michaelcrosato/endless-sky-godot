@@ -20,7 +20,7 @@ namespace EndlessSky.Sim
         /// </summary>
         public long GetBasis(string commodity, long tons = 1)
         {
-            long total = Fleet.Ships.Sum(s => (long)s.Cargo.Count(commodity));
+            long total = Fleet.AllCargo.Sum(h => h.Count(commodity));
             // Multiply before dividing so integer rounding applies to the whole lot.
             // Int128 preserves exactness when a valid 64-bit basis times tons would overflow.
             return total == 0 ? 0 : checked((long)((Int128)TotalBasis(commodity) * tons / total));
@@ -28,7 +28,14 @@ namespace EndlessSky.Sim
 
         public void AdjustBasis(string commodity, long adjustment)
         {
-            long value = checked(TotalBasis(commodity) + adjustment);
+            SetBasis(commodity, checked(TotalBasis(commodity) + adjustment));
+        }
+
+        internal void RemoveBasis(string commodity, long share) =>
+            SetBasis(commodity, checked(TotalBasis(commodity) - share));
+
+        private void SetBasis(string commodity, long value)
+        {
             if (value == 0) _costBasis.Remove(commodity);
             else _costBasis[commodity] = value;
         }
@@ -39,9 +46,7 @@ namespace EndlessSky.Sim
             // share. Per-ship rounding would leave the surviving cargo with extra cost.
             foreach (var cargo in ships.SelectMany(s => s.Cargo.Commodities).GroupBy(c => c.Key, StringComparer.Ordinal))
             {
-                long remaining = TotalBasis(cargo.Key) - GetBasis(cargo.Key, cargo.Sum(c => (long)c.Value));
-                if (remaining == 0) _costBasis.Remove(cargo.Key);
-                else _costBasis[cargo.Key] = remaining;
+                RemoveBasis(cargo.Key, GetBasis(cargo.Key, cargo.Sum(c => c.Value)));
             }
         }
     }

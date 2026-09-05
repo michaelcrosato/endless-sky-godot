@@ -161,7 +161,7 @@ namespace EndlessSky.Tests
             Assert.Multiple(() =>
             {
                 Assert.AreEqual(taken.PassengersCarried, log.Active.Single().PassengersCarried);
-                Assert.AreEqual(3, player.Flagship!.Cargo.MissionCargo[taken.Id]);
+                Assert.AreEqual(3, player.Fleet.PortCargo!.MissionCargo[taken.Id]);
                 Assert.AreEqual(0, player.Fleet.CargoCount("Grain"));
                 Assert.AreEqual(_player.Credits, player.Credits);
                 Assert.AreEqual(_player.Conditions.Get("Test: active"), player.Conditions.Get("Test: active"));
