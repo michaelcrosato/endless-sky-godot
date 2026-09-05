@@ -35,7 +35,7 @@ $tpz = Join-Path $stage $asset
 try {
   Write-Host "[1/3] Downloading $asset..."
   # Use the native curl application on each host, never a PowerShell alias.
-  $curl = Get-Command ($IsWindows ? 'curl.exe' : 'curl') -CommandType Application
+  $curl = Get-Command ($IsWindows ? 'curl.exe' : 'curl') -CommandType Application | Select-Object -First 1
   & $curl.Source -L --fail --retry 3 --retry-delay 5 -o $tpz $url
   if ($LASTEXITCODE -ne 0) { throw "Download failed (curl exit $LASTEXITCODE): $url" }
 

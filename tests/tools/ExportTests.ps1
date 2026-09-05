@@ -60,6 +60,50 @@ export_path="build/linux/game.x86_64"
         & (Join-Path $fixture 'tools/install-export-templates.ps1') -Version '9.8.7'
         Assert-True ($LASTEXITCODE -eq 0) 'The installer did not find the existing templates.'
 
+        # A host may find curl in both /usr/bin and /bin. Exercise the download
+        # path with two candidates and a tiny local archive, without network access.
+        $payload = Join-Path $fixture 'archive/templates'
+        New-Item -ItemType Directory -Path $payload -Force | Out-Null
+        Set-Content -LiteralPath (Join-Path $payload 'version.txt') -Value '9.8.7.stable.mono'
+        Set-Content -LiteralPath (Join-Path $payload 'linux_release.x86_64') -Value 'template payload'
+        $archive = Join-Path $fixture 'templates.zip'
+        Compress-Archive -LiteralPath $payload -DestinationPath $archive
+        @'
+$destination = $args[[Array]::IndexOf($args, '-o') + 1]
+Set-Content -LiteralPath (Join-Path $PSScriptRoot 'download-path.txt') -Value $destination
+if ($env:ENDLESS_SKY_EXPORT_TEST_MODE -eq 'download-fail') { exit 22 }
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'templates.zip') -Destination $destination
+exit 0
+'@ | Set-Content -LiteralPath (Join-Path $fixture 'curl.ps1')
+        function Get-Command {
+            param([string]$Name, [string]$CommandType)
+            if ($Name -notin 'curl', 'curl.exe') {
+                return Microsoft.PowerShell.Core\Get-Command @PSBoundParameters
+            }
+            [pscustomobject]@{ Source = Join-Path $fixture 'curl.ps1' }
+            [pscustomobject]@{ Source = Join-Path $fixture 'unused-curl.ps1' }
+        }
+        $installer = Join-Path $fixture 'tools/install-export-templates.ps1'
+        & $installer -Version '9.8.7' -Force
+        $template = Join-Path $templates 'linux_release.x86_64'
+        Assert-True ((Get-Content -LiteralPath $template) -eq 'template payload') 'The archive was not installed.'
+        $download = Get-Content -LiteralPath (Join-Path $fixture 'download-path.txt')
+        Assert-True (-not (Test-Path -LiteralPath (Split-Path -Parent $download))) 'Successful installation left download staging behind.'
+
+        Set-Content -LiteralPath (Join-Path $payload 'version.txt') -Value '9.8.6.stable.mono'
+        Compress-Archive -LiteralPath $payload -DestinationPath $archive -Force
+        Assert-Fails { & $installer -Version '9.8.7' -Force } 'Unexpected template version' 'A mismatched archive was installed.'
+        Assert-True ((Get-Content -LiteralPath (Join-Path $templates 'version.txt')) -eq '9.8.7.stable.mono') 'A bad archive replaced installed templates.'
+        $download = Get-Content -LiteralPath (Join-Path $fixture 'download-path.txt')
+        Assert-True (-not (Test-Path -LiteralPath (Split-Path -Parent $download))) 'A rejected archive left download staging behind.'
+
+        $env:ENDLESS_SKY_EXPORT_TEST_MODE = 'download-fail'
+        Assert-Fails { & $installer -Version '9.8.7' -Force } 'Download failed \(curl exit 22\)' 'A failed download was accepted.'
+        Assert-True ((Get-Content -LiteralPath $template) -eq 'template payload') 'A failed download damaged installed templates.'
+        $download = Get-Content -LiteralPath (Join-Path $fixture 'download-path.txt')
+        Assert-True (-not (Test-Path -LiteralPath (Split-Path -Parent $download))) 'A failed download left staging behind.'
+        $env:ENDLESS_SKY_EXPORT_TEST_MODE = $null
+
         & $export -Preset Linux -Release
         $artifact = Join-Path $fixture 'build/linux/game.x86_64'
         Assert-True ((Get-Content -LiteralPath $artifact) -eq 'exported game') 'The real export path did not produce an artifact.'
@@ -76,9 +120,10 @@ export_path="build/linux/game.x86_64"
             Assert-Fails { & $export -Preset Linux -OutputPath "build/$mode/game.x86_64" } $pattern "An invalid $mode export was accepted."
         }
     }
-    Write-Host '[ok] native template paths, installed-template discovery, export arguments and artifact failures'
+    Write-Host '[ok] native template paths, installation, cleanup, export arguments and artifact failures'
 }
 finally {
+    Remove-Item -LiteralPath Function:Get-Command -ErrorAction SilentlyContinue
     foreach ($entry in $savedEnvironment.GetEnumerator()) {
         [Environment]::SetEnvironmentVariable($entry.Key, $entry.Value)
     }
